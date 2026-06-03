@@ -18,20 +18,26 @@ single-service deploy on Render. See `DESIGN.md`.
   adapter
 - **Deploy:** single service — Express serves the built SPA in production
 
-## Intended layout
+## Layout
+
+npm-workspaces monorepo (`shared` / `server` / `client`):
 
 ```
-/client        Vite + React SPA
-/server        Express API + static serving
-  /engine      Pure scheduling/fluency logic (NO framework/DB imports)
-  /db          DB adapter + migrations
+/shared        Type-only package (Fact, DTOs…), consumed via `import type`
+/server        Express API + static serving (CommonJS)
+  /engine      Pure scheduling/fluency logic (NO framework/DB imports) + tests
+  /db          DB adapter interface + (later) migrations
   /api         Route handlers
-/shared        Types shared between client and server (Fact, etc.)
+  /data        Seed catalog
+/client        Vite + React SPA
 DESIGN.md
 CLAUDE.md
 ```
 
-> The repo is currently just docs — this layout is the target as code lands.
+> `shared` is **type-only** — everything imports it with `import type`, so it's
+> erased at build time and needs no compile step or runtime wiring. tsc resolves
+> it via the `@shared` path alias (`tsconfig.base.json`); Vite via a matching
+> resolve alias. If shared ever exports a runtime value, revisit this.
 
 ## Core principles
 
@@ -54,17 +60,30 @@ CLAUDE.md
 
 ## Commands
 
-> Scaffolding is not in place yet. Update this section as `package.json` scripts
-> are added. Target scripts:
+Run from the repo root (npm workspaces):
 
 ```
-npm run dev       # Vite dev server + Express (concurrently), proxied /api
-npm run build     # build client, compile server
-npm start         # production: Express serves built SPA
-npm test          # unit tests (engine first)
-npm run lint
-npm run typecheck
+npm install       # install all workspaces
+npm run dev       # Express (tsx watch, :3001) + Vite (:5173), /api proxied
+npm run build     # shared (tsc) → server (esbuild → dist) → client (vite build)
+npm start         # production: node server/dist/index.js serves the built SPA
+npm test          # engine unit tests (vitest, in server)
+npm run typecheck # tsc --noEmit across all three workspaces
 ```
+
+Per-workspace: append `-w server` / `-w client` / `-w shared` (e.g.
+`npm run test:watch -w server`).
+
+## Build notes
+
+- **Server build = esbuild**, not `tsc` — esbuild drops the type-only `@shared`
+  import cleanly and bundles `src/` to one CommonJS `dist/index.js`, with npm
+  deps left external. `tsc` is used only for `--noEmit` typechecking (setting
+  `rootDir` would trip TS6059 on the cross-package type import).
+- **Config via env** (`.env.example`): `PORT`, `DATABASE_URL` (scheme selects
+  the DB adapter), `COOKIE_SECRET`.
+- Dev-only `npm audit` warnings come from the esbuild/vite/vitest chain
+  (GHSA-67mh-4wv8-2f99); they don't affect the production server/static bundle.
 
 ## Conventions
 
