@@ -33,14 +33,21 @@ Two hard requirements drive every design decision:
 
 | Role | Who | Can do |
 | --- | --- | --- |
-| **Adult** (parent/teacher) | Owns the account | Create/manage kid profiles, pick which operations & fact ranges are active, view progress dashboards |
+| **Adult** (parent/teacher) | Owns the account | Create/manage kid profiles, enable fact sets per kid, view progress dashboards |
 | **Kid** | A profile under an adult | Pick their profile, play sessions, see their own progress map and rewards |
 
 - One **adult account** (email + password) holds **many kid profiles**.
 - Kids do **not** log in with a password — they tap their profile avatar from a
-  profile picker on the adult's device/session. This keeps it frictionless for
-  young kids while keeping data behind the adult's auth.
+  profile picker on the adult's authenticated session. Frictionless for young
+  kids; data stays behind the adult's auth.
 - A kid profile is scoped to exactly one adult account.
+
+### Auth specifics (pinned)
+
+- Passwords hashed with **argon2id**.
+- **Server-side session table** (`AuthSession`) keyed by a random opaque token
+  stored in an **httpOnly, SameSite=Lax, Secure** cookie. No JWTs.
+- Sessions expire after 30 days idle; logout deletes the row.
 
 ---
 
@@ -50,117 +57,269 @@ The core unit is a **Fact**: a single arithmetic problem.
 
 ```
 Fact {
-  id            // stable, e.g. "mul:7x8"
+  id            // canonical, stable — see id rules below
   operation     // 'add' | 'sub' | 'mul' | 'div'
-  operandA      // 7
-  operandB      // 8
-  answer        // 56
+  operandA
+  operandB
+  answer
 }
 ```
 
-- Facts are **generated**, not stored per-row in their own table — the universe
-  of facts is small and deterministic (e.g. multiplication 0–12 × 0–12 = 169
-  facts). A pure function produces the fact set for a given operation/range.
-- Subtraction and division are framed as the inverse of their partner fact
-  (`15 − 7` relates to `7 + 8`; `56 ÷ 7` relates to `7 × 8`) — useful later for
-  "fact family" grouping, but each direction is tracked as its own fact for
-  scheduling.
+Facts are **generated** by a pure function, never hand-stored. The universe is
+small and deterministic.
 
-### Fact sets / "decks"
+### 3.1 Fact sets — full grid (pinned)
 
-An adult enables **fact sets** per kid, e.g. "Multiplication 0–5", "Addition to
-20". A kid only ever sees facts from their enabled sets. This lets an adult
-follow a curriculum sequence instead of dumping all 169 multiplication facts at
-once.
+A **FactSet** is a catalog entry an adult enables per kid. Each set covers a
+**2-D range** of operands:
+
+```
+FactSet { id, operation, label, rangeSpec: { aMin, aMax, bMin, bMax } }
+```
+
+Generation rules **per operation** (this is the exact, unambiguous spec):
+
+- **add** — for every `a ∈ [aMin..aMax]`, `b ∈ [bMin..bMax]`: `answer = a + b`.
+  Commutative → **canonicalize so `a ≤ b`** (3+7 and 7+3 are the *same* fact).
+- **mul** — same as add, commutative, canonicalize `a ≤ b`. `answer = a · b`.
+- **sub** — generated as the inverse of addition so results are **never
+  negative**. Minuend `m ∈ [aMin..aMax]`, subtrahend `b ∈ [bMin..min(m,bMax)]`:
+  `answer = m − b`. Not commutative — order is meaningful.
+- **div** — generated as the inverse of multiplication so results are **always
+  whole, no ÷0**. Quotient `q ∈ [aMin..aMax]`, divisor `d ∈ [max(1,bMin)..bMax]`:
+  `dividend = q · d`, fact is `(q·d) ÷ d = q`. Not commutative.
+
+**Canonical fact ids:**
+`add:3+7`, `mul:3x7` (commutative ops always written with `a ≤ b`),
+`sub:15-7`, `div:56/7`. Ids are stable across sessions and profiles.
+
+### 3.2 Difficulty ordering
+
+New facts are introduced **easiest-first**, ordered by `(operandA + operandB)`
+ascending, then by `answer` ascending as a tiebreak. Used by the session planner
+(§4.4) so a kid meets `2 × 3` before `9 × 8`.
+
+### 3.3 Seed catalog (pinned)
+
+v1 ships a **broad catalog across all four operations**; the adult enables what
+each kid needs. Sets are named by **operand range** (not by sum) to match the
+full-grid model and avoid "to 10 = sums to 10?" confusion.
+
+| Operation | Seeded sets (rangeSpec interpreted per §3.1) |
+| --- | --- |
+| add | `0–5`, `0–10`, `0–12` |
+| sub | `0–10`, `0–20` (range = minuend; subtrahend `0…minuend`) |
+| mul | `0–5`, `0–10`, `0–12` |
+| div | `0–5`, `0–10`, `0–12` (range = quotient × divisor) |
+
+**Onboarding pre-checks** a gentle starter — *Addition 0–10* and
+*Multiplication 0–5* — which the adult can change before handing off.
 
 ---
 
 ## 4. Spaced Repetition & Fluency Engine
 
-This is the heart of the app. We combine **two ideas**:
+The heart of the app. Two ideas combined:
 
 1. **Spaced repetition** — schedule each fact to reappear at growing intervals,
-   so review effort concentrates on weak facts and barely touches mastered ones.
-2. **Fluency gating** — a fact isn't "known" until it's answered both
-   *correctly* **and** *quickly* (under a per-kid response-time threshold).
-   Speed is a first-class signal, not just accuracy.
+   concentrating effort on weak facts.
+2. **Fluency gating** — a fact isn't "mastered" until answered both *correctly*
+   **and** *quickly* (under the kid's adaptive threshold, §4.5). Speed is a
+   first-class signal.
 
 ### 4.1 Per-fact state
 
-For each `(profile, fact)` pair we store a `FactProgress` row:
+For each `(profile, fact)` pair, a `FactProgress` row:
 
 ```
 FactProgress {
   profileId
   factId
-  box           // Leitner box / mastery level: 0 (new) … 5 (mastered)
-  dueAt         // when this fact should next be shown
+  box            // 0 (learning) … 5 (mastered)
+  state          // 'learning' | 'review' | 'mastered'
+  dueAt          // when this fact should next surface (persistent schedule)
   lastSeenAt
-  reps          // total attempts
-  correctStreak // consecutive correct-and-fast answers
-  accuracy      // rolling % correct (EWMA)
-  medianMs      // rolling median response time (EWMA)
-  state         // 'new' | 'learning' | 'review' | 'mastered'
+  reps           // total attempts
+  fastCorrect    // count of correct-AND-fast answers
+  correctStreak  // consecutive correct-and-fast (for display/points)
+  accuracyEwma   // rolling % correct
+  medianMsEwma   // rolling median response time (correct answers)
 }
 ```
 
-### 4.2 Scheduling — modified Leitner boxes
+A fact with **no** `FactProgress` row is "unseen."
 
-We use a **Leitner box** system (simple, transparent, kid-friendly) rather than
-full SM-2, because:
+### 4.2 Two-tier scheduling (pinned)
 
-- It's robust to the *noisy, fast* answers young kids give.
-- Intervals are easy to reason about and tune.
-- Fluency (speed) maps naturally onto promotion/demotion rules.
+There are **two distinct mechanisms**; keeping them separate removes the
+biggest ambiguity in the old draft:
 
-| Box | Interval until due again |
-| --- | --- |
-| 0 (new/learning) | same session (re-show after a few other cards) |
-| 1 | ~10 minutes (later in session / next session) |
-| 2 | 1 day |
-| 3 | 3 days |
-| 4 | 7 days |
-| 5 (mastered) | 21 days |
+1. **Persistent schedule (Leitner boxes)** — `dueAt` on `FactProgress`. Governs
+   *across* sessions: which facts are due today/this week. Box intervals:
 
-**Promotion / demotion rules** (evaluated per answer):
+   | Box | State | Interval until due again |
+   | --- | --- | --- |
+   | 0 | learning | n/a — lives in the in-session queue, `dueAt` = next session |
+   | 1 | review | 1 day |
+   | 2 | review | 2 days |
+   | 3 | review | 4 days |
+   | 4 | review | 8 days |
+   | 5 | mastered | 21 days |
 
-- **Correct AND fast** (response time ≤ kid's fluency threshold for that op):
-  promote one box.
-- **Correct but slow**: stay in the same box (knows it, not yet automatic),
-  reschedule sooner.
-- **Incorrect**: demote toward box 0 and mark for near-term re-show within the
-  same session (this is the "repair" step — see *incremental rehearsal* below).
+   Intervals **< 1 day** don't exist in the persistent schedule — that job
+   belongs to tier 2. Intervals **≥ 1 day** snap to a **calendar-day boundary**
+   in the **adult's timezone** (stored on the account), so "due tomorrow" lands
+   the next morning, not 24h later.
 
-The **fluency threshold** is adaptive per kid and per operation: it starts
-lenient (e.g. 6s) and tightens as the kid speeds up, targeting genuine
-automaticity rather than a fixed clock that frustrates beginners.
+2. **In-session queue** — ephemeral, lives in the `Session` row's working state.
+   Governs *within* a session: incremental rehearsal of just-missed and
+   just-introduced facts. A fact re-shown "a few cards later" is the in-session
+   queue at work, **not** a sub-day box interval.
 
-### 4.3 Session composition — keeping it "just right"
+### 4.3 Promotion / demotion rules (pinned)
 
-Research on motivation says keep the **success rate high (~80%)** and sessions
-**short**. Each session is assembled by a `SessionPlanner`:
+Evaluated on every answer.
 
-- **Length:** ~20 questions or ~3 minutes, whichever comes first (configurable).
-- **Mix:** mostly *due review* facts the kid can mostly get right, salted with a
-  **small number of new facts** (default 2–4 per session) so it never feels like
-  a wall of unknowns.
-- **Interleaving:** new/weak facts are spaced out among easy wins, not clustered.
-- **Incremental rehearsal:** when a kid misses a fact, it's reintroduced a few
-  cards later among known facts, then again a bit further out — a
-  well-evidenced technique for cementing missed facts without frustration.
-- **Recency guard:** never show the same fact twice back-to-back.
+**Box 0 (learning, in-session only):**
+- A fact enters box 0 via the **study-first** intro (§4.6).
+- Each correct answer increments an in-session counter; **2 correct answers
+  in the session** (speed *not* required — it was just taught) promote it to
+  **box 1**. Wrong answer resets the in-session counter and re-queues it sooner.
+- At session end: if still box 0, persist at box 0 with `dueAt` = next session.
 
-### 4.4 Why this won't feel tedious
+**Boxes 1–4 (review):**
+- **Correct AND fast** → promote +1 box, set `dueAt` from the new box interval.
+- **Correct but slow** → stay in box; set `dueAt` to **half** the box interval
+  (knows it, not yet automatic — see it sooner).
+- **Wrong** → demote to `max(0, box − 2)`, add to the in-session re-show queue.
 
-| Anti-tedium lever | How |
+**Box 5 (mastered):**
+- **Correct AND fast** → stay mastered, 21-day interval.
+- **Correct but slow** → demote to box 4.
+- **Wrong** → demote to box 2, add to in-session re-show queue.
+
+`state` is derived: box 0 → `learning`, 1–4 → `review`, 5 → `mastered`.
+**Mastery is only reachable through sustained correct-and-fast answers across
+spaced intervals** — genuine automaticity, not a single lucky fast answer.
+
+### 4.4 Session composition — keeping it "just right"
+
+Each session is assembled by a pure `SessionPlanner`:
+
+- **Length:** `min(20 cards, 3 minutes)` (both configurable per profile).
+- **Mix:** mostly **due review** facts (box ≥ 1, `dueAt ≤ now`), salted with
+  **2–4 new facts** (default 3, configurable) drawn easiest-first (§3.2) from
+  the kid's enabled sets.
+- **Interleaving:** new/weak facts are spaced among easy wins, never clustered.
+- **Incremental rehearsal:** a missed fact is re-queued a few cards later among
+  known facts, then again further out.
+- **Recency guard:** never the same fact twice back-to-back.
+- **Target success rate ≈ 80%** — the planner caps how many hard/new facts ride
+  in one session to protect this.
+
+**Edge case — nothing (or little) is due (pinned):** never block a kid from
+playing. The planner fills in this priority order: (1) due review facts, (2)
+soonest-upcoming review facts pulled forward, (3) extra **new** facts beyond the
+normal 2–4 cap, (4) if a set is fully mastered, light review of mastered facts.
+A "you've mastered everything here — ask a grown-up to add more!" state is shown
+only when *all* enabled sets are fully mastered.
+
+### 4.5 Adaptive fluency threshold (pinned)
+
+The "fast enough" cutoff is **per profile, per operation**, and adapts to the
+kid's own speed.
+
+- Track a rolling median of **correct** response times per `(profile, operation)`
+  as an EWMA: `medianMsEwma`, stored in `OperationStat`.
+- **Cold start:** until the kid has `≥ 20` correct samples for that operation,
+  the threshold is a lenient **absolute ceiling** (`add/sub: 6000ms`,
+  `mul/div: 8000ms`).
+- **Warm:** `threshold = clamp(K × medianMsEwma, floor, ceiling)` where
+  `K = 1.3`, `floor = 1200ms`, `ceiling` as above. A fact counts as **fast**
+  when `responseMs ≤ threshold`.
+
+Rationale: a fact the kid *recalls* lands at/below their typical pace; a fact
+they *compute* (counting up, etc.) runs slower. Anchoring to their own median
+distinguishes the two and tightens automatically as they speed up — fair to
+beginners, demanding of the fluent. **All constants (`K`, floor, ceiling, sample
+threshold) are tuning knobs** to be calibrated against real `Attempt` data.
+
+### 4.6 New-fact introduction — study-first (pinned)
+
+When a brand-new fact first appears:
+
+1. **Study card** — shows the full fact with its answer (`7 × 8 = 56`) for a
+   brief beat (until tap, min ~1.5s). No input. This *teaches*, avoiding a cold
+   failure.
+2. **Immediate typed recall** — the same fact is quizzed right away as a normal
+   **typed** question (box 0, attempt 1). Because it was just shown, this is
+   recall-after-study, not a cold quiz.
+3. The fact is now in box 0 and follows §4.3 box-0 rules.
+
+Single input modality everywhere: **typed** (§4.7). No multiple-choice.
+
+### 4.7 Answer input & timing (pinned)
+
+- **Typed** via an on-screen number pad (works on touch + keyboard). Hardware
+  keyboard digits also accepted.
+- **`responseMs`**: timer starts when the card is fully rendered/interactive,
+  stops on submit.
+- **Submit is explicit** (Enter / a Go button) — **no auto-submit** on digit
+  count, so multi-digit answers aren't judged mid-type.
+- **Wrong answer**: reveal the correct answer briefly before advancing; the fact
+  is demoted (§4.3) and re-queued in-session.
+- **Source of truth**: the client measures `responseMs` and sends it; the
+  **server** recomputes correctness, `fast`, and all scheduling decisions and is
+  the sole writer of persisted state. Client timing is advisory input.
+- **Instant feedback / threat model**: card payloads **include the answer** and
+  the session payload includes the current per-operation `threshold`, so the
+  client renders correct/incorrect + fast feedback with zero latency. Kids are
+  **not** an adversarial threat model — leaking answers to the client is an
+  accepted tradeoff for snappy feedback; the server still independently recomputes
+  and persists state from the reported `given`/`responseMs` (§4.9).
+
+### 4.8 Why this won't feel tedious
+
+| Lever | How |
 | --- | --- |
 | Short bursts | 2–3 min sessions; always a clear, near finish line |
-| Adaptive difficulty | High success rate; new facts trickle in, never flood |
-| Immediate feedback | Instant correct/incorrect with warm, non-punitive tone |
+| Adaptive difficulty | ~80% success; new facts trickle in, never flood |
+| Immediate feedback | Instant correct/incorrect, warm and non-punitive |
 | Visible progress | A **fact grid** that lights up as facts master; streaks |
-| Gentle gamification | Points, streaks, unlockable avatars/themes — *rewarding*, never *punishing* slow answers |
-| Variety | Multiple question presentations (typed answer, multiple choice for new facts, fact-family framing) |
-| Respect the kid | No harsh timers shown to beginners; speed is encouraged, not weaponized |
+| Gentle gamification | Points & streaks *reward* effort; slowness is never *punished* |
+| Respect the kid | No harsh visible countdown for beginners; speed is encouraged via the adaptive threshold, not a stopwatch on screen |
+
+### 4.9 Card delivery — client-holds-deck, server-injects (pinned)
+
+The client plays through a deck snappily (no round-trip *to advance*), while the
+server stays authoritative over persisted state and reactive re-shows:
+
+1. `POST …/session` returns a **starter deck** (the planned ~20 cards, including
+   any study-first new-fact intros), the current per-operation `threshold`s, and
+   answers embedded in each card (§4.7).
+2. The client plays a card, shows **instant** feedback locally, and **reports**
+   the answer (`given`, `responseMs`) without blocking — it keeps playing the
+   cards it already holds.
+3. The server's reply to a report is authoritative and may carry **injects**:
+   `{ factId, afterOffset }` to splice a re-show (incremental rehearsal §4.4) a
+   few cards later, or appended cards if the deck is running short. The client
+   splices injects as they arrive; because re-shows are scheduled "a few cards
+   out," the round-trip lands in time.
+4. `POST …/complete` finalizes; the server reconciles `FactProgress` from the
+   `Attempt` log (the report stream), so a dropped report can't corrupt state.
+
+`Session.workingState` mirrors the deck + queue so a refresh resumes cleanly.
+
+### 4.10 Daily goal & "all caught up" (pinned)
+
+- A kid's **daily goal** = clear all **due** facts (box ≥ 1, `dueAt ≤ today` in
+  the account timezone) across enabled sets, plus the day's new-fact intros.
+- When the due queue empties, show a celebratory **"all caught up!"** moment.
+  Further play is allowed and framed as **bonus**, falling through the §4.4 fill
+  order (pull-forward / extra new facts).
+- **Streak = consecutive days with ≥ 1 *completed* session** — rewards showing
+  up, *not* perfectly clearing the queue (non-punitive, per the design ethos).
+  Hitting "all caught up" is a same-day celebration, never a streak gate.
 
 ---
 
@@ -183,81 +342,94 @@ A single full-stack app, one deployable service.
 │  Express server (Node)                           │
 │   - Auth (adult sessions, cookie-based)          │
 │   - REST API                                     │
-│   - Fluency/scheduling engine (pure functions)   │
+│   - Fluency/scheduling engine (PURE functions)   │
 │   - Serves built SPA static files in production  │
 └──────────────────┬───────────────────────────────┘
                    │
 ┌──────────────────▼───────────────────────────────┐
 │  SQLite (dev & small deploy) → Postgres (Render)  │
-│   via a thin DB layer so the swap is one adapter  │
+│   via a thin DB adapter so the swap is one seam   │
 └───────────────────────────────────────────────────┘
 ```
 
 ### 5.1 Tech choices
 
-- **Frontend:** Vite + React + TypeScript. Client-side routing. State kept
-  simple (React Query for server state, minimal local state).
-- **Backend:** Node + Express + TypeScript. Cookie-based sessions for the adult.
-- **DB:** SQLite locally and for tiny deploys; a single DB adapter interface so
-  Postgres can be dropped in for Render without touching app logic. Migrations
-  via a lightweight migration runner.
-- **The engine is pure:** all scheduling/fluency logic lives in framework-free,
-  fully unit-tested pure functions (`engine/`). The DB and HTTP layers only feed
-  it state and persist its output. This is the most important part to get right,
-  so it must be the easiest to test in isolation.
+- **Frontend:** Vite + React + TypeScript. React Query for server state.
+- **Backend:** Node + Express + TypeScript. Cookie-based adult sessions (§2).
+- **DB:** SQLite locally / tiny deploys; one DB-adapter interface so Postgres
+  drops in for Render without touching app logic. Lightweight migration runner.
+- **The engine is pure:** all scheduling/fluency/planner logic lives in
+  framework-free, fully unit-tested pure functions (`server/engine`). **No
+  `Date.now()` reached for inside the engine — time is passed in.** The DB and
+  HTTP layers feed it state and persist its output.
 
 ### 5.2 Single-service deploy
 
-In production the Express server serves the built React bundle as static files,
-so there's **one** service to deploy on Render (plus a Postgres add-on). Locally,
-Vite dev server proxies `/api` to Express.
+In production Express serves the built React bundle as static files — **one**
+Render service + a Postgres add-on. Locally, Vite dev server proxies `/api` to
+Express.
 
 ---
 
-## 6. Data Model (initial)
+## 6. Data Model (pinned for v1)
 
 ```
-Account      { id, email, passwordHash, createdAt }
-Profile      { id, accountId, displayName, avatar, createdAt }
-FactSet      { id, operation, label, rangeSpec }        // catalog, seeded
-ProfileFactSet { profileId, factSetId, enabled }        // which sets a kid does
-FactProgress { profileId, factId, box, dueAt, lastSeenAt,
-               reps, correctStreak, accuracy, medianMs, state }
-Attempt      { id, profileId, factId, correct, responseMs, answeredAt }  // event log
+Account      { id, email, passwordHash, timezone, createdAt }
+AuthSession  { id /*opaque token*/, accountId, expiresAt }
+Profile      { id, accountId, displayName, avatar, settings, createdAt }
+                // settings: { sessionCards, sessionSeconds, newPerSession }
+FactSet      { id, operation, label, rangeSpec }            // seeded catalog
+ProfileFactSet { profileId, factSetId, enabled }            // which sets a kid does
+FactProgress { profileId, factId, box, state, dueAt, lastSeenAt,
+               reps, fastCorrect, correctStreak, accuracyEwma, medianMsEwma }
+OperationStat{ profileId, operation, medianMsEwma, correctSamples }  // for §4.5
+Session      { id, profileId, startedAt, completedAt, plannedCount,
+               workingState /* JSON: in-session queue + box-0 counters */ }
+Attempt      { id, sessionId, profileId, factId, given, correct,
+               fast, responseMs, answeredAt }                // append-only log
 ```
 
-- `Attempt` is an append-only event log — useful for the adult dashboard and for
-  tuning the engine later. `FactProgress` is the derived current state.
+- `Attempt` is the append-only event log (dashboard + engine tuning).
+- `FactProgress` is the derived current state.
+- `Session.workingState` persists the in-session queue (§4.2 tier 2) as JSON so
+  a page refresh mid-session resumes cleanly.
 
 ---
 
 ## 7. Key User Flows
 
-1. **Adult onboarding:** sign up → create first kid profile → pick starting fact
-   sets (sensible defaults pre-checked) → hand device to kid.
-2. **Kid plays:** profile picker → "Play" → session player runs ~20 cards →
-   celebratory summary (facts mastered, streak, points) → done.
-3. **Adult checks in:** dashboard → per-kid fact grid (mastered/learning/new),
-   accuracy & speed trends, suggested next fact set to enable.
+1. **Adult onboarding:** sign up → set timezone → create first kid profile →
+   enable starting fact sets (sensible defaults pre-checked) → hand off device.
+2. **Kid plays:** profile picker → "Play" → planner builds session → study-first
+   intros + typed cards (~20 / 3 min) → celebratory summary (facts mastered,
+   streak, points) → done.
+3. **Adult checks in:** dashboard → per-kid fact grid (mastered/learning/unseen),
+   accuracy & speed trends, suggested next set to enable.
 
 ---
 
 ## 8. API Sketch
 
 ```
-POST /api/auth/signup            { email, password }
+POST /api/auth/signup            { email, password, timezone }
 POST /api/auth/login             { email, password }
 POST /api/auth/logout
 
 GET  /api/profiles               -> [Profile]
 POST /api/profiles               { displayName, avatar }
+PATCH/api/profiles/:id           { settings }
 GET  /api/profiles/:id/factsets  -> available + enabled sets
 PUT  /api/profiles/:id/factsets  { enabledIds }
 
-POST /api/profiles/:id/session   -> { sessionId, cards: [Fact…] }   // planner builds it
-POST /api/sessions/:id/answer    { factId, answer, responseMs }
-                                 -> { correct, expected, updatedProgress }
-POST /api/sessions/:id/complete  -> { summary }
+POST /api/profiles/:id/session   -> { sessionId, deck: [Card…], thresholds }
+                                 // Card: { fact, answer, isNew }  (answer embedded, §4.7)
+                                 // thresholds: per-operation fast cutoff (§4.5)
+POST /api/sessions/:id/answer    { factId, given, responseMs }   // report, non-blocking
+                                 -> { correct, fast, updatedProgress,
+                                      injects?: [{ factId, afterOffset }],
+                                      appendCards?: [Card…],
+                                      caughtUp?: boolean }        // §4.9, §4.10
+POST /api/sessions/:id/complete  -> { summary }                  // server reconciles state
 
 GET  /api/profiles/:id/progress  -> fact grid + trends for the dashboard
 ```
@@ -267,28 +439,63 @@ GET  /api/profiles/:id/progress  -> fact grid + trends for the dashboard
 ## 9. Roadmap
 
 **v1 (MVP)**
-- Adult auth + kid profiles
-- Multiplication & addition fact sets
-- Leitner + fluency engine with session planner
-- Session player with typed-answer + multiple-choice
-- Fact grid progress view + basic streaks/points
+- Adult auth + kid profiles + timezone
+- **All four operations**, full-grid seed catalog (§3.3)
+- Two-tier scheduling engine + adaptive threshold + session planner
+- Client-holds-deck / server-injects session player (§4.9): study-first intro,
+  typed number pad, wrong-answer reveal, "all caught up" goal (§4.10)
+- Fact grid progress view + daily streak + points
 
 **v1.1**
-- Subtraction & division + fact-family framing
 - Adult dashboard with accuracy/speed trends
 - Unlockable avatars/themes
 
 **Later**
-- Adaptive fluency-threshold tuning from `Attempt` history
+- Calibrate engine constants (§4.5) from `Attempt` history
 - Offline play with sync
 - Lightweight classroom mode (many profiles, quick switch)
+- Fact-family framing (link `7×8` ↔ `56÷7`) for transfer
 
 ---
 
-## 10. Open Questions
+## 10. Defaults chosen for ambiguous points (for the record)
 
-- Exact starting fluency thresholds per operation/grade — needs a first pass then
-  tuning against real `Attempt` data.
-- Multiple-choice vs typed-answer balance for the youngest kids (motor/typing
-  ability varies).
-- How aggressively to introduce new facts for a kid who's racing ahead.
+These were resolved to keep implementation unambiguous; revisit if needed:
+
+- **Streaks** = consecutive **days** with ≥1 completed session. **Points** =
+  +1 per correct, +1 bonus per correct-and-fast; cosmetic only.
+- **Division/subtraction** generated as inverses (no negatives, no ÷0, whole
+  quotients) — §3.1.
+- **Commutative canonicalization** — `a+b`/`a·b` stored once with `a ≤ b`.
+- **Multiple sessions/day allowed**; spaced repetition naturally resists cramming
+  because boxes ≥ 1 won't come due again same-day. Replays past "nothing due"
+  fall through the §4.4 fill order.
+- **Timezone** lives on the `Account`; all `≥1 day` interval math snaps to that
+  zone's calendar days.
+- **Session counting:** the study screen is a preface, not a counted card; the
+  recall attempt is. Re-shows count toward a hard ceiling of **~30 total
+  presentations** so a session stays ~3 min even with many misses.
+- **Abandoned session:** reopened the *same day* → resume from `workingState`;
+  otherwise discard and plan fresh. Streak/points credited only on `complete`.
+- **One active session per profile** at a time.
+- **Avatars:** a predefined picker (emoji/illustration set), no uploads.
+- **Zero enabled sets:** "Play" is disabled with a "grown-up, pick some facts"
+  prompt — a session can't be built from nothing.
+- **EWMA α = 0.2** for `medianMsEwma` / `accuracyEwma` (tunable).
+- **Answers in payload:** cards embed their answer for instant client feedback;
+  kids aren't an adversarial threat model (§4.7). Server stays sole state writer.
+- **Config via env:** `PORT`, `DATABASE_URL` (`sqlite:` path vs `postgres:` URL
+  selects the adapter), `COOKIE_SECRET`; DB seeding runs as part of migrate.
+- **Fact grid:** one 2-D grid per operation (operand A × operand B), cells
+  colored by box.
+- **Disabling a set retains progress:** disabling a set stops drawing its facts
+  into new sessions but keeps existing `FactProgress`, so re-enabling restores
+  mastery rather than wiping it.
+
+## 11. Open Questions (still genuinely open)
+
+- Exact tuning of fluency constants (`K`, floor, ceiling, cold-start sample
+  count) — needs a first pass then calibration on real data.
+- Starting fact-set defaults per typical grade band.
+- How aggressively to raise `newPerSession` for a kid racing ahead (auto-bump vs
+  adult-controlled).
