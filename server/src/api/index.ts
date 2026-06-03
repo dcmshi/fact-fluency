@@ -5,8 +5,11 @@
  */
 import { Router } from 'express';
 import { SEED_CATALOG } from '../data/catalog';
+import type { Db } from '../db';
 
-export function createApiRouter(): Router {
+// `db` is threaded in for the auth / profile / session handlers landing next.
+export function createApiRouter(db: Db): Router {
+  void db;
   const router = Router();
 
   router.get('/health', (_req, res) => {

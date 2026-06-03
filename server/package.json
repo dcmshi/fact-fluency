@@ -14,10 +14,12 @@
   },
   "dependencies": {
     "@fact-fluency/shared": "*",
+    "better-sqlite3": "^12.10.0",
     "cookie-parser": "^1.4.7",
     "express": "^4.21.2"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/cookie-parser": "^1.4.8",
     "@types/express": "^4.17.21",
     "@types/node": "^22.10.2",

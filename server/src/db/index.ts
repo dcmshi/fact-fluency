@@ -5,6 +5,7 @@
  * persistence work; this file pins the contract.
  */
 import type { FactProgress, OperationStat, Profile } from '@shared';
+import { SqliteDb } from './sqlite';
 
 export interface Db {
   // --- accounts & auth ---
@@ -31,14 +32,24 @@ export interface Db {
   close(): Promise<void>;
 }
 
-/**
- * Resolve which adapter a DATABASE_URL refers to. The adapters themselves are
- * implemented alongside the persistence layer.
- */
+/** Resolve which adapter a DATABASE_URL refers to (by scheme). */
 export function adapterKindFor(databaseUrl: string): 'sqlite' | 'postgres' {
   if (databaseUrl.startsWith('sqlite:')) return 'sqlite';
   if (databaseUrl.startsWith('postgres://') || databaseUrl.startsWith('postgresql://')) {
     return 'postgres';
   }
   throw new Error(`Unrecognized DATABASE_URL scheme: ${databaseUrl}`);
+}
+
+/** Strip the `sqlite:` scheme to a filename (or `:memory:`). */
+export function parseSqliteFilename(databaseUrl: string): string {
+  const rest = databaseUrl.slice('sqlite:'.length);
+  return rest === ':memory:' ? ':memory:' : rest;
+}
+
+/** Open (and migrate) the DB selected by DATABASE_URL. */
+export function createDb(databaseUrl: string): Db {
+  const kind = adapterKindFor(databaseUrl);
+  if (kind === 'sqlite') return new SqliteDb(parseSqliteFilename(databaseUrl));
+  throw new Error('Postgres adapter not implemented yet');
 }
