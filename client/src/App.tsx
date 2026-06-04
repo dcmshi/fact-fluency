@@ -1,41 +1,31 @@
-import { useEffect, useState } from 'react';
-import type { FactSet } from '@shared';
+import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
+import { useAuth } from './auth';
+import { AuthPage } from './pages/AuthPage';
+import { PlayPage } from './pages/PlayPage';
+import { ProfilesPage } from './pages/ProfilesPage';
+import { ProgressPage } from './pages/ProgressPage';
 
-/**
- * Scaffold landing page: confirms the API is reachable and renders the seeded
- * fact-set catalog. The real profile picker / session player replace this.
- */
 export function App() {
-  const [sets, setSets] = useState<FactSet[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { accountId, loading } = useAuth();
 
-  useEffect(() => {
-    fetch('/api/catalog')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((data: { sets: FactSet[] }) => setSets(data.sets))
-      .catch((e: Error) => setError(e.message));
-  }, []);
+  if (loading) {
+    return (
+      <div className="screen center-y">
+        <p className="muted">Loading…</p>
+      </div>
+    );
+  }
+
+  if (!accountId) return <AuthPage />;
 
   return (
-    <main className="app">
-      <h1>Fact Fluency</h1>
-      <p className="tagline">Spaced-repetition math fact practice — scaffold</p>
-
-      <section>
-        <h2>Fact set catalog</h2>
-        {error && <p className="error">Could not reach the API: {error}</p>}
-        {!sets && !error && <p>Loading…</p>}
-        {sets && (
-          <ul className="catalog">
-            {sets.map((s) => (
-              <li key={s.id}>
-                <span className={`op op-${s.operation}`}>{s.operation}</span>
-                {s.label}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<ProfilesPage />} />
+        <Route path="/play/:profileId" element={<PlayPage />} />
+        <Route path="/progress/:profileId" element={<ProgressPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }

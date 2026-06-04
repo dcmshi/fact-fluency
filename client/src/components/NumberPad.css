@@ -1,0 +1,50 @@
+.pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.7rem;
+  width: 100%;
+}
+
+.pad-key {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.5rem, 6vw, 2rem);
+  color: var(--ink);
+  background: var(--card);
+  border: none;
+  border-radius: var(--r-md);
+  padding: clamp(0.7rem, 3vw, 1.1rem) 0;
+  box-shadow:
+    0 5px 0 var(--line),
+    0 12px 24px -16px rgba(43, 36, 64, 0.5);
+  transition:
+    transform 0.05s ease,
+    box-shadow 0.05s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.pad-key:active:not(:disabled) {
+  transform: translateY(5px);
+  box-shadow: 0 0 0 var(--line);
+}
+.pad-key:disabled {
+  opacity: 0.45;
+}
+
+.pad-fn {
+  color: var(--ink-soft);
+  background: #fdeed7;
+  box-shadow: 0 5px 0 #ecd9b6;
+}
+.pad-fn:active:not(:disabled) {
+  box-shadow: 0 0 0 #ecd9b6;
+}
+
+.pad-go {
+  color: #fff;
+  background: var(--add);
+  box-shadow: 0 5px 0 #1f8c5b;
+}
+.pad-go:active:not(:disabled) {
+  box-shadow: 0 0 0 #1f8c5b;
+}

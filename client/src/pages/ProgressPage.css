@@ -1,0 +1,71 @@
+.grid-card {
+  padding: 1.3rem;
+}
+.grid-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.grid-head h2 {
+  font-size: 1.2rem;
+}
+.grid-head .op-sym {
+  font-weight: 700;
+}
+.grid-count {
+  font-weight: 800;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.fact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(46px, 1fr));
+  gap: 5px;
+}
+.fact-cell {
+  aspect-ratio: 1;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  transition: transform 0.08s ease;
+}
+.fact-cell:hover {
+  transform: scale(1.12);
+  position: relative;
+  z-index: 2;
+}
+.fact-cell-text {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 0.62rem;
+  color: var(--ink);
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0 1rem;
+}
+.legend-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.legend-swatches {
+  display: flex;
+  gap: 4px;
+}
+.legend-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+}

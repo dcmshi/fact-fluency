@@ -22,3 +22,6 @@ npm-debug.log*
 .vscode/*
 !.vscode/extensions.json
 *.local
+
+# local screenshots
+.shots/

@@ -1,75 +1,285 @@
+/* ===========================================================================
+   Fact Fluency — "Playground arcade" design system
+   Warm paper, candy operation colors, chunky tactile buttons with hard offset
+   shadows that physically press down. Fredoka (display) + Nunito (body).
+   =========================================================================== */
+
 :root {
-  --bg: #0f1424;
-  --panel: #1a2138;
-  --ink: #eef1fb;
-  --muted: #9aa3c0;
-  --accent: #5b8cff;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* surfaces & ink */
+  --paper: #fff7ec;
+  --paper-2: #fdeed7;
+  --card: #ffffff;
+  --ink: #2b2440;
+  --ink-soft: #6b6480;
+  --line: #efe2cc;
+
+  /* brand + operations */
+  --sun: #ffc83d;
+  --add: #2fb87a;
+  --sub: #ff6b5c;
+  --mul: #3b82f6;
+  --div: #f59e0b;
+  --correct: #2fb87a;
+  --wrong: #ff6b5c;
+
+  /* tactile button depth (hard, no blur) */
+  --press: 6px;
+
+  --r-lg: 26px;
+  --r-md: 18px;
+  --r-sm: 12px;
+
+  --font-display: "Fredoka", system-ui, sans-serif;
+  --font-body: "Nunito", system-ui, sans-serif;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
   margin: 0;
-  background: var(--bg);
+  font-family: var(--font-body);
   color: var(--ink);
+  background-color: var(--paper);
+  /* subtle dotted playground texture + warm vignette */
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(43, 36, 64, 0.05) 1px, transparent 0),
+    radial-gradient(120% 80% at 50% -10%, var(--paper-2), var(--paper) 60%);
+  background-size:
+    22px 22px,
+    100% 100%;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-.app {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 3rem 1.5rem;
-}
-
-h1 {
+h1,
+h2,
+h3,
+.display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
   margin: 0;
-  font-size: 2.25rem;
-  letter-spacing: -0.02em;
 }
 
-.tagline {
-  color: var(--muted);
-  margin-top: 0.25rem;
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
 }
 
-h2 {
-  font-size: 1rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  margin-top: 2.5rem;
+/* --- layout shells --- */
+.screen {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: clamp(1rem, 3vw, 2.5rem);
 }
 
-.catalog {
-  list-style: none;
-  padding: 0;
-  display: grid;
-  gap: 0.5rem;
+.stack {
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
 }
 
-.catalog li {
+.center-y {
+  flex: 1;
+  justify-content: center;
+}
+
+/* --- brand mark --- */
+.brand {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  background: var(--panel);
-  padding: 0.75rem 1rem;
-  border-radius: 0.6rem;
-}
-
-.op {
-  font-size: 0.7rem;
+  gap: 0.6rem;
+  font-family: var(--font-display);
   font-weight: 700;
-  text-transform: uppercase;
-  padding: 0.15rem 0.5rem;
-  border-radius: 0.4rem;
-  background: rgba(91, 140, 255, 0.18);
-  color: var(--accent);
-  min-width: 3rem;
-  text-align: center;
+  font-size: 1.35rem;
+}
+.brand .glyph {
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 12px;
+  background: var(--sun);
+  box-shadow: 0 4px 0 #e0a91f;
+  transform: rotate(-6deg);
 }
 
-.error {
-  color: #ff8a8a;
+/* --- card --- */
+.card {
+  background: var(--card);
+  border-radius: var(--r-lg);
+  padding: clamp(1.3rem, 4vw, 2rem);
+  box-shadow:
+    0 2px 0 var(--line),
+    0 18px 40px -24px rgba(43, 36, 64, 0.45);
+}
+
+/* --- chunky pressable button --- */
+.btn {
+  --c: var(--ink);
+  --shadow: #c9b48f;
+  position: relative;
+  border: none;
+  border-radius: var(--r-md);
+  background: var(--c);
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.05rem;
+  padding: 0.95rem 1.25rem;
+  box-shadow: 0 var(--press) 0 var(--shadow);
+  transition:
+    transform 0.06s ease,
+    box-shadow 0.06s ease,
+    filter 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.btn:hover {
+  filter: brightness(1.04);
+}
+.btn:active,
+.btn[data-pressed="true"] {
+  transform: translateY(var(--press));
+  box-shadow: 0 0 0 var(--shadow);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn.full {
+  width: 100%;
+}
+.btn.sun {
+  --c: var(--sun);
+  --shadow: #e0a91f;
+  color: var(--ink);
+}
+.btn.ghost {
+  background: transparent;
+  color: var(--ink-soft);
+  box-shadow: none;
+  font-weight: 700;
+}
+.btn.ghost:active {
+  transform: none;
+}
+
+/* operation accents */
+.op-add {
+  --c: var(--add);
+  --shadow: #1f8c5b;
+}
+.op-sub {
+  --c: var(--sub);
+  --shadow: #d24a3d;
+}
+.op-mul {
+  --c: var(--mul);
+  --shadow: #2563c9;
+}
+.op-div {
+  --c: var(--div);
+  --shadow: #c87d08;
+}
+
+/* --- form fields --- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.field label {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  padding-left: 0.4rem;
+}
+.field input {
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  font-weight: 600;
+  padding: 0.85rem 1rem;
+  border: 2px solid var(--line);
+  border-radius: var(--r-md);
+  background: #fffdf8;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.field input:focus {
+  border-color: var(--sun);
+}
+
+.muted {
+  color: var(--ink-soft);
+}
+.error-banner {
+  background: #ffe8e5;
+  color: #b83a2d;
+  border-radius: var(--r-md);
+  padding: 0.7rem 1rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+/* --- op chip --- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.15rem 0.7rem;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+.chip.op-add {
+  background: var(--add);
+}
+.chip.op-sub {
+  background: var(--sub);
+}
+.chip.op-mul {
+  background: var(--mul);
+}
+.chip.op-div {
+  background: var(--div);
+}
+
+/* --- entrance animation --- */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise {
+  animation: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }

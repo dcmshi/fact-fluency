@@ -130,3 +130,26 @@ export interface SessionSummary {
   mastered: number;
   pointsEarned: number;
 }
+
+// ---------------------------------------------------------------------------
+// Progress view — the adult fact grid (DESIGN.md §7)
+// ---------------------------------------------------------------------------
+
+export type CellState = 'unseen' | FactState;
+
+export interface ProgressCell {
+  operandA: number;
+  operandB: number;
+  answer: number;
+  box: Box | null;
+  state: CellState;
+}
+
+export interface ProgressGrid {
+  operation: Operation;
+  cells: ProgressCell[];
+}
+
+export interface ProgressView {
+  grids: ProgressGrid[];
+}

@@ -7,6 +7,7 @@ import { requireAuth } from '../auth/middleware';
 import { createAuthRouter } from '../auth/routes';
 import { SEED_CATALOG } from '../data/catalog';
 import type { Db } from '../db';
+import { getProgressView } from '../progress';
 import * as sessions from '../session/service';
 import { SessionError } from '../session/service';
 import { createProfileRouter } from './profiles';
@@ -61,9 +62,13 @@ export function createApiRouter(db: Db, isProd: boolean): Router {
     }),
   );
 
-  // --- stub (501) — adult dashboard, roadmap v1.1 ---
-  router.get('/profiles/:id/progress', (_req: Request, res: Response) =>
-    res.status(501).json({ error: 'not_implemented' }),
+  // --- progress (fact grid, DESIGN.md §7) ---
+  router.get(
+    '/profiles/:id/progress',
+    requireAuth,
+    handle(async (req, res) => {
+      res.json(await getProgressView(db, req.accountId!, req.params.id));
+    }),
   );
 
   return router;

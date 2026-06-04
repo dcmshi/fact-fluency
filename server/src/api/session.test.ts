@@ -130,3 +130,32 @@ describe('session errors', () => {
     expect((await other.post(`/api/profiles/${profileId}/session`)).status).toBe(404);
   });
 });
+
+describe('progress view', () => {
+  it('returns a grid per enabled operation with unseen cells initially', async () => {
+    const { agent, profileId } = await setup();
+    const res = await agent.get(`/api/profiles/${profileId}/progress`);
+    expect(res.status).toBe(200);
+    // Default enabled sets are add-0-10 and mul-0-5.
+    const ops = res.body.grids.map((g: { operation: string }) => g.operation);
+    expect(ops).toEqual(['add', 'mul']);
+    const add = res.body.grids.find((g: { operation: string }) => g.operation === 'add');
+    expect(add.cells.length).toBe(66); // 0..10 canonicalized = 11*12/2
+    expect(add.cells.every((c: { state: string }) => c.state === 'unseen')).toBe(true);
+  });
+
+  it('reflects learning progress after a session answer', async () => {
+    const { agent, profileId } = await setup();
+    const { body: session } = await agent.post(`/api/profiles/${profileId}/session`);
+    const card = session.deck[0];
+    await agent
+      .post(`/api/sessions/${session.sessionId}/answer`)
+      .send({ factId: card.fact.id, given: card.answer, responseMs: 1500 });
+
+    const res = await agent.get(`/api/profiles/${profileId}/progress`);
+    const learning = res.body.grids
+      .flatMap((g: { cells: { state: string }[] }) => g.cells)
+      .filter((c: { state: string }) => c.state === 'learning');
+    expect(learning.length).toBe(1);
+  });
+});
