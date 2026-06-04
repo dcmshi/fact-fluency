@@ -1,5 +1,40 @@
 import { describe, expect, it } from 'vitest';
-import { factId, generateFacts } from './facts';
+import { factId, familyHint, generateFacts } from './facts';
+
+describe('familyHint', () => {
+  const fact = (operation: 'add' | 'sub' | 'mul' | 'div', operandA: number, operandB: number, answer: number) => ({
+    id: factId(operation, operandA, operandB),
+    operation,
+    operandA,
+    operandB,
+    answer,
+  });
+
+  it('frames a division fact with its multiplication sibling', () => {
+    // 56 ÷ 7 = 8  ←  8 × 7 = 56
+    expect(familyHint(fact('div', 56, 7, 8))).toEqual({
+      operandA: 8,
+      operandB: 7,
+      operation: 'mul',
+      answer: 56,
+    });
+  });
+
+  it('frames a subtraction fact with its addition sibling', () => {
+    // 15 − 7 = 8  ←  8 + 7 = 15
+    expect(familyHint(fact('sub', 15, 7, 8))).toEqual({
+      operandA: 8,
+      operandB: 7,
+      operation: 'add',
+      answer: 15,
+    });
+  });
+
+  it('returns null for the base operations (add/mul)', () => {
+    expect(familyHint(fact('add', 3, 7, 10))).toBeNull();
+    expect(familyHint(fact('mul', 3, 7, 21))).toBeNull();
+  });
+});
 
 describe('factId', () => {
   it('canonicalizes commutative operations to a ≤ b', () => {

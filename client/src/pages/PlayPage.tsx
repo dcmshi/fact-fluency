@@ -191,6 +191,15 @@ export function PlayPage() {
           {phase === 'study' ? (
             <div className="card study-card rise" key={current.fact.id}>
               <div className="study-tag">New fact — take a look!</div>
+              {current.family && (
+                <div className="family-hint">
+                  <span className="family-eq">
+                    {current.family.operandA} {OP_SYMBOL[current.family.operation]}{' '}
+                    {current.family.operandB} = {current.family.answer}
+                  </span>
+                  <span className="family-so">so…</span>
+                </div>
+              )}
               <div className="equation big">
                 <span>{current.fact.operandA}</span>
                 <span className="op">{OP_SYMBOL[current.fact.operation]}</span>

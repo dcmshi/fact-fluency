@@ -42,6 +42,21 @@ describe('session loop', () => {
     expect(session.sessionSeconds).toBe(180);
   });
 
+  it('frames new sub/div cards with their inverse sibling (fact families)', async () => {
+    const { agent, profileId } = await setup();
+    await agent.put(`/api/profiles/${profileId}/factsets`).send({ enabledIds: ['div-0-5'] });
+    const { body: session } = await agent.post(`/api/profiles/${profileId}/session`);
+    const divCard = (session.deck as Card[]).find((c) => c.fact.operation === 'div' && c.isNew);
+    expect(divCard).toBeDefined();
+    // The sibling is the multiplication that produces the dividend.
+    expect(divCard!.family).toEqual({
+      operandA: divCard!.fact.answer,
+      operandB: divCard!.fact.operandB,
+      operation: 'mul',
+      answer: divCard!.fact.operandA,
+    });
+  });
+
   it('reflects an edited sessionSeconds in the next session', async () => {
     const { agent, profileId } = await setup();
     await agent.patch(`/api/profiles/${profileId}`).send({ settings: { sessionSeconds: 90 } });

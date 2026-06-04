@@ -7,7 +7,7 @@
  * addition (never negative); division the inverse of multiplication (whole
  * quotients, never ÷0).
  */
-import type { Fact, FactSet, Operation, RangeSpec } from '@shared';
+import type { Fact, FactHint, FactSet, Operation, RangeSpec } from '@shared';
 
 /** Canonical, stable id for a fact. Commutative ops are written with a ≤ b. */
 export function factId(operation: Operation, a: number, b: number): string {
@@ -101,4 +101,21 @@ export function generateFactsForSets(sets: FactSet[]): Fact[] {
     for (const fact of generateFacts(set.operation, set.rangeSpec)) byId.set(fact.id, fact);
   }
   return [...byId.values()].sort(byDifficulty);
+}
+
+/**
+ * The inverse "sibling" that frames a subtraction/division fact for transfer
+ * (DESIGN.md §9): since `sub`/`div` are generated as inverses (§3.1), a sub fact
+ * `m − b = a` is explained by `a + b = m`, and a div fact `n ÷ d = q` by
+ * `q × d = n`. Returns null for add/mul (the base operations have no framing).
+ */
+export function familyHint(fact: Fact): FactHint | null {
+  switch (fact.operation) {
+    case 'sub':
+      return { operandA: fact.answer, operandB: fact.operandB, operation: 'add', answer: fact.operandA };
+    case 'div':
+      return { operandA: fact.answer, operandB: fact.operandB, operation: 'mul', answer: fact.operandA };
+    default:
+      return null;
+  }
 }

@@ -17,7 +17,7 @@ import type {
 } from '@shared';
 import { SEED_CATALOG } from '../data/catalog';
 import type { Db, SessionRecord } from '../db';
-import { generateFactsForSets } from '../engine/facts';
+import { familyHint, generateFactsForSets } from '../engine/facts';
 import { gradeAnswer } from '../engine/grade';
 import { planSession } from '../engine/planner';
 import { fluencyThreshold } from '../engine/threshold';
@@ -174,6 +174,10 @@ export async function startSession(
     now,
     sessionCards: profile.settings.sessionCards,
     newPerSession: profile.settings.newPerSession,
+  }).map((card) => {
+    // Frame a new sub/div intro with its known inverse sibling (DESIGN.md §9).
+    const hint = card.isNew ? familyHint(card.fact) : null;
+    return hint ? { ...card, family: hint } : card;
   });
 
   const sessionId = randomUUID();

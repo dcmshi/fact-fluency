@@ -120,11 +120,22 @@ export interface RewardsView {
 // Session DTOs — client-holds-deck / server-injects (DESIGN.md §4.9)
 // ---------------------------------------------------------------------------
 
+/** An inverse "sibling" fact that explains a new sub/div fact (fact-family
+ *  framing — e.g. 7×8=56 framing 56÷7=8). See DESIGN.md §9 "Later". */
+export interface FactHint {
+  operandA: number;
+  operandB: number;
+  operation: Operation;
+  answer: number;
+}
+
 /** A card the client plays. `answer` is embedded for instant feedback (§4.7). */
 export interface Card {
   fact: Fact;
   answer: number;
   isNew: boolean;
+  /** For a new sub/div intro: the known mul/add sibling shown on the study card. */
+  family?: FactHint;
 }
 
 /** Per-operation "fast enough" cutoffs (ms), sent so the client can render

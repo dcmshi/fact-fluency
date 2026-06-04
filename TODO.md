@@ -37,8 +37,12 @@ This is a backlog, not a commitment — pick from it as needed.
       tables (no profile-table migration). Themes apply via `body[data-theme]`
       (palette-only; operation colors stay fixed) on the Play screen and live in
       the shop. Cross-op suggestions/new operations untouched.
-- [ ] **Subtraction/division fact-family framing** (DESIGN.md §9 "Later") — link
-      `7×8` ↔ `56÷7` for transfer.
+- [x] **Subtraction/division fact-family framing** (DESIGN.md §9 "Later") — a new
+      sub/div study card now shows its known inverse sibling (`8 × 7 = 56` → `so…`
+      → `56 ÷ 7 = 8`). Pure `familyHint(fact)` in `engine/facts.ts` (sub→add,
+      div→mul, null for base ops), attached to new cards at deck-build time and
+      rendered on the study screen. Presentation-only — no scheduling transfer
+      (mastery seeding the sibling's box) yet; that's the deeper follow-up.
 - [ ] **Offline play + sync** (DESIGN.md §9 "Later").
 
 ## Polish
