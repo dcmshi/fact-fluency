@@ -51,6 +51,32 @@ interface SessionRow {
   working_state: string;
 }
 
+interface AttemptRow {
+  id: string;
+  session_id: string;
+  profile_id: string;
+  fact_id: string;
+  given: number;
+  correct: number;
+  fast: number;
+  response_ms: number;
+  answered_at: number;
+}
+
+function toAttempt(r: AttemptRow): AttemptRecord {
+  return {
+    id: r.id,
+    sessionId: r.session_id,
+    profileId: r.profile_id,
+    factId: r.fact_id,
+    given: r.given,
+    correct: !!r.correct,
+    fast: !!r.fast,
+    responseMs: r.response_ms,
+    answeredAt: r.answered_at,
+  };
+}
+
 function toSession(r: SessionRow): SessionRecord {
   return {
     id: r.id,
@@ -318,28 +344,15 @@ export class SqliteDb implements Db {
   async listSessionAttempts(sessionId: string): Promise<AttemptRecord[]> {
     const rows = this.db
       .prepare('SELECT * FROM attempt WHERE session_id = ? ORDER BY answered_at')
-      .all(sessionId) as {
-      id: string;
-      session_id: string;
-      profile_id: string;
-      fact_id: string;
-      given: number;
-      correct: number;
-      fast: number;
-      response_ms: number;
-      answered_at: number;
-    }[];
-    return rows.map((r) => ({
-      id: r.id,
-      sessionId: r.session_id,
-      profileId: r.profile_id,
-      factId: r.fact_id,
-      given: r.given,
-      correct: !!r.correct,
-      fast: !!r.fast,
-      responseMs: r.response_ms,
-      answeredAt: r.answered_at,
-    }));
+      .all(sessionId) as AttemptRow[];
+    return rows.map(toAttempt);
+  }
+
+  async listProfileAttempts(profileId: string, since: number): Promise<AttemptRecord[]> {
+    const rows = this.db
+      .prepare('SELECT * FROM attempt WHERE profile_id = ? AND answered_at >= ? ORDER BY answered_at')
+      .all(profileId, since) as AttemptRow[];
+    return rows.map(toAttempt);
   }
 
   async close(): Promise<void> {

@@ -160,3 +160,52 @@ export interface ProgressGrid {
 export interface ProgressView {
   grids: ProgressGrid[];
 }
+
+// ---------------------------------------------------------------------------
+// Adult dashboard — accuracy/speed trends + next-set suggestion (DESIGN.md §7)
+// ---------------------------------------------------------------------------
+
+/** One calendar day (account tz) of play, for the trend chart. */
+export interface DayTrend {
+  /** YYYY-MM-DD in the account timezone. */
+  day: string;
+  attempts: number;
+  correct: number;
+  fastCorrect: number;
+  /** correct / attempts, 0..1 (0 when no attempts that day). */
+  accuracy: number;
+  /** Median responseMs of correct attempts that day, or null if none. */
+  medianMs: number | null;
+}
+
+/** Headline counts over a kid's enabled facts + the trend window. */
+export interface DashboardSummary {
+  totalFacts: number;
+  mastered: number;
+  review: number;
+  learning: number;
+  unseen: number;
+  /** Attempts within the trend window. */
+  attempts: number;
+  /** Overall accuracy within the window, 0..1. */
+  accuracy: number;
+  /** Distinct days with ≥1 attempt within the window. */
+  daysActive: number;
+}
+
+/** A catalog set the adult could enable next, with a kid-friendly rationale. */
+export interface SetSuggestion {
+  setId: string;
+  operation: Operation;
+  label: string;
+  reason: string;
+}
+
+export interface DashboardView {
+  displayName: string;
+  streak: number;
+  windowDays: number;
+  trends: DayTrend[];
+  summary: DashboardSummary;
+  suggestion: SetSuggestion | null;
+}

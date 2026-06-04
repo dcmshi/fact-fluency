@@ -135,6 +135,29 @@ describe('sessions', () => {
     await db.completeSession('s1', 9);
     expect(await db.getOpenSession(profile.id)).toBeNull();
   });
+
+  it('listProfileAttempts filters by since and orders oldest-first', async () => {
+    const { profile } = await makeAccountAndProfile();
+    await db.createSession(make('s1', profile.id, 0));
+    const attempt = (id: string, answeredAt: number) => ({
+      id,
+      sessionId: 's1',
+      profileId: profile.id,
+      factId: 'add:2+3',
+      given: 5,
+      correct: true,
+      fast: true,
+      responseMs: 1200,
+      answeredAt,
+    });
+    await db.appendAttempt(attempt('a3', 300));
+    await db.appendAttempt(attempt('a1', 100));
+    await db.appendAttempt(attempt('a2', 200));
+
+    const since200 = await db.listProfileAttempts(profile.id, 200);
+    expect(since200.map((a) => a.id)).toEqual(['a2', 'a3']); // >= 200, oldest first
+    expect(await db.listProfileAttempts('nobody', 0)).toEqual([]);
+  });
 });
 
 describe('operation stats', () => {

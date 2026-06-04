@@ -215,6 +215,42 @@ describe('progress view', () => {
     expect(add.cells.every((c: { state: string }) => c.state === 'unseen')).toBe(true);
   });
 
+  it('summarizes attempts into dashboard trends', async () => {
+    const { agent, profileId } = await setup();
+    const { body: session } = await agent.post(`/api/profiles/${profileId}/session`);
+    const deck = session.deck as Card[];
+    // Two correct, one wrong.
+    await agent
+      .post(`/api/sessions/${session.sessionId}/answer`)
+      .send({ factId: deck[0].fact.id, given: deck[0].answer, responseMs: 1200 });
+    await agent
+      .post(`/api/sessions/${session.sessionId}/answer`)
+      .send({ factId: deck[1].fact.id, given: deck[1].answer, responseMs: 1300 });
+    await agent
+      .post(`/api/sessions/${session.sessionId}/answer`)
+      .send({ factId: deck[2].fact.id, given: deck[2].answer + 1, responseMs: 1300 });
+
+    const res = await agent.get(`/api/profiles/${profileId}/dashboard`);
+    expect(res.status).toBe(200);
+    expect(res.body.displayName).toBe('Kid');
+    expect(res.body.windowDays).toBe(14);
+    expect(res.body.trends).toHaveLength(14);
+    expect(res.body.summary.attempts).toBe(3);
+    expect(res.body.summary.accuracy).toBeCloseTo(2 / 3);
+    expect(res.body.summary.daysActive).toBe(1);
+    // Today is the last bucket and holds the activity.
+    expect(res.body.trends[13].attempts).toBe(3);
+    // Brand-new kid → not ready to advance yet.
+    expect(res.body.suggestion).toBeNull();
+  });
+
+  it('404s the dashboard for another account', async () => {
+    const { profileId } = await setup();
+    const other = request.agent(app);
+    await other.post('/api/auth/signup').send({ ...CREDS, email: 'd@home.test' });
+    expect((await other.get(`/api/profiles/${profileId}/dashboard`)).status).toBe(404);
+  });
+
   it('reflects learning progress after a session answer', async () => {
     const { agent, profileId } = await setup();
     const { body: session } = await agent.post(`/api/profiles/${profileId}/session`);

@@ -5,6 +5,7 @@
 import type {
   AnswerRequest,
   AnswerResponse,
+  DashboardView,
   FactSet,
   Profile,
   ProfileSettings,
@@ -67,4 +68,5 @@ export const api = {
 
   // progress
   progress: (profileId: string) => req<ProgressView>('GET', `/profiles/${profileId}/progress`),
+  dashboard: (profileId: string) => req<DashboardView>('GET', `/profiles/${profileId}/dashboard`),
 };

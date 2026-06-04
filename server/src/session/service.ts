@@ -65,7 +65,7 @@ function tzOffsetMinutes(timeZone: string, atMs: number): number {
 }
 
 /** Calendar day (YYYY-MM-DD) for an instant in a timezone. en-CA yields ISO. */
-function dayInTz(timeZone: string, atMs: number): string {
+export function dayInTz(timeZone: string, atMs: number): string {
   try {
     return new Date(atMs).toLocaleDateString('en-CA', { timeZone });
   } catch {

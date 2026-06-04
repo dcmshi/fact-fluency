@@ -21,8 +21,14 @@ This is a backlog, not a commitment — pick from it as needed.
       prior-day open session is discarded and a fresh one planned (one active
       session per profile). Note: client-side in-session re-show *injects* aren't
       reconstructed on resume — the persistent box schedule resurfaces those.
-- [ ] **Adult dashboard** (roadmap v1.1) — accuracy/speed trends from the
-      `Attempt` log; "suggested next set to enable".
+- [x] **Adult dashboard** (roadmap v1.1) — `GET /profiles/:id/dashboard` returns
+      14-day accuracy/speed trends (bucketed by account-tz day from the `Attempt`
+      log), a mastery summary, and a "suggested next set" (advance within an
+      operation once the largest enabled set is ≥80% mastered; pure + unit-tested
+      in `engine/dashboard.ts`). The Progress page now renders stat cards, a
+      suggestion banner, an accuracy bar chart + speed sparkline, then the grid.
+      Cross-operation suggestions (e.g. start subtraction) are intentionally
+      out of scope for v1.
 - [ ] **Unlockable avatars / themes** (roadmap v1.1) — reward points spend.
 - [ ] **Subtraction/division fact-family framing** (DESIGN.md §9 "Later") — link
       `7×8` ↔ `56÷7` for transfer.

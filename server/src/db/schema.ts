@@ -89,4 +89,5 @@ CREATE TABLE IF NOT EXISTS attempt (
   answered_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_attempt_session ON attempt(session_id);
+CREATE INDEX IF NOT EXISTS idx_attempt_profile_time ON attempt(profile_id, answered_at);
 `;

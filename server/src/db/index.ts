@@ -78,6 +78,9 @@ export interface Db {
   completeSession(id: string, completedAt: number): Promise<void>;
   appendAttempt(a: AttemptRecord): Promise<void>;
   listSessionAttempts(sessionId: string): Promise<AttemptRecord[]>;
+  /** All of a profile's attempts at/after `since` (epoch ms), oldest first —
+   *  backs the dashboard trends (DESIGN.md §7). */
+  listProfileAttempts(profileId: string, since: number): Promise<AttemptRecord[]>;
 
   close(): Promise<void>;
 }

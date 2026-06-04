@@ -1,3 +1,113 @@
+/* ---- adult dashboard ---- */
+.dash {
+  padding: 1.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+.dash-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.7rem;
+}
+.stat-card {
+  background: var(--paper);
+  border: 2px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 0.7rem 0.8rem;
+  text-align: center;
+}
+.stat-card-value {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+.stat-card-label {
+  font-weight: 800;
+  font-size: 0.8rem;
+  margin-top: 0.2rem;
+}
+.stat-card-sub {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+.suggestion {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  background: linear-gradient(180deg, #fff6df, #fdeed7);
+  border: 2px solid var(--sun);
+  border-radius: var(--r-md);
+  padding: 0.8rem 1rem;
+  font-size: 0.9rem;
+}
+.suggestion-spark {
+  font-size: 1.1rem;
+}
+
+.trend-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.trend-head h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1rem;
+}
+.trend-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 84px;
+}
+.trend-col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+.trend-track {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  background: repeating-linear-gradient(
+    to top,
+    transparent,
+    transparent 19px,
+    var(--line) 19px,
+    var(--line) 20px
+  );
+  border-radius: 5px;
+}
+.trend-bar {
+  width: 100%;
+  border-radius: 5px 5px 3px 3px;
+  transition: height 0.3s ease;
+  min-height: 0;
+}
+.trend-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+  margin-top: 0.35rem;
+}
+.trend-spark {
+  width: 100%;
+  height: 28px;
+  margin-top: 0.6rem;
+  overflow: visible;
+}
+.trend-axis-spark {
+  justify-content: center;
+  margin-top: 0.15rem;
+}
+
 .grid-card {
   padding: 1.3rem;
 }

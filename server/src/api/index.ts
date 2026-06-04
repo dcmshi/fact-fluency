@@ -7,6 +7,7 @@ import { requireAuth } from '../auth/middleware';
 import { createAuthRouter } from '../auth/routes';
 import { SEED_CATALOG } from '../data/catalog';
 import type { Db } from '../db';
+import { getDashboardView } from '../dashboard';
 import { getProgressView } from '../progress';
 import * as sessions from '../session/service';
 import { SessionError } from '../session/service';
@@ -68,6 +69,14 @@ export function createApiRouter(db: Db, isProd: boolean): Router {
     requireAuth,
     handle(async (req, res) => {
       res.json(await getProgressView(db, req.accountId!, req.params.id));
+    }),
+  );
+
+  router.get(
+    '/profiles/:id/dashboard',
+    requireAuth,
+    handle(async (req, res) => {
+      res.json(await getDashboardView(db, req.accountId!, req.params.id, Date.now()));
     }),
   );
 

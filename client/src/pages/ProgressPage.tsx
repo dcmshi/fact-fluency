@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { Box, CellState, ProgressGrid, ProgressView } from '@shared';
+import type { Box, CellState, DashboardView, DayTrend, ProgressGrid, ProgressView } from '@shared';
 import { api } from '../api';
 import { OP_HEX, OP_LABEL, OP_SYMBOL } from '../ops';
 import './ProgressPage.css';
@@ -20,8 +20,10 @@ export function ProgressPage() {
   const { profileId = '' } = useParams();
   const navigate = useNavigate();
   const [view, setView] = useState<ProgressView | null>(null);
+  const [dash, setDash] = useState<DashboardView | null>(null);
 
   useEffect(() => {
+    api.dashboard(profileId).then(setDash);
     api.progress(profileId).then(setView);
   }, [profileId]);
 
@@ -32,11 +34,13 @@ export function ProgressPage() {
           ← Back
         </button>
         <div className="brand" style={{ fontSize: '1.1rem' }}>
-          Progress
+          {dash ? `${dash.displayName}’s progress` : 'Progress'}
         </div>
       </header>
 
       <div className="stack" style={{ maxWidth: 720 }}>
+        {dash && <Dashboard dash={dash} />}
+
         {!view && <p className="muted">Loading…</p>}
         {view?.grids.length === 0 && (
           <p className="muted">No fact sets enabled yet — pick some from the profiles screen.</p>
@@ -63,6 +67,158 @@ export function ProgressPage() {
       </div>
     </div>
   );
+}
+
+function median(nums: number[]): number | null {
+  if (nums.length === 0) return null;
+  const s = [...nums].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+function Dashboard({ dash }: { dash: DashboardView }) {
+  const { summary, trends, suggestion } = dash;
+  const typicalMs = median(trends.map((t) => t.medianMs).filter((m): m is number => m != null));
+
+  return (
+    <section className="dash card rise">
+      <div className="dash-cards">
+        <StatCard
+          label="Mastered"
+          value={`${summary.mastered}`}
+          sub={`of ${summary.totalFacts} facts`}
+          accent="var(--add)"
+        />
+        <StatCard label="Day streak" value={`🔥 ${dash.streak}`} sub="in a row" />
+        <StatCard
+          label="Accuracy"
+          value={summary.attempts ? `${Math.round(summary.accuracy * 100)}%` : '—'}
+          sub={`last ${dash.windowDays} days`}
+          accent="var(--mul)"
+        />
+        <StatCard
+          label="Typical speed"
+          value={typicalMs != null ? `${(typicalMs / 1000).toFixed(1)}s` : '—'}
+          sub="per answer"
+          accent="var(--div)"
+        />
+      </div>
+
+      {suggestion && (
+        <div className="suggestion">
+          <span className="suggestion-spark">✨</span>
+          <div>
+            <strong>Ready for more!</strong> {suggestion.reason}
+            <span className="muted"> Enable it from the Facts screen.</span>
+          </div>
+        </div>
+      )}
+
+      <TrendChart trends={trends} windowDays={dash.windowDays} active={summary.daysActive} />
+    </section>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  sub,
+  accent,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  accent?: string;
+}) {
+  return (
+    <div className="stat-card">
+      <div className="stat-card-value" style={accent ? { color: accent } : undefined}>
+        {value}
+      </div>
+      <div className="stat-card-label">{label}</div>
+      <div className="stat-card-sub">{sub}</div>
+    </div>
+  );
+}
+
+/** Bar color by accuracy band — green strong, amber middling, coral weak. */
+function accuracyColor(t: DayTrend): string {
+  if (t.attempts === 0) return 'transparent';
+  if (t.accuracy >= 0.8) return 'var(--add)';
+  if (t.accuracy >= 0.6) return 'var(--sun)';
+  return 'var(--sub)';
+}
+
+function TrendChart({
+  trends,
+  windowDays,
+  active,
+}: {
+  trends: DayTrend[];
+  windowDays: number;
+  active: number;
+}) {
+  const maxMs = Math.max(1, ...trends.map((t) => t.medianMs ?? 0));
+
+  return (
+    <div className="trend">
+      <div className="trend-head">
+        <h3>Last {windowDays} days</h3>
+        <span className="muted">
+          {active === 0 ? 'No practice yet' : `${active} active ${active === 1 ? 'day' : 'days'}`}
+        </span>
+      </div>
+
+      <div className="trend-bars" role="img" aria-label="Daily accuracy">
+        {trends.map((t) => (
+          <div className="trend-col" key={t.day} title={tooltip(t)}>
+            <div className="trend-track">
+              <div
+                className="trend-bar"
+                style={{
+                  height: t.attempts ? `${Math.max(6, t.accuracy * 100)}%` : '0',
+                  background: accuracyColor(t),
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="trend-axis">
+        <span>Accuracy per day · {windowDays} days ago</span>
+        <span>today</span>
+      </div>
+
+      {/* Speed sparkline — median answer time on active days (lower is faster). */}
+      {active > 0 && (
+        <svg className="trend-spark" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true">
+          <polyline
+            points={trends
+              .map((t, i) =>
+                t.medianMs != null
+                  ? `${(i / (trends.length - 1)) * 100},${26 - (t.medianMs / maxMs) * 24}`
+                  : null,
+              )
+              .filter(Boolean)
+              .join(' ')}
+            fill="none"
+            stroke="var(--div)"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        </svg>
+      )}
+      {active > 0 && <div className="trend-axis trend-axis-spark">Answer speed (lower is faster)</div>}
+    </div>
+  );
+}
+
+function tooltip(t: DayTrend): string {
+  if (t.attempts === 0) return `${t.day}: no practice`;
+  const acc = `${Math.round(t.accuracy * 100)}% (${t.correct}/${t.attempts})`;
+  const speed = t.medianMs != null ? `, ${(t.medianMs / 1000).toFixed(1)}s typical` : '';
+  return `${t.day}: ${acc}${speed}`;
 }
 
 function OperationGrid({ grid }: { grid: ProgressGrid }) {
