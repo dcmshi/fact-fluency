@@ -7,6 +7,15 @@
  */
 import type { Card, Fact, FactProgress } from '@shared';
 
+/**
+ * Hard cap on how many *new* facts a single session may introduce, even when
+ * the due/review queue is empty and the deck would otherwise be padded entirely
+ * with new cards (DESIGN.md §4.4 — "new facts trickle in, never flood"). Keeps
+ * a brand-new profile's first session short and gentle instead of ~20 cold
+ * intros at once. Never lowers the adult's configured `newPerSession`.
+ */
+export const DEFAULT_MAX_NEW_PER_SESSION = 6;
+
 export interface PlannerInput {
   /** Candidate universe from the kid's enabled sets, easiest-first. */
   facts: Fact[];
@@ -14,6 +23,8 @@ export interface PlannerInput {
   now: number;
   sessionCards: number;
   newPerSession: number;
+  /** Optional override for the per-session new-fact cap (see the constant). */
+  maxNewPerSession?: number;
 }
 
 interface Buckets {
@@ -90,6 +101,9 @@ const toCard = (fact: Fact, isNew: boolean): Card => ({ fact, answer: fact.answe
 export function planSession(input: PlannerInput): Card[] {
   const { due, upcoming, mastered, unseen } = bucket(input);
   const target = Math.max(0, input.sessionCards);
+  // Total new facts this session is capped so a quiet queue can't flood a
+  // beginner with cold intros (§4.4). Never below the adult's newPerSession.
+  const maxNew = Math.max(input.newPerSession, input.maxNewPerSession ?? DEFAULT_MAX_NEW_PER_SESSION);
 
   // New facts: the normal small allotment, easiest-first.
   const newCount = Math.min(input.newPerSession, unseen.length, target);
@@ -108,9 +122,11 @@ export function planSession(input: PlannerInput): Card[] {
   take(due);
   take(upcoming); // (2) pull soonest-upcoming forward
 
-  // (3) extra new beyond the cap when still short
+  // (3) extra new beyond the normal allotment when still short — but only up to
+  // the per-session new cap, so a brand-new profile gets a short first session.
   if (remaining > 0) {
-    const extra = unseen.slice(newCount, newCount + remaining);
+    const allowance = Math.max(0, maxNew - freshFacts.length);
+    const extra = unseen.slice(newCount, newCount + Math.min(remaining, allowance));
     freshFacts.push(...extra);
     remaining -= extra.length;
   }

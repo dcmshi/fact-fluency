@@ -80,8 +80,11 @@ This is a backlog, not a commitment — pick from it as needed.
 
 - [ ] Calibrate fluency constants: `K` (1.3), floor (1200ms), per-op ceilings,
       cold-start sample count (20).
-- [ ] Revisit box intervals and the "extra new facts" fill for a brand-new
-      profile's first session (currently can be ~20 new cards at once).
+- [x] Fixed the "extra new facts" flood — a brand-new profile's first session is
+      now capped at `DEFAULT_MAX_NEW_PER_SESSION` (6) new cards instead of ~20, so
+      beginners get a short gentle start (§4.4 "trickle in, never flood"). The cap
+      never lowers an adult's `newPerSession`, and is overridable via the planner.
+      (Box-interval calibration still pending real data.)
 - [ ] Starting fact-set defaults per grade band.
 
 ## Deployment / ops

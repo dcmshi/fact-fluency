@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Box, Fact, FactProgress } from '@shared';
-import { planSession, type PlannerInput } from './planner';
+import { DEFAULT_MAX_NEW_PER_SESSION, planSession, type PlannerInput } from './planner';
 
 const NOW = 1_000_000;
 
@@ -40,19 +40,35 @@ const unique = (arr: string[]) => new Set(arr).size === arr.length;
 
 describe('planSession — composition', () => {
   it('caps the deck at sessionCards and keeps facts unique', () => {
+    // 50 due-review facts (so the cap under test is sessionCards, not new-fact).
     const facts = Array.from({ length: 50 }, (_, i) => fact(i));
-    const deck = planSession(input({ facts }));
+    const progressByFactId = new Map(facts.map((f) => [f.id, { ...progress(2, NOW - 1000), factId: f.id }]));
+    const deck = planSession(input({ facts, progressByFactId, newPerSession: 0 }));
     expect(deck).toHaveLength(20);
     expect(unique(ids(deck))).toBe(true);
   });
 
-  it('a brand-new profile gets an all-new deck (fills with extra new)', () => {
+  it('gives a brand-new profile a short, all-new first session (no flood)', () => {
     const facts = Array.from({ length: 30 }, (_, i) => fact(i));
-    const deck = planSession(input({ facts }));
-    expect(deck).toHaveLength(20);
+    const deck = planSession(input({ facts })); // nothing due → fill is all new
     expect(deck.every((c) => c.isNew)).toBe(true);
+    // Capped well below sessionCards (20) so beginners aren't flooded.
+    expect(deck).toHaveLength(DEFAULT_MAX_NEW_PER_SESSION);
     // easiest-first: the new facts are taken from the front of the universe.
     expect(ids(deck).slice(0, 3)).toEqual(['mul:0', 'mul:1', 'mul:2']);
+  });
+
+  it('never introduces more than the new-fact cap, even with a huge unseen pool', () => {
+    const facts = Array.from({ length: 100 }, (_, i) => fact(i));
+    const deck = planSession(input({ facts, newPerSession: 3, sessionCards: 20 }));
+    expect(deck.filter((c) => c.isNew)).toHaveLength(DEFAULT_MAX_NEW_PER_SESSION);
+  });
+
+  it('respects a higher newPerSession over the default cap', () => {
+    const facts = Array.from({ length: 30 }, (_, i) => fact(i));
+    const deck = planSession(input({ facts, newPerSession: 10, sessionCards: 20 }));
+    // newPerSession (10) exceeds the default cap (6), so it wins.
+    expect(deck.filter((c) => c.isNew)).toHaveLength(10);
   });
 
   it('mixes a few new facts among due review, without clustering or leading', () => {
