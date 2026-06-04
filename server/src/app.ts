@@ -11,6 +11,10 @@ import type { Db } from './db';
 
 export function createApp(db: Db, isProd: boolean): Application {
   const app = express();
+  // Behind Render's proxy in prod: trust X-Forwarded-For so req.ip is the real
+  // client IP (per-IP rate limiting depends on this). Off in dev/test so req.ip
+  // is the local socket.
+  if (isProd) app.set('trust proxy', true);
   app.use(express.json());
   app.use(cookieParser(process.env.COOKIE_SECRET ?? 'dev-only-change-me'));
   app.use(attachAccount(db));

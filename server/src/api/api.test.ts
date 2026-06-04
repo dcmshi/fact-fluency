@@ -58,6 +58,17 @@ describe('auth', () => {
     expect(ok.status).toBe(200);
   });
 
+  it('rate-limits repeated login attempts from one IP (429)', async () => {
+    const creds = { email: 'nobody@home.test', password: 'whatever123' };
+    let last = await request(app).post('/api/auth/login').send(creds);
+    for (let i = 0; i < 10; i++) {
+      last = await request(app).post('/api/auth/login').send(creds);
+    }
+    expect(last.status).toBe(429); // 11th attempt blocked (login max = 10)
+    expect(last.body.error).toBe('rate_limited');
+    expect(last.headers['retry-after']).toBeDefined();
+  });
+
   it('logs out and invalidates the session', async () => {
     const agent = request.agent(app);
     await agent.post('/api/auth/signup').send(CREDS);

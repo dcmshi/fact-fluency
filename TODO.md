@@ -88,7 +88,10 @@ This is a backlog, not a commitment — pick from it as needed.
       `migrate()` self-applied the schema on first boot. Node pinned to 24.13.1.
 - [ ] Decide on auth-session cleanup (expired `auth_session` rows accumulate;
       add a periodic prune or a TTL job).
-- [ ] Rate-limit auth endpoints.
+- [x] Rate-limit auth endpoints — dependency-free fixed-window per-IP limiter
+      (`rateLimit.ts`, pure core + thin middleware). Login 10/15min, signup
+      6/hr; returns 429 + `Retry-After`. `trust proxy` enabled in prod so the
+      key is the real client IP behind Render. Unit + HTTP tested.
 
 ## Known limitations
 
