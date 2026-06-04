@@ -24,6 +24,20 @@ describe('security headers', () => {
     const prod = await request(app(true)).get('/api/health');
     expect(prod.headers['content-security-policy']).toContain("default-src 'self'");
     expect(prod.headers['content-security-policy']).toContain('https://fonts.gstatic.com');
+    // HSTS in prod only.
+    expect(prod.headers['strict-transport-security']).toContain('max-age=31536000');
+    expect(dev.headers['strict-transport-security']).toBeUndefined();
+  });
+});
+
+describe('error handling', () => {
+  it('returns 400 (not 500) for a malformed JSON body, with no stack leak', async () => {
+    const res = await request(app(false))
+      .post('/api/auth/login')
+      .set('Content-Type', 'application/json')
+      .send('{bad json');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_request');
   });
 });
 

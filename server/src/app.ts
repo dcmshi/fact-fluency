@@ -31,6 +31,14 @@ export function createApp(db: Db, isProd: boolean): Application {
 
   // Centralized error handler — route handlers forward errors via next(err).
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    // Client errors raised by middleware (e.g. body-parser on malformed JSON,
+    // which sets status 400) shouldn't be reported as a server fault.
+    const status = (err as { status?: number; statusCode?: number })?.status ??
+      (err as { statusCode?: number })?.statusCode;
+    if (typeof status === 'number' && status >= 400 && status < 500) {
+      res.status(status).json({ error: 'invalid_request' });
+      return;
+    }
     // eslint-disable-next-line no-console
     console.error(err);
     res.status(500).json({ error: 'internal_error' });

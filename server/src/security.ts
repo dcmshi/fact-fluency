@@ -30,7 +30,11 @@ export function securityHeaders(isProd: boolean): RequestHandler {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('X-DNS-Prefetch-Control', 'off');
-    if (isProd) res.setHeader('Content-Security-Policy', csp);
+    if (isProd) {
+      res.setHeader('Content-Security-Policy', csp);
+      // HTTPS is enforced by the host; tell browsers never to try HTTP.
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
     next();
   };
 }
