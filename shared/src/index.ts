@@ -101,6 +101,9 @@ export interface SessionResponse {
   sessionId: string;
   deck: Card[];
   thresholds: Thresholds;
+  /** Soft time budget (seconds) for the session; the client wraps up between
+   *  cards once it's spent — a silent cap, never a visible countdown (§4.4, §4.8). */
+  sessionSeconds: number;
 }
 
 export interface AnswerRequest {

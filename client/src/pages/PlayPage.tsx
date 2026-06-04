@@ -27,16 +27,22 @@ export function PlayPage() {
   const [errorCode, setErrorCode] = useState<string | null>(null);
 
   const timerStart = useRef(0);
+  const sessionStart = useRef(0);
   const sessionRef = useRef<SessionResponse | null>(null);
 
   const current = queue[0] ?? null;
 
   const goNext = useCallback(
     async (nextQueue: Card[]) => {
-      if (nextQueue.length === 0) {
-        const s = sessionRef.current!;
+      const s = sessionRef.current;
+      // Soft time cap (§4.4): once the budget is spent, wrap up between cards —
+      // at least the first card always plays, since the budget is checked here
+      // *after* each card rather than mid-card.
+      const timeUp =
+        s != null && performance.now() - sessionStart.current >= s.sessionSeconds * 1000;
+      if (nextQueue.length === 0 || timeUp) {
         try {
-          setSummary(await api.complete(s.sessionId));
+          setSummary(await api.complete(sessionRef.current!.sessionId));
         } catch {
           /* summary is best-effort */
         }
@@ -65,6 +71,7 @@ export function PlayPage() {
     try {
       const s = await api.startSession(profileId);
       sessionRef.current = s;
+      sessionStart.current = performance.now();
       setSession(s);
       await goNext(s.deck);
     } catch (e) {

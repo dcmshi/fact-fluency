@@ -10,9 +10,10 @@ This is a backlog, not a commitment — pick from it as needed.
 
 - [x] **Adult session settings** — `PATCH /profiles/:id` edits `sessionCards` /
       `sessionSeconds` / `newPerSession` (partial-merge, bounds-validated route +
-      a Settings modal on the profile picker). Note: `sessionSeconds` is stored
-      but **not yet enforced** — the planner caps by card count only; a
-      time-based session cap is still TODO.
+      a Settings modal on the profile picker). `sessionSeconds` is carried on the
+      session response and enforced client-side as a silent soft cap (§4.4): the
+      player wraps up between cards once the budget is spent, no visible
+      countdown (§4.8).
 - [ ] **Resume an interrupted session** (DESIGN.md §10) — same-day reopen should
       resume from `Session.workingState`; today `startSession` always plans fresh.
 - [ ] **Adult dashboard** (roadmap v1.1) — accuracy/speed trends from the

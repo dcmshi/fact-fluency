@@ -37,6 +37,15 @@ describe('session loop', () => {
     expect(session.deck.every((c: Card) => c.isNew)).toBe(true);
     expect(session.thresholds.mul).toBeGreaterThan(0);
     expect(session.thresholds.add).toBeGreaterThan(0);
+    // Soft time budget travels with the deck so the client can cap silently.
+    expect(session.sessionSeconds).toBe(180);
+  });
+
+  it('reflects an edited sessionSeconds in the next session', async () => {
+    const { agent, profileId } = await setup();
+    await agent.patch(`/api/profiles/${profileId}`).send({ settings: { sessionSeconds: 90 } });
+    const res = await agent.post(`/api/profiles/${profileId}/session`);
+    expect((res.body as SessionResponse).sessionSeconds).toBe(90);
   });
 
   it('grades answers, re-queues new facts, and produces a summary', async () => {

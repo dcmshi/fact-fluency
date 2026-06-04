@@ -138,7 +138,7 @@ export async function startSession(
     thresholds[op] = fluencyThreshold(op, statByOp.get(op) ?? zeroStat(profileId, op));
   }
 
-  return { sessionId, deck, thresholds };
+  return { sessionId, deck, thresholds, sessionSeconds: profile.settings.sessionSeconds };
 }
 
 export async function answer(
