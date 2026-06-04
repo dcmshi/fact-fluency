@@ -21,6 +21,8 @@ describe('public endpoints', () => {
     expect((await request(app).get('/api/health')).body).toEqual({ ok: true });
     const catalog = await request(app).get('/api/catalog');
     expect(catalog.body.sets.length).toBeGreaterThan(0);
+    expect(catalog.body.gradeBands.length).toBeGreaterThan(0);
+    expect(catalog.body.gradeBands[0]).toHaveProperty('setIds');
   });
 });
 
@@ -101,6 +103,20 @@ describe('profiles', () => {
     const factsets = await agent.get(`/api/profiles/${created.body.profile.id}/factsets`);
     expect(factsets.body.catalog.length).toBeGreaterThan(0);
     expect(factsets.body.enabledIds.sort()).toEqual(['add-0-10', 'mul-0-5']);
+  });
+
+  it('enables a grade band’s sets at creation, falling back to default', async () => {
+    const agent = await authed();
+    const g3 = await agent.post('/api/profiles').send({ displayName: 'Kid', avatar: '🦊', gradeBand: 'grade-3' });
+    expect((await agent.get(`/api/profiles/${g3.body.profile.id}/factsets`)).body.enabledIds.sort()).toEqual(
+      ['div-0-10', 'mul-0-10'],
+    );
+
+    // Unknown band → starter default.
+    const bad = await agent.post('/api/profiles').send({ displayName: 'Kid2', avatar: '🐼', gradeBand: 'nope' });
+    expect((await agent.get(`/api/profiles/${bad.body.profile.id}/factsets`)).body.enabledIds.sort()).toEqual(
+      ['add-0-10', 'mul-0-5'],
+    );
   });
 
   it('validates profile creation input', async () => {

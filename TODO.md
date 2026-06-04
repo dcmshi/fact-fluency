@@ -78,14 +78,20 @@ This is a backlog, not a commitment — pick from it as needed.
 
 ## Engine tuning (needs real usage data — DESIGN.md §4.5, §11)
 
-- [ ] Calibrate fluency constants: `K` (1.3), floor (1200ms), per-op ceilings,
-      cold-start sample count (20).
+- [~] Calibrate fluency constants: `K` (1.3), floor (1200ms), per-op ceilings,
+      cold-start sample count (20). **Tooling built** — `npm run calibrate -w server`
+      reads the attempt log and prints per-op response-time percentiles + advisory
+      `K`/ceiling suggestions (pure `engine/calibration.ts`, tested). The actual
+      re-tuning still waits on real usage data to run it against.
 - [x] Fixed the "extra new facts" flood — a brand-new profile's first session is
       now capped at `DEFAULT_MAX_NEW_PER_SESSION` (6) new cards instead of ~20, so
       beginners get a short gentle start (§4.4 "trickle in, never flood"). The cap
       never lowers an adult's `newPerSession`, and is overridable via the planner.
       (Box-interval calibration still pending real data.)
-- [ ] Starting fact-set defaults per grade band.
+- [x] Starting fact-set defaults per grade band — `GRADE_BANDS` catalog (K–1,
+      Grade 2, Grade 3, Grade 4+) exposed via `/catalog`; profile creation accepts
+      a `gradeBand` and enables its sets (unknown/none → starter mix). The Add-a-kid
+      modal has a "Starting level" picker. Bands are coarse and editable.
 
 ## Deployment / ops
 

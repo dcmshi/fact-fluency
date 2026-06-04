@@ -430,6 +430,13 @@ export class SqliteDb implements Db {
     return rows.map(toAttempt);
   }
 
+  async listAllAttempts(since: number): Promise<AttemptRecord[]> {
+    const rows = this.db
+      .prepare('SELECT * FROM attempt WHERE answered_at >= ? ORDER BY answered_at')
+      .all(since) as AttemptRow[];
+    return rows.map(toAttempt);
+  }
+
   async close(): Promise<void> {
     this.db.close();
   }

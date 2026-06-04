@@ -7,6 +7,7 @@ import type {
   AnswerResponse,
   DashboardView,
   FactSet,
+  GradeBand,
   Profile,
   ProfileSettings,
   ProgressView,
@@ -48,10 +49,13 @@ export const api = {
     req<{ accountId: string; email: string }>('POST', '/auth/login', { email, password }),
   logout: () => req<void>('POST', '/auth/logout'),
 
+  // catalog (public)
+  catalog: () => req<{ sets: FactSet[]; gradeBands: GradeBand[] }>('GET', '/catalog'),
+
   // profiles
   listProfiles: () => req<{ profiles: Profile[] }>('GET', '/profiles'),
-  createProfile: (displayName: string, avatar: string) =>
-    req<{ profile: Profile }>('POST', '/profiles', { displayName, avatar }),
+  createProfile: (displayName: string, avatar: string, gradeBand?: string) =>
+    req<{ profile: Profile }>('POST', '/profiles', { displayName, avatar, gradeBand }),
   updateSettings: (profileId: string, settings: Partial<ProfileSettings>) =>
     req<{ profile: Profile }>('PATCH', `/profiles/${profileId}`, { settings }),
   getFactSets: (profileId: string) =>

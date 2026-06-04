@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { FactSet, Profile, ProfileSettings, RewardItem } from '@shared';
+import type { FactSet, GradeBand, Profile, ProfileSettings, RewardItem } from '@shared';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { AVATARS, OP_LABEL, OP_SYMBOL } from '../ops';
@@ -320,13 +320,19 @@ function SettingsModal({
 function AddProfileModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState(AVATARS[0]);
+  const [bands, setBands] = useState<GradeBand[]>([]);
+  const [band, setBand] = useState(''); // '' = starter mix (default sets)
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api.catalog().then((r) => setBands(r.gradeBands));
+  }, []);
 
   async function create() {
     if (!name.trim()) return;
     setBusy(true);
     try {
-      await api.createProfile(name.trim(), avatar);
+      await api.createProfile(name.trim(), avatar, band || undefined);
       onCreated();
     } finally {
       setBusy(false);
@@ -352,6 +358,29 @@ function AddProfileModal({ onClose, onCreated }: { onClose: () => void; onCreate
             </button>
           ))}
         </div>
+      </div>
+      <div className="field">
+        <label>Starting level</label>
+        <div className="band-picker">
+          <button
+            className={`set-pill ${band === '' ? 'on' : ''}`}
+            onClick={() => setBand('')}
+          >
+            Starter mix
+          </button>
+          {bands.map((b) => (
+            <button
+              key={b.id}
+              className={`set-pill ${band === b.id ? 'on' : ''}`}
+              onClick={() => setBand(b.id)}
+            >
+              {b.label}
+            </button>
+          ))}
+        </div>
+        <span className="muted" style={{ fontSize: '0.8rem' }}>
+          Sets a few fact sets to start — you can fine-tune them anytime from “Facts”.
+        </span>
       </div>
       <button className="btn sun full" disabled={busy || !name.trim()} onClick={create}>
         {busy ? 'Creating…' : 'Create profile'}

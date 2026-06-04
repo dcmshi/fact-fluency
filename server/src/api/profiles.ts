@@ -7,7 +7,7 @@ import { Router } from 'express';
 import type { ProfileSettings } from '@shared';
 import type { Db } from '../db';
 import { requireAuth } from '../auth/middleware';
-import { DEFAULT_ENABLED_SET_IDS, SEED_CATALOG } from '../data/catalog';
+import { DEFAULT_ENABLED_SET_IDS, gradeBandById, SEED_CATALOG } from '../data/catalog';
 
 const DEFAULT_SETTINGS: ProfileSettings = {
   sessionCards: 20,
@@ -53,7 +53,7 @@ export function createProfileRouter(db: Db): Router {
 
   router.post('/', async (req, res, next) => {
     try {
-      const { displayName, avatar } = req.body ?? {};
+      const { displayName, avatar, gradeBand } = req.body ?? {};
       if (typeof displayName !== 'string' || !displayName.trim()) {
         return res.status(400).json({ error: 'invalid_display_name' });
       }
@@ -66,8 +66,10 @@ export function createProfileRouter(db: Db): Router {
         avatar,
         settings: DEFAULT_SETTINGS,
       });
-      // Onboarding pre-check (DESIGN.md §3.3).
-      await db.setEnabledSetIds(profile.id, DEFAULT_ENABLED_SET_IDS);
+      // Onboarding pre-check: a chosen grade band's sets, else the starter mix
+      // (DESIGN.md §3.3). An unknown band id falls back to the default.
+      const band = typeof gradeBand === 'string' ? gradeBandById(gradeBand) : undefined;
+      await db.setEnabledSetIds(profile.id, band ? band.setIds : DEFAULT_ENABLED_SET_IDS);
       return res.status(201).json({ profile });
     } catch (err) {
       return next(err);

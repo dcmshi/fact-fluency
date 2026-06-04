@@ -3,7 +3,7 @@
  * operations; adults enable what each kid needs. Sets are named by operand
  * range (not by sum) to match the full-grid model.
  */
-import type { FactSet } from '@shared';
+import type { FactSet, GradeBand } from '@shared';
 
 export const SEED_CATALOG: FactSet[] = [
   { id: 'add-0-5', operation: 'add', label: 'Addition 0–5', rangeSpec: { aMin: 0, aMax: 5, bMin: 0, bMax: 5 } },
@@ -22,5 +22,22 @@ export const SEED_CATALOG: FactSet[] = [
   { id: 'div-0-12', operation: 'div', label: 'Division 0–12', rangeSpec: { aMin: 0, aMax: 12, bMin: 0, bMax: 12 } },
 ];
 
-/** Pre-checked at onboarding (DESIGN.md §3.3). */
+/** Pre-checked at onboarding when no grade band is chosen (DESIGN.md §3.3). */
 export const DEFAULT_ENABLED_SET_IDS = ['add-0-10', 'mul-0-5'];
+
+/**
+ * Starting presets by grade band (DESIGN.md §11 open question). An adult can
+ * pick a level at profile creation; the kid's enabled sets default to these.
+ * Bands are intentionally coarse and easy to edit — the adult can always
+ * fine-tune sets afterward from the Facts screen.
+ */
+export const GRADE_BANDS: GradeBand[] = [
+  { id: 'k-1', label: 'Kindergarten–Grade 1', setIds: ['add-0-10', 'sub-0-10'] },
+  { id: 'grade-2', label: 'Grade 2', setIds: ['add-0-12', 'sub-0-20'] },
+  { id: 'grade-3', label: 'Grade 3', setIds: ['mul-0-10', 'div-0-10'] },
+  { id: 'grade-4-plus', label: 'Grade 4 and up', setIds: ['mul-0-12', 'div-0-12'] },
+];
+
+export function gradeBandById(id: string): GradeBand | undefined {
+  return GRADE_BANDS.find((b) => b.id === id);
+}

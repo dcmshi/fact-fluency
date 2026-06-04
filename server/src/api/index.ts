@@ -5,7 +5,7 @@
 import { Router, type Request, type RequestHandler, type Response } from 'express';
 import { requireAuth } from '../auth/middleware';
 import { createAuthRouter } from '../auth/routes';
-import { SEED_CATALOG } from '../data/catalog';
+import { GRADE_BANDS, SEED_CATALOG } from '../data/catalog';
 import type { Db } from '../db';
 import { getDashboardView } from '../dashboard';
 import { getProgressView } from '../progress';
@@ -31,7 +31,7 @@ export function createApiRouter(db: Db, isProd: boolean): Router {
   const router = Router();
 
   router.get('/health', (_req, res) => res.json({ ok: true }));
-  router.get('/catalog', (_req, res) => res.json({ sets: SEED_CATALOG }));
+  router.get('/catalog', (_req, res) => res.json({ sets: SEED_CATALOG, gradeBands: GRADE_BANDS }));
 
   router.use('/auth', createAuthRouter(db, isProd));
   router.use('/profiles', createProfileRouter(db));

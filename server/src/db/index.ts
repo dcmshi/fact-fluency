@@ -92,6 +92,9 @@ export interface Db {
   /** All of a profile's attempts at/after `since` (epoch ms), oldest first —
    *  backs the dashboard trends (DESIGN.md §7). */
   listProfileAttempts(profileId: string, since: number): Promise<AttemptRecord[]>;
+  /** Every attempt at/after `since` across all profiles — backs the offline
+   *  calibration analysis (DESIGN.md §4.5). Read-only/ops use. */
+  listAllAttempts(since: number): Promise<AttemptRecord[]>;
 
   close(): Promise<void>;
 }

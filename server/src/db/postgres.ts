@@ -371,6 +371,14 @@ export class PostgresDb implements Db {
     return rows.map(toAttempt);
   }
 
+  async listAllAttempts(since: number): Promise<AttemptRecord[]> {
+    const rows = await this.rows<AttemptRow>(
+      'SELECT * FROM attempt WHERE answered_at >= $1 ORDER BY answered_at',
+      [since],
+    );
+    return rows.map(toAttempt);
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }

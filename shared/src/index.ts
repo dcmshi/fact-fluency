@@ -36,6 +36,14 @@ export interface FactSet {
   rangeSpec: RangeSpec;
 }
 
+/** A starting preset: a grade band maps to the fact sets to enable at
+ *  onboarding, so an adult can pick a level instead of hand-picking sets. */
+export interface GradeBand {
+  id: string;
+  label: string;
+  setIds: string[];
+}
+
 /** Leitner box 0 (learning) … 5 (mastered). */
 export type Box = 0 | 1 | 2 | 3 | 4 | 5;
 
