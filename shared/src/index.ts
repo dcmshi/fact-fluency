@@ -75,11 +75,45 @@ export interface Profile {
   id: string;
   accountId: string;
   displayName: string;
+  /** Currently-equipped avatar (an emoji from the reward catalog). */
   avatar: string;
   settings: ProfileSettings;
   /** Consecutive days with a completed session (DESIGN.md §4.10). */
   streak: number;
+  /** Spendable reward balance (DESIGN.md §10 — earned per session). */
+  coins: number;
+  /** Currently-equipped theme id (palette); 'classic' is the default look. */
+  theme: string;
   createdAt: number;
+}
+
+// ---------------------------------------------------------------------------
+// Rewards — unlockable avatars/themes bought with earned points (roadmap v1.1)
+// ---------------------------------------------------------------------------
+
+export type RewardKind = 'avatar' | 'theme';
+
+/** A catalog entry a kid can unlock and equip. Cost 0 = free / starter item. */
+export interface RewardItem {
+  id: string;
+  kind: RewardKind;
+  label: string;
+  /** Coins to unlock; 0 means owned by default. */
+  cost: number;
+  /** avatar → the emoji; theme → the theme id applied as `body[data-theme]`. */
+  value: string;
+  /** Theme preview swatch colors (hex); omitted for avatars. */
+  swatches?: string[];
+}
+
+export interface RewardsView {
+  coins: number;
+  catalog: RewardItem[];
+  /** Item ids the kid owns (includes all cost-0 items). */
+  owned: string[];
+  /** Currently-equipped avatar emoji + theme id. */
+  equippedAvatar: string;
+  equippedTheme: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -104,6 +138,8 @@ export interface SessionResponse {
   /** Soft time budget (seconds) for the session; the client wraps up between
    *  cards once it's spent — a silent cap, never a visible countdown (§4.4, §4.8). */
   sessionSeconds: number;
+  /** The kid's equipped theme id, so the player screen renders in their palette. */
+  theme: string;
 }
 
 export interface AnswerRequest {
@@ -136,6 +172,8 @@ export interface SessionSummary {
   pointsEarned: number;
   /** Day streak after this session (DESIGN.md §4.10). */
   streak: number;
+  /** Spendable coin balance after this session (credited once on completion). */
+  coins: number;
 }
 
 // ---------------------------------------------------------------------------

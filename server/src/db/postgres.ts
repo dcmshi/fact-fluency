@@ -96,18 +96,29 @@ export class PostgresDb implements Db {
   // --- profiles ---
 
   async listProfiles(accountId: string): Promise<Profile[]> {
-    return (await this.rows<ProfileRow>('SELECT * FROM profile WHERE account_id = $1 ORDER BY created_at', [accountId])).map(
-      toProfile,
-    );
+    return (
+      await this.rows<ProfileRow>(`${PROFILE_SELECT} WHERE p.account_id = $1 ORDER BY p.created_at`, [
+        accountId,
+      ])
+    ).map(toProfile);
   }
 
   async getProfile(profileId: string): Promise<Profile | null> {
-    const row = await this.one<ProfileRow>('SELECT * FROM profile WHERE id = $1', [profileId]);
+    const row = await this.one<ProfileRow>(`${PROFILE_SELECT} WHERE p.id = $1`, [profileId]);
     return row ? toProfile(row) : null;
   }
 
-  async createProfile(p: Omit<Profile, 'id' | 'createdAt' | 'streak'>): Promise<Profile> {
-    const profile: Profile = { ...p, id: randomUUID(), streak: 0, createdAt: Date.now() };
+  async createProfile(
+    p: Omit<Profile, 'id' | 'createdAt' | 'streak' | 'coins' | 'theme'>,
+  ): Promise<Profile> {
+    const profile: Profile = {
+      ...p,
+      id: randomUUID(),
+      streak: 0,
+      coins: 0,
+      theme: 'classic',
+      createdAt: Date.now(),
+    };
     await this.pool.query(
       `INSERT INTO profile (id, account_id, display_name, avatar, settings, streak, created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7)`,
@@ -122,6 +133,60 @@ export class PostgresDb implements Db {
       ],
     );
     return profile;
+  }
+
+  async updateProfileAvatar(profileId: string, avatar: string): Promise<void> {
+    await this.pool.query('UPDATE profile SET avatar = $1 WHERE id = $2', [avatar, profileId]);
+  }
+
+  // --- rewards ---
+
+  async getProfileReward(profileId: string): Promise<{ coins: number; theme: string }> {
+    const row = await this.one<{ coins: number; theme: string }>(
+      'SELECT coins, theme FROM profile_reward WHERE profile_id = $1',
+      [profileId],
+    );
+    return { coins: row ? Number(row.coins) : 0, theme: row?.theme ?? 'classic' };
+  }
+
+  async addCoins(profileId: string, delta: number): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO profile_reward (profile_id, coins) VALUES ($1,$2)
+       ON CONFLICT (profile_id) DO UPDATE SET coins = profile_reward.coins + EXCLUDED.coins`,
+      [profileId, delta],
+    );
+  }
+
+  async setCoins(profileId: string, coins: number): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO profile_reward (profile_id, coins) VALUES ($1,$2)
+       ON CONFLICT (profile_id) DO UPDATE SET coins = EXCLUDED.coins`,
+      [profileId, coins],
+    );
+  }
+
+  async setProfileTheme(profileId: string, theme: string): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO profile_reward (profile_id, theme) VALUES ($1,$2)
+       ON CONFLICT (profile_id) DO UPDATE SET theme = EXCLUDED.theme`,
+      [profileId, theme],
+    );
+  }
+
+  async listUnlocks(profileId: string): Promise<string[]> {
+    return (
+      await this.rows<{ item_id: string }>(
+        'SELECT item_id FROM profile_unlock WHERE profile_id = $1',
+        [profileId],
+      )
+    ).map((r) => r.item_id);
+  }
+
+  async addUnlock(profileId: string, itemId: string): Promise<void> {
+    await this.pool.query(
+      'INSERT INTO profile_unlock (profile_id, item_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
+      [profileId, itemId],
+    );
   }
 
   async updateProfileSettings(profileId: string, settings: ProfileSettings): Promise<Profile> {
@@ -311,8 +376,17 @@ interface ProfileRow {
   avatar: string;
   settings: string;
   streak: number;
+  coins: number;
+  theme: string;
   created_at: number;
 }
+
+/** Profile columns joined with the (optional) reward row, defaulted. */
+const PROFILE_SELECT = `
+  SELECT p.id, p.account_id, p.display_name, p.avatar, p.settings, p.streak,
+         p.created_at, COALESCE(r.coins, 0) AS coins,
+         COALESCE(r.theme, 'classic') AS theme
+  FROM profile p LEFT JOIN profile_reward r ON r.profile_id = p.id`;
 interface ProgressRow {
   profile_id: string;
   fact_id: string;
@@ -386,6 +460,8 @@ function toProfile(r: ProfileRow): Profile {
     avatar: r.avatar,
     settings: JSON.parse(r.settings) as ProfileSettings,
     streak: r.streak,
+    coins: Number(r.coins),
+    theme: r.theme,
     createdAt: Number(r.created_at),
   };
 }

@@ -213,3 +213,10 @@
 .stat.accent .stat-label {
   color: #8a6a12;
 }
+
+.coin-total {
+  font-weight: 800;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  margin: -0.2rem 0 0.2rem;
+}

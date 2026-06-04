@@ -170,6 +170,88 @@ describe('session loop', () => {
   });
 });
 
+describe('rewards', () => {
+  async function setup() {
+    const agent = request.agent(app);
+    await agent.post('/api/auth/signup').send(CREDS);
+    const { body } = await agent.post('/api/profiles').send({ displayName: 'Kid', avatar: '🦊' });
+    return { agent, profileId: body.profile.id as string };
+  }
+
+  it('credits coins once on completion and exposes the rewards view', async () => {
+    const { agent, profileId } = await setup();
+    const { body: session } = await agent.post(`/api/profiles/${profileId}/session`);
+    for (const c of session.deck as Card[]) {
+      await agent
+        .post(`/api/sessions/${session.sessionId}/answer`)
+        .send({ factId: c.fact.id, given: c.answer, responseMs: 1200 });
+    }
+    const first = await agent.post(`/api/sessions/${session.sessionId}/complete`);
+    expect(first.body.pointsEarned).toBeGreaterThan(0);
+    expect(first.body.coins).toBe(first.body.pointsEarned);
+    // Re-completing must not farm more coins.
+    const second = await agent.post(`/api/sessions/${session.sessionId}/complete`);
+    expect(second.body.coins).toBe(first.body.coins);
+
+    const rewards = await agent.get(`/api/profiles/${profileId}/rewards`);
+    expect(rewards.body.coins).toBe(first.body.coins);
+    expect(rewards.body.catalog.length).toBeGreaterThan(0);
+    expect(rewards.body.owned).toContain('theme-classic'); // free item owned by default
+    expect(rewards.body.equippedTheme).toBe('classic');
+  });
+
+  it('unlocks and equips with coins, rejecting overspend and unowned equips', async () => {
+    const { agent, profileId } = await setup();
+    await db.addCoins(profileId, 100);
+
+    const unlock = await agent
+      .post(`/api/profiles/${profileId}/rewards/unlock`)
+      .send({ itemId: 'avatar-butterfly' }); // cost 40
+    expect(unlock.status).toBe(200);
+    expect(unlock.body.coins).toBe(60);
+    expect(unlock.body.owned).toContain('avatar-butterfly');
+
+    const equip = await agent
+      .post(`/api/profiles/${profileId}/rewards/equip`)
+      .send({ itemId: 'avatar-butterfly' });
+    expect(equip.body.equippedAvatar).toBe('🦋');
+    const profiles = await agent.get('/api/profiles');
+    const me = (profiles.body.profiles as { id: string; avatar: string }[]).find((p) => p.id === profileId);
+    expect(me?.avatar).toBe('🦋');
+
+    // Overspend: alien costs 150, only 60 left.
+    const over = await agent
+      .post(`/api/profiles/${profileId}/rewards/unlock`)
+      .send({ itemId: 'avatar-alien' });
+    expect(over.status).toBe(400);
+    expect(over.body.error).toBe('insufficient_coins');
+
+    // Equip something not owned → 403.
+    expect(
+      (await agent.post(`/api/profiles/${profileId}/rewards/equip`).send({ itemId: 'avatar-alien' })).status,
+    ).toBe(403);
+
+    // Free items: equip OK, but "unlocking" a free item is rejected.
+    expect(
+      (await agent.post(`/api/profiles/${profileId}/rewards/equip`).send({ itemId: 'theme-classic' })).body
+        .equippedTheme,
+    ).toBe('classic');
+    expect(
+      (await agent.post(`/api/profiles/${profileId}/rewards/unlock`).send({ itemId: 'theme-classic' })).status,
+    ).toBe(400);
+    expect(
+      (await agent.post(`/api/profiles/${profileId}/rewards/unlock`).send({ itemId: 'nope' })).status,
+    ).toBe(400);
+  });
+
+  it('404s rewards for another account', async () => {
+    const { profileId } = await setup();
+    const other = request.agent(app);
+    await other.post('/api/auth/signup').send({ ...CREDS, email: 'r@home.test' });
+    expect((await other.get(`/api/profiles/${profileId}/rewards`)).status).toBe(404);
+  });
+});
+
 describe('session errors', () => {
   it('401 without auth', async () => {
     const { profileId } = await setup();

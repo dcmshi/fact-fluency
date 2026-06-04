@@ -10,6 +10,7 @@ import type {
   Profile,
   ProfileSettings,
   ProgressView,
+  RewardsView,
   SessionResponse,
   SessionSummary,
 } from '@shared';
@@ -69,4 +70,13 @@ export const api = {
   // progress
   progress: (profileId: string) => req<ProgressView>('GET', `/profiles/${profileId}/progress`),
   dashboard: (profileId: string) => req<DashboardView>('GET', `/profiles/${profileId}/dashboard`),
+
+  // rewards
+  rewards: (profileId: string) => req<RewardsView>('GET', `/profiles/${profileId}/rewards`),
+  unlockReward: (profileId: string, itemId: string) =>
+    req<{ coins: number; owned: string[] }>('POST', `/profiles/${profileId}/rewards/unlock`, { itemId }),
+  equipReward: (profileId: string, itemId: string) =>
+    req<{ equippedAvatar: string; equippedTheme: string }>('POST', `/profiles/${profileId}/rewards/equip`, {
+      itemId,
+    }),
 };

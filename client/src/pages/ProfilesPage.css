@@ -173,3 +173,92 @@
 .set-pill.div.on {
   background: var(--div);
 }
+
+/* ---- rewards ---- */
+.coin-badge {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.6rem;
+  background: var(--paper-2);
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  font-weight: 800;
+  font-size: 0.78rem;
+  color: var(--ink);
+}
+.coin-balance {
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.3rem;
+  margin-bottom: 0.3rem;
+}
+.reward-section {
+  margin-top: 0.4rem;
+}
+.reward-section-title {
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  margin: 0.5rem 0 0.5rem;
+}
+.reward-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 0.6rem;
+}
+.reward-tile {
+  background: var(--paper);
+  border: 2px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 0.6rem 0.3rem 0.45rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  transition: transform 0.08s ease;
+}
+.reward-tile:not(:disabled):hover {
+  transform: translateY(-2px);
+  border-color: var(--sun);
+}
+.reward-tile.equipped {
+  border-color: var(--sun);
+  background: #fff6df;
+}
+.reward-tile.locked {
+  opacity: 0.55;
+}
+.reward-preview {
+  height: 36px;
+  display: grid;
+  place-items: center;
+}
+.reward-emoji {
+  font-size: 1.9rem;
+  line-height: 1;
+}
+.reward-swatches {
+  display: flex;
+  border-radius: 7px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+.reward-swatch {
+  width: 16px;
+  height: 28px;
+}
+.reward-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.reward-status {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+.reward-tile.equipped .reward-status {
+  color: #c98a00;
+}

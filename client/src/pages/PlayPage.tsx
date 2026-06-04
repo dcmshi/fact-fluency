@@ -5,6 +5,7 @@ import { api, ApiError } from '../api';
 import { Confetti } from '../components/Confetti';
 import { NumberPad } from '../components/NumberPad';
 import { OP_CLASS, OP_SYMBOL } from '../ops';
+import { useTheme } from '../useTheme';
 import './PlayPage.css';
 
 type Phase = 'loading' | 'study' | 'prompt' | 'feedback' | 'done' | 'error';
@@ -29,6 +30,8 @@ export function PlayPage() {
   const timerStart = useRef(0);
   const sessionStart = useRef(0);
   const sessionRef = useRef<SessionResponse | null>(null);
+
+  useTheme(session?.theme);
 
   const current = queue[0] ?? null;
 
@@ -251,8 +254,9 @@ export function PlayPage() {
             <Stat label="Played" value={summary.cardsPlayed} />
             <Stat label="Correct" value={summary.correct} />
             <Stat label="Mastered" value={summary.mastered} />
-            <Stat label="Points" value={summary.pointsEarned} accent />
+            <Stat label="Coins +" value={summary.pointsEarned} accent />
           </div>
+          <div className="coin-total">⭐ {summary.coins} coins to spend in Rewards</div>
           <button className="btn sun full" onClick={start}>
             Play again
           </button>

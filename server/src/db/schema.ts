@@ -90,4 +90,19 @@ CREATE TABLE IF NOT EXISTS attempt (
 );
 CREATE INDEX IF NOT EXISTS idx_attempt_session ON attempt(session_id);
 CREATE INDEX IF NOT EXISTS idx_attempt_profile_time ON attempt(profile_id, answered_at);
+
+-- Reward economy (roadmap v1.1). Additive tables so adding the feature needs
+-- no ALTER of the existing profile table. coins = spendable balance; theme =
+-- equipped palette id (equipped avatar stays on profile.avatar).
+CREATE TABLE IF NOT EXISTS profile_reward (
+  profile_id TEXT PRIMARY KEY REFERENCES profile(id) ON DELETE CASCADE,
+  coins      INTEGER NOT NULL DEFAULT 0,
+  theme      TEXT NOT NULL DEFAULT 'classic'
+);
+
+CREATE TABLE IF NOT EXISTS profile_unlock (
+  profile_id TEXT NOT NULL REFERENCES profile(id) ON DELETE CASCADE,
+  item_id    TEXT NOT NULL,
+  PRIMARY KEY (profile_id, item_id)
+);
 `;

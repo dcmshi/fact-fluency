@@ -9,6 +9,7 @@ import { SEED_CATALOG } from '../data/catalog';
 import type { Db } from '../db';
 import { getDashboardView } from '../dashboard';
 import { getProgressView } from '../progress';
+import { equipReward, getRewards, unlockReward } from '../rewards';
 import * as sessions from '../session/service';
 import { SessionError } from '../session/service';
 import { createProfileRouter } from './profiles';
@@ -77,6 +78,31 @@ export function createApiRouter(db: Db, isProd: boolean): Router {
     requireAuth,
     handle(async (req, res) => {
       res.json(await getDashboardView(db, req.accountId!, req.params.id, Date.now()));
+    }),
+  );
+
+  // --- rewards (roadmap v1.1) ---
+  router.get(
+    '/profiles/:id/rewards',
+    requireAuth,
+    handle(async (req, res) => {
+      res.json(await getRewards(db, req.accountId!, req.params.id));
+    }),
+  );
+
+  router.post(
+    '/profiles/:id/rewards/unlock',
+    requireAuth,
+    handle(async (req, res) => {
+      res.json(await unlockReward(db, req.accountId!, req.params.id, req.body?.itemId));
+    }),
+  );
+
+  router.post(
+    '/profiles/:id/rewards/equip',
+    requireAuth,
+    handle(async (req, res) => {
+      res.json(await equipReward(db, req.accountId!, req.params.id, req.body?.itemId));
     }),
   );
 

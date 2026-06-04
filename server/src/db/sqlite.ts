@@ -18,8 +18,17 @@ interface ProfileRow {
   avatar: string;
   settings: string;
   streak: number;
+  coins: number;
+  theme: string;
   created_at: number;
 }
+
+/** Profile columns joined with the (optional) reward row, defaulted. */
+const PROFILE_SELECT = `
+  SELECT p.id, p.account_id, p.display_name, p.avatar, p.settings, p.streak,
+         p.created_at, COALESCE(r.coins, 0) AS coins,
+         COALESCE(r.theme, 'classic') AS theme
+  FROM profile p LEFT JOIN profile_reward r ON r.profile_id = p.id`;
 
 interface ProgressRow {
   profile_id: string;
@@ -153,13 +162,13 @@ export class SqliteDb implements Db {
 
   async listProfiles(accountId: string): Promise<Profile[]> {
     const rows = this.db
-      .prepare('SELECT * FROM profile WHERE account_id = ? ORDER BY created_at')
+      .prepare(`${PROFILE_SELECT} WHERE p.account_id = ? ORDER BY p.created_at`)
       .all(accountId) as ProfileRow[];
     return rows.map(toProfile);
   }
 
   async getProfile(profileId: string): Promise<Profile | null> {
-    const row = this.db.prepare('SELECT * FROM profile WHERE id = ?').get(profileId) as
+    const row = this.db.prepare(`${PROFILE_SELECT} WHERE p.id = ?`).get(profileId) as
       | ProfileRow
       | undefined;
     return row ? toProfile(row) : null;
@@ -178,8 +187,17 @@ export class SqliteDb implements Db {
       .run(streak, day, profileId);
   }
 
-  async createProfile(p: Omit<Profile, 'id' | 'createdAt' | 'streak'>): Promise<Profile> {
-    const profile: Profile = { ...p, id: randomUUID(), streak: 0, createdAt: Date.now() };
+  async createProfile(
+    p: Omit<Profile, 'id' | 'createdAt' | 'streak' | 'coins' | 'theme'>,
+  ): Promise<Profile> {
+    const profile: Profile = {
+      ...p,
+      id: randomUUID(),
+      streak: 0,
+      coins: 0,
+      theme: 'classic',
+      createdAt: Date.now(),
+    };
     this.db
       .prepare(
         'INSERT INTO profile (id, account_id, display_name, avatar, settings, created_at) VALUES (?, ?, ?, ?, ?, ?)',
@@ -193,6 +211,59 @@ export class SqliteDb implements Db {
         profile.createdAt,
       );
     return profile;
+  }
+
+  async updateProfileAvatar(profileId: string, avatar: string): Promise<void> {
+    this.db.prepare('UPDATE profile SET avatar = ? WHERE id = ?').run(avatar, profileId);
+  }
+
+  // --- rewards ---
+
+  async getProfileReward(profileId: string): Promise<{ coins: number; theme: string }> {
+    const row = this.db
+      .prepare('SELECT coins, theme FROM profile_reward WHERE profile_id = ?')
+      .get(profileId) as { coins: number; theme: string } | undefined;
+    return { coins: row?.coins ?? 0, theme: row?.theme ?? 'classic' };
+  }
+
+  async addCoins(profileId: string, delta: number): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT INTO profile_reward (profile_id, coins) VALUES (?, ?)
+         ON CONFLICT(profile_id) DO UPDATE SET coins = coins + excluded.coins`,
+      )
+      .run(profileId, delta);
+  }
+
+  async setCoins(profileId: string, coins: number): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT INTO profile_reward (profile_id, coins) VALUES (?, ?)
+         ON CONFLICT(profile_id) DO UPDATE SET coins = excluded.coins`,
+      )
+      .run(profileId, coins);
+  }
+
+  async setProfileTheme(profileId: string, theme: string): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT INTO profile_reward (profile_id, theme) VALUES (?, ?)
+         ON CONFLICT(profile_id) DO UPDATE SET theme = excluded.theme`,
+      )
+      .run(profileId, theme);
+  }
+
+  async listUnlocks(profileId: string): Promise<string[]> {
+    const rows = this.db
+      .prepare('SELECT item_id FROM profile_unlock WHERE profile_id = ?')
+      .all(profileId) as { item_id: string }[];
+    return rows.map((r) => r.item_id);
+  }
+
+  async addUnlock(profileId: string, itemId: string): Promise<void> {
+    this.db
+      .prepare('INSERT OR IGNORE INTO profile_unlock (profile_id, item_id) VALUES (?, ?)')
+      .run(profileId, itemId);
   }
 
   async updateProfileSettings(profileId: string, settings: ProfileSettings): Promise<Profile> {
@@ -377,6 +448,8 @@ function toProfile(r: ProfileRow): Profile {
     avatar: r.avatar,
     settings: JSON.parse(r.settings) as ProfileSettings,
     streak: r.streak,
+    coins: r.coins,
+    theme: r.theme,
     createdAt: r.created_at,
   };
 }

@@ -29,7 +29,14 @@ This is a backlog, not a commitment — pick from it as needed.
       suggestion banner, an accuracy bar chart + speed sparkline, then the grid.
       Cross-operation suggestions (e.g. start subtraction) are intentionally
       out of scope for v1.
-- [ ] **Unlockable avatars / themes** (roadmap v1.1) — reward points spend.
+- [x] **Unlockable avatars / themes** (roadmap v1.1) — reward points spend.
+      Coins accrue on session completion (credited once, idempotent); a kid-facing
+      Rewards shop on the profile picker spends them to unlock avatars + palette
+      themes, then equips them. Server-authoritative catalog/costs/ownership
+      (`data/rewards.ts`, `rewards.ts`); additive `profile_reward` / `profile_unlock`
+      tables (no profile-table migration). Themes apply via `body[data-theme]`
+      (palette-only; operation colors stay fixed) on the Play screen and live in
+      the shop. Cross-op suggestions/new operations untouched.
 - [ ] **Subtraction/division fact-family framing** (DESIGN.md §9 "Later") — link
       `7×8` ↔ `56÷7` for transfer.
 - [ ] **Offline play + sync** (DESIGN.md §9 "Later").

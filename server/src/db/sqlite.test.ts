@@ -160,6 +160,32 @@ describe('sessions', () => {
   });
 });
 
+describe('rewards', () => {
+  it('tracks coins, theme, and unlocks, joining them onto the profile', async () => {
+    const { accountId, profile } = await makeAccountAndProfile();
+    expect(await db.getProfileReward(profile.id)).toEqual({ coins: 0, theme: 'classic' });
+    expect((await db.getProfile(profile.id))?.coins).toBe(0);
+
+    await db.addCoins(profile.id, 30);
+    await db.addCoins(profile.id, 15);
+    expect((await db.getProfileReward(profile.id)).coins).toBe(45);
+    await db.setCoins(profile.id, 10);
+    expect((await db.getProfileReward(profile.id)).coins).toBe(10);
+
+    await db.setProfileTheme(profile.id, 'ocean');
+    expect((await db.getProfile(profile.id))?.theme).toBe('ocean');
+    expect((await db.getProfileReward(profile.id)).coins).toBe(10); // coins survive theme change
+
+    await db.addUnlock(profile.id, 'avatar-dragon');
+    await db.addUnlock(profile.id, 'avatar-dragon'); // idempotent
+    expect(await db.listUnlocks(profile.id)).toEqual(['avatar-dragon']);
+
+    await db.updateProfileAvatar(profile.id, '🐉');
+    const listed = (await db.listProfiles(accountId))[0];
+    expect(listed).toMatchObject({ avatar: '🐉', coins: 10, theme: 'ocean' });
+  });
+});
+
 describe('operation stats', () => {
   it('upserts per (profile, operation)', async () => {
     const { profile } = await makeAccountAndProfile();

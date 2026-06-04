@@ -121,6 +121,23 @@ describe('PostgresDb (pg-mem)', () => {
     expect(attempts[0].fast).toBe(true);
   });
 
+  it('tracks reward coins, theme, and unlocks', async () => {
+    const { profile } = await accountAndProfile();
+    expect(await db.getProfileReward(profile.id)).toEqual({ coins: 0, theme: 'classic' });
+    await db.addCoins(profile.id, 40);
+    await db.addCoins(profile.id, 10);
+    expect((await db.getProfileReward(profile.id)).coins).toBe(50);
+    await db.setCoins(profile.id, 25);
+    await db.setProfileTheme(profile.id, 'candy');
+    const reward = await db.getProfileReward(profile.id);
+    expect(reward).toEqual({ coins: 25, theme: 'candy' });
+    expect((await db.getProfile(profile.id))?.theme).toBe('candy');
+
+    await db.addUnlock(profile.id, 'theme-candy');
+    await db.addUnlock(profile.id, 'theme-candy');
+    expect(await db.listUnlocks(profile.id)).toEqual(['theme-candy']);
+  });
+
   it('getOpenSession tracks the latest incomplete session', async () => {
     const { profile } = await accountAndProfile();
     const row = (id: string, startedAt: number) => ({

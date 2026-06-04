@@ -47,8 +47,19 @@ export interface Db {
   // --- profiles ---
   listProfiles(accountId: string): Promise<Profile[]>;
   getProfile(profileId: string): Promise<Profile | null>;
-  createProfile(p: Omit<Profile, 'id' | 'createdAt' | 'streak'>): Promise<Profile>;
+  createProfile(p: Omit<Profile, 'id' | 'createdAt' | 'streak' | 'coins' | 'theme'>): Promise<Profile>;
   updateProfileSettings(profileId: string, settings: ProfileSettings): Promise<Profile>;
+  updateProfileAvatar(profileId: string, avatar: string): Promise<void>;
+
+  // --- rewards (roadmap v1.1) ---
+  getProfileReward(profileId: string): Promise<{ coins: number; theme: string }>;
+  /** Add (or subtract) coins; upserts the reward row. */
+  addCoins(profileId: string, delta: number): Promise<void>;
+  /** Set the absolute coin balance; upserts the reward row. */
+  setCoins(profileId: string, coins: number): Promise<void>;
+  setProfileTheme(profileId: string, theme: string): Promise<void>;
+  listUnlocks(profileId: string): Promise<string[]>;
+  addUnlock(profileId: string, itemId: string): Promise<void>;
   getProfileStreak(profileId: string): Promise<{ streak: number; lastPlayedDay: string | null }>;
   setProfileStreak(profileId: string, streak: number, day: string): Promise<void>;
 

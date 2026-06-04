@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { FactSet, Profile, ProfileSettings } from '@shared';
+import type { FactSet, Profile, ProfileSettings, RewardItem } from '@shared';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { AVATARS, OP_LABEL, OP_SYMBOL } from '../ops';
+import { useTheme } from '../useTheme';
 import './ProfilesPage.css';
 
 export function ProfilesPage() {
@@ -13,6 +14,7 @@ export function ProfilesPage() {
   const [adding, setAdding] = useState(false);
   const [managing, setManaging] = useState<Profile | null>(null);
   const [settingsFor, setSettingsFor] = useState<Profile | null>(null);
+  const [rewardsFor, setRewardsFor] = useState<Profile | null>(null);
 
   const refresh = () => api.listProfiles().then((r) => setProfiles(r.profiles));
   useEffect(() => {
@@ -43,10 +45,14 @@ export function ProfilesPage() {
               <div className="avatar">{p.avatar}</div>
               <div className="profile-name">{p.displayName}</div>
               {p.streak > 1 && <div className="streak-badge">🔥 {p.streak}</div>}
+              <div className="coin-badge">⭐ {p.coins}</div>
               <button className="btn sun full" onClick={() => navigate(`/play/${p.id}`)}>
                 Play ▶
               </button>
               <div className="tile-actions">
+                <button className="btn ghost" onClick={() => setRewardsFor(p)}>
+                  Rewards
+                </button>
                 <button className="btn ghost" onClick={() => navigate(`/progress/${p.id}`)}>
                   Progress
                 </button>
@@ -89,7 +95,152 @@ export function ProfilesPage() {
           }}
         />
       )}
+      {rewardsFor && (
+        <RewardsModal
+          profile={rewardsFor}
+          onClose={() => {
+            setRewardsFor(null);
+            refresh();
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function RewardsModal({ profile, onClose }: { profile: Profile; onClose: () => void }) {
+  const [coins, setCoins] = useState(profile.coins);
+  const [owned, setOwned] = useState<Set<string>>(new Set());
+  const [catalog, setCatalog] = useState<RewardItem[] | null>(null);
+  const [equippedAvatar, setEquippedAvatar] = useState(profile.avatar);
+  const [equippedTheme, setEquippedTheme] = useState(profile.theme);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  // Live-preview the equipped theme across the whole picker while open.
+  useTheme(equippedTheme);
+
+  useEffect(() => {
+    api.rewards(profile.id).then((r) => {
+      setCoins(r.coins);
+      setOwned(new Set(r.owned));
+      setCatalog(r.catalog);
+      setEquippedAvatar(r.equippedAvatar);
+      setEquippedTheme(r.equippedTheme);
+    });
+  }, [profile.id]);
+
+  async function equip(item: RewardItem) {
+    const r = await api.equipReward(profile.id, item.id);
+    setEquippedAvatar(r.equippedAvatar);
+    setEquippedTheme(r.equippedTheme);
+  }
+
+  async function act(item: RewardItem) {
+    const isOwned = owned.has(item.id);
+    const equipped =
+      item.kind === 'avatar' ? item.value === equippedAvatar : item.value === equippedTheme;
+    if (equipped) return;
+    setBusy(item.id);
+    try {
+      if (isOwned) {
+        await equip(item);
+      } else if (coins >= item.cost) {
+        const r = await api.unlockReward(profile.id, item.id);
+        setCoins(r.coins);
+        setOwned(new Set(r.owned));
+        await equip(item); // wear it right away
+      }
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const avatars = (catalog ?? []).filter((i) => i.kind === 'avatar');
+  const themes = (catalog ?? []).filter((i) => i.kind === 'theme');
+
+  return (
+    <Modal onClose={onClose} title={`${equippedAvatar} ${profile.displayName}'s rewards`}>
+      <div className="coin-balance">⭐ {coins} coins</div>
+
+      <RewardSection title="Avatars">
+        {avatars.map((item) => (
+          <RewardTile
+            key={item.id}
+            item={item}
+            owned={owned.has(item.id)}
+            equipped={item.value === equippedAvatar}
+            affordable={coins >= item.cost}
+            busy={busy === item.id}
+            onClick={() => act(item)}
+          />
+        ))}
+      </RewardSection>
+
+      <RewardSection title="Themes">
+        {themes.map((item) => (
+          <RewardTile
+            key={item.id}
+            item={item}
+            owned={owned.has(item.id)}
+            equipped={item.value === equippedTheme}
+            affordable={coins >= item.cost}
+            busy={busy === item.id}
+            onClick={() => act(item)}
+          />
+        ))}
+      </RewardSection>
+    </Modal>
+  );
+}
+
+function RewardSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="reward-section">
+      <div className="reward-section-title">{title}</div>
+      <div className="reward-grid">{children}</div>
+    </div>
+  );
+}
+
+function RewardTile({
+  item,
+  owned,
+  equipped,
+  affordable,
+  busy,
+  onClick,
+}: {
+  item: RewardItem;
+  owned: boolean;
+  equipped: boolean;
+  affordable: boolean;
+  busy: boolean;
+  onClick: () => void;
+}) {
+  const locked = !owned && !affordable;
+  return (
+    <button
+      className={`reward-tile ${equipped ? 'equipped' : ''} ${locked ? 'locked' : ''}`}
+      disabled={busy || equipped || locked}
+      onClick={onClick}
+      title={item.label}
+    >
+      <div className="reward-preview">
+        {item.kind === 'avatar' ? (
+          <span className="reward-emoji">{item.value}</span>
+        ) : (
+          <span className="reward-swatches">
+            {(item.swatches ?? []).map((c, i) => (
+              <span key={i} className="reward-swatch" style={{ background: c }} />
+            ))}
+          </span>
+        )}
+      </div>
+      <div className="reward-label">{item.label}</div>
+      <div className="reward-status">
+        {equipped ? '✓ On' : owned ? 'Use' : `⭐ ${item.cost}`}
+      </div>
+    </button>
   );
 }
 

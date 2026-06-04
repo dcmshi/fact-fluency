@@ -89,7 +89,7 @@ async function bumpStreak(db: Db, profileId: string, timezone: string, now: numb
   return next;
 }
 
-async function requireOwnedProfile(db: Db, accountId: string, profileId: string) {
+export async function requireOwnedProfile(db: Db, accountId: string, profileId: string) {
   const profile = await db.getProfile(profileId);
   if (!profile || profile.accountId !== accountId) {
     throw new SessionError(404, 'profile_not_found');
@@ -159,6 +159,7 @@ export async function startSession(
         deck: resumeDeck,
         thresholds: await computeThresholds(db, profileId),
         sessionSeconds: profile.settings.sessionSeconds,
+        theme: profile.theme,
       };
     }
     // Nothing left to resume (or a different day): close it and plan fresh.
@@ -191,6 +192,7 @@ export async function startSession(
     deck,
     thresholds: await computeThresholds(db, profileId),
     sessionSeconds: profile.settings.sessionSeconds,
+    theme: profile.theme,
   };
 }
 
@@ -276,7 +278,8 @@ export async function complete(
   const session = await db.getSession(sessionId);
   if (!session) throw new SessionError(404, 'session_not_found');
   await requireOwnedProfile(db, accountId, session.profileId);
-  if (!session.completedAt) await db.completeSession(sessionId, now);
+  const firstCompletion = !session.completedAt;
+  if (firstCompletion) await db.completeSession(sessionId, now);
 
   const timezone = (await db.getAccountTimezone(accountId)) ?? 'UTC';
   const streak = await bumpStreak(db, session.profileId, timezone, now);
@@ -284,6 +287,12 @@ export async function complete(
   const attempts = await db.listSessionAttempts(sessionId);
   const correct = attempts.filter((a) => a.correct).length;
   const fastCorrect = attempts.filter((a) => a.fast).length;
+  const pointsEarned = correct + fastCorrect; // +1 correct, +1 fast bonus (§10)
+
+  // Credit coins exactly once, on the transition to completed — so reopening
+  // the summary (or a double POST) can't farm coins.
+  if (firstCompletion && pointsEarned > 0) await db.addCoins(session.profileId, pointsEarned);
+  const { coins } = await db.getProfileReward(session.profileId);
 
   // Facts that reached box 5 (mastered) this session.
   let mastered = 0;
@@ -297,7 +306,8 @@ export async function complete(
     correct,
     fastCorrect,
     mastered,
-    pointsEarned: correct + fastCorrect, // +1 correct, +1 fast bonus (§10)
+    pointsEarned,
     streak,
+    coins,
   };
 }

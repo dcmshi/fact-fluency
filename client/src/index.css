@@ -290,3 +290,54 @@ button {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ===========================================================================
+   Unlockable palette themes (roadmap v1.1). Applied as body[data-theme="…"]
+   so the whole page (incl. the paper background) re-themes. Operation colors
+   (--add/--sub/--mul/--div) stay fixed so each operation keeps its identity.
+   =========================================================================== */
+body[data-theme="ocean"] {
+  --paper: #eaf6fb;
+  --paper-2: #d6eef6;
+  --sun: #16b5c9;
+  --ink: #123b47;
+  --ink-soft: #4d7682;
+  --line: #cfe6ee;
+  --card: #ffffff;
+}
+body[data-theme="candy"] {
+  --paper: #fdeef7;
+  --paper-2: #fbdcef;
+  --sun: #ff5fa2;
+  --ink: #4a1d3a;
+  --ink-soft: #9b5e80;
+  --line: #f4d3e6;
+  --card: #ffffff;
+}
+body[data-theme="forest"] {
+  --paper: #edf6ea;
+  --paper-2: #dcecd5;
+  --sun: #3a9d54;
+  --ink: #1f3a25;
+  --ink-soft: #5b7560;
+  --line: #d3e6cd;
+  --card: #ffffff;
+}
+body[data-theme="sunset"] {
+  --paper: #fff0e8;
+  --paper-2: #ffe0d0;
+  --sun: #ff7a3d;
+  --ink: #4a2418;
+  --ink-soft: #9b6a55;
+  --line: #f6d9c8;
+  --card: #fffdfb;
+}
+body[data-theme="midnight"] {
+  --paper: #191c2b;
+  --paper-2: #222740;
+  --sun: #7c9cff;
+  --ink: #eef1ff;
+  --ink-soft: #a6adcc;
+  --line: #33384f;
+  --card: #232843;
+}
