@@ -80,8 +80,12 @@ This is a backlog, not a commitment — pick from it as needed.
 
 ## Deployment / ops
 
-- [ ] First Render deploy via Blueprint (`render.yaml`) — verify Postgres SSL +
-      `migrate()` on a live instance.
+- [x] First Render deploy via Blueprint (`render.yaml`) — live at
+      https://fact-fluency.onrender.com. Verified end-to-end against the managed
+      Postgres: signup (Secure cookie + SSL), profile, full session
+      play→complete (coins/streak), unlock+equip, dashboard trends — exercising
+      every write path incl. the `ON CONFLICT` upserts and BIGINT columns.
+      `migrate()` self-applied the schema on first boot. Node pinned to 24.13.1.
 - [ ] Decide on auth-session cleanup (expired `auth_session` rows accumulate;
       add a periodic prune or a TTL job).
 - [ ] Rate-limit auth endpoints.
@@ -90,5 +94,6 @@ This is a backlog, not a commitment — pick from it as needed.
 
 - `caughtUp` is computed per profile (due-review + learning counts), not scoped
   to the day's planned intros — fine for now, revisit with the dashboard.
-- No automated test against a *live* Postgres (pg-mem covers the SQL); smoke-test
-  on the first Render deploy.
+- No automated test against a *live* Postgres (pg-mem covers the SQL). A manual
+  end-to-end smoke flow was run against the live Render Postgres on first deploy
+  and passed; consider scripting it as a post-deploy check if deploys get frequent.
