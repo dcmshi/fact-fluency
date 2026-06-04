@@ -41,9 +41,9 @@ describe('error handling', () => {
   });
 });
 
-describe('same-origin guard (CSRF defense-in-depth)', () => {
-  it('rejects a cross-origin mutating request', async () => {
-    const res = await request(app(false))
+describe('same-origin guard (CSRF defense-in-depth, prod only)', () => {
+  it('rejects a cross-origin mutating request in prod', async () => {
+    const res = await request(app(true))
       .post('/api/auth/login')
       .set('Origin', 'http://evil.example')
       .send({ email: 'a@b.co', password: 'whatever12' });
@@ -52,14 +52,22 @@ describe('same-origin guard (CSRF defense-in-depth)', () => {
   });
 
   it('allows a mutating request with no Origin (fails open)', async () => {
-    const res = await request(app(false))
+    const res = await request(app(true))
       .post('/api/auth/login')
       .send({ email: 'a@b.co', password: 'whatever12' });
     expect(res.status).not.toBe(403); // reaches the handler (401 invalid creds)
   });
 
   it('does not block safe (GET) requests', async () => {
-    const res = await request(app(false)).get('/api/health').set('Origin', 'http://evil.example');
+    const res = await request(app(true)).get('/api/health').set('Origin', 'http://evil.example');
     expect(res.status).toBe(200);
+  });
+
+  it('does not guard in dev (Vite proxy rewrites Host)', async () => {
+    const res = await request(app(false))
+      .post('/api/auth/login')
+      .set('Origin', 'http://evil.example')
+      .send({ email: 'a@b.co', password: 'whatever12' });
+    expect(res.status).not.toBe(403); // dev relies on SameSite=Lax instead
   });
 });

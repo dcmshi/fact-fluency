@@ -21,7 +21,10 @@ export function createApp(db: Db, isProd: boolean): Application {
   app.use(cookieParser(process.env.COOKIE_SECRET ?? 'dev-only-change-me'));
   app.use(attachAccount(db));
 
-  app.use('/api', sameOriginGuard(), createApiRouter(db, isProd));
+  // CSRF same-origin guard is a production concern (and the dev Vite proxy
+  // rewrites Host so Origin wouldn't match). Dev still has SameSite=Lax cookies.
+  const apiGuards = isProd ? [sameOriginGuard()] : [];
+  app.use('/api', ...apiGuards, createApiRouter(db, isProd));
 
   if (isProd) {
     const clientDist = path.resolve(__dirname, '../../client/dist');
