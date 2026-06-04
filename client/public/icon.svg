@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Fact Fluency">
+  <rect width="512" height="512" rx="104" fill="#ffc83d" />
+  <path
+    d="M256 72 L296 216 L440 256 L296 296 L256 440 L216 296 L72 256 L216 216 Z"
+    fill="#2b2440"
+  />
+</svg>

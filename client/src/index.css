@@ -341,3 +341,19 @@ body[data-theme="midnight"] {
   --line: #33384f;
   --card: #232843;
 }
+
+/* Offline banner (resilient sync). Fixed strip so it never blocks tapping. */
+.offline-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  text-align: center;
+  padding: 0.4rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--sun);
+  box-shadow: 0 2px 0 rgba(43, 36, 64, 0.12);
+}

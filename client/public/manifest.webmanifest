@@ -1,0 +1,19 @@
+{
+  "name": "Fact Fluency",
+  "short_name": "Fact Fluency",
+  "description": "Build math fact fluency with short, spaced practice sessions.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fff7ec",
+  "theme_color": "#ffc83d",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

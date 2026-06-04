@@ -43,12 +43,22 @@ This is a backlog, not a commitment — pick from it as needed.
       div→mul, null for base ops), attached to new cards at deck-build time and
       rendered on the study screen. Presentation-only — no scheduling transfer
       (mastery seeding the sibling's box) yet; that's the deeper follow-up.
-- [ ] **Offline play + sync** (DESIGN.md §9 "Later").
+- [x] **Offline play + sync** (DESIGN.md §9 "Later") — *bounded scope (PWA +
+      resilient sync)*. A service worker (`client/public/sw.js`) caches the app
+      shell so it launches offline + is installable (manifest + icon). Failed
+      answer reports queue in localStorage (`syncQueue.ts`) and replay in order on
+      reconnect; a session finished offline is credited (coins/streak) when
+      connectivity returns. An offline banner shows status. Server stays the sole
+      state writer. **Not** included: cold-start-offline (planning/grading a brand
+      new session with zero connectivity) — that needs the engine on the client
+      (a shared runtime package), a deliberate larger follow-up.
 
 ## Polish
 
 - [ ] **aria-live** announcements for answer feedback (screen-reader support).
-- [ ] **PWA manifest** + icons so it installs on a tablet/Chromebook.
+- [x] **PWA manifest** + icons so it installs on a tablet/Chromebook (done with
+      the offline work). Note: ships a single SVG icon (Chrome/Chromebook accept
+      it); add 192/512 PNG icons later for the strictest install criteria.
 - [ ] Loading skeletons / nicer empty states (profiles, progress).
 - [ ] Optional sound effects (with a mute toggle).
 

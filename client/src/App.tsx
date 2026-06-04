@@ -1,9 +1,37 @@
+import { useEffect, useState } from 'react';
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
 import { useAuth } from './auth';
 import { AuthPage } from './pages/AuthPage';
 import { PlayPage } from './pages/PlayPage';
 import { ProfilesPage } from './pages/ProfilesPage';
 import { ProgressPage } from './pages/ProgressPage';
+import { flushAll } from './syncQueue';
+
+/** Offline banner + flush of any queued reports when connectivity returns. */
+function NetworkStatus() {
+  const [offline, setOffline] = useState(!navigator.onLine);
+  useEffect(() => {
+    const goOnline = () => {
+      setOffline(false);
+      void flushAll();
+    };
+    const goOffline = () => setOffline(true);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    void flushAll(); // drain anything left from a previous visit
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
+
+  if (!offline) return null;
+  return (
+    <div className="offline-banner" role="status">
+      📡 Offline — your progress is saved and syncs when you reconnect.
+    </div>
+  );
+}
 
 export function App() {
   const { accountId, loading } = useAuth();
@@ -16,10 +44,17 @@ export function App() {
     );
   }
 
-  if (!accountId) return <AuthPage />;
+  if (!accountId)
+    return (
+      <>
+        <NetworkStatus />
+        <AuthPage />
+      </>
+    );
 
   return (
     <BrowserRouter>
+      <NetworkStatus />
       <Routes>
         <Route path="/" element={<ProfilesPage />} />
         <Route path="/play/:profileId" element={<PlayPage />} />

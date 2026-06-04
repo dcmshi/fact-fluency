@@ -5,6 +5,7 @@ import { api, ApiError } from '../api';
 import { Confetti } from '../components/Confetti';
 import { NumberPad } from '../components/NumberPad';
 import { OP_CLASS, OP_SYMBOL } from '../ops';
+import { enqueueAnswer, flushAnswers, markPendingComplete } from '../syncQueue';
 import { useTheme } from '../useTheme';
 import './PlayPage.css';
 
@@ -25,6 +26,7 @@ export function PlayPage() {
   const [played, setPlayed] = useState(0);
   const [summary, setSummary] = useState<SessionSummary | null>(null);
   const [caughtUp, setCaughtUp] = useState(false);
+  const [offlineFinish, setOfflineFinish] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
 
   const timerStart = useRef(0);
@@ -44,10 +46,15 @@ export function PlayPage() {
       const timeUp =
         s != null && performance.now() - sessionStart.current >= s.sessionSeconds * 1000;
       if (nextQueue.length === 0 || timeUp) {
+        const sid = sessionRef.current!.sessionId;
         try {
-          setSummary(await api.complete(sessionRef.current!.sessionId));
+          // Make sure every report reached the server before reconciling.
+          await flushAnswers();
+          setSummary(await api.complete(sid));
         } catch {
-          /* summary is best-effort */
+          // Offline at the finish: keep the work, credit it on reconnect.
+          markPendingComplete(sid);
+          setOfflineFinish(true);
         }
         setPhase('done');
         return;
@@ -71,6 +78,7 @@ export function PlayPage() {
     setPlayed(0);
     setSummary(null);
     setCaughtUp(false);
+    setOfflineFinish(false);
     try {
       const s = await api.startSession(profileId);
       sessionRef.current = s;
@@ -121,7 +129,9 @@ export function PlayPage() {
       injects = resp.injects ?? [];
       caught = !!resp.caughtUp;
     } catch {
-      /* deck is client-held; a dropped report is reconciled on complete */
+      // Offline (or a blip): queue the report; it replays on reconnect. The
+      // deck is client-held, so play continues without server re-shows.
+      enqueueAnswer(session.sessionId, { factId: current.fact.id, given, responseMs });
     }
 
     await delay(correct ? 700 : 1600); // hold longer on a miss so the answer reads
@@ -248,6 +258,20 @@ export function PlayPage() {
             />
           )}
           {phase === 'feedback' && <div className="pad-spacer" />}
+        </div>
+      )}
+
+      {phase === 'done' && !summary && offlineFinish && (
+        <div className="play-center stack done-card rise" style={{ textAlign: 'center' }}>
+          <div className="big-emoji">📡</div>
+          <h1>Great practicing!</h1>
+          <p className="muted">
+            You’re offline right now — your work is saved. Your coins and streak will update as
+            soon as you’re back online.
+          </p>
+          <button className="btn sun full" onClick={() => navigate('/')}>
+            Done
+          </button>
         </div>
       )}
 
