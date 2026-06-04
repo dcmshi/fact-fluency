@@ -8,9 +8,11 @@ This is a backlog, not a commitment — pick from it as needed.
 
 ## Features
 
-- [ ] **Adult session settings** — `PATCH /profiles/:id` to edit `sessionCards`
-      / `sessionSeconds` / `newPerSession` (type + DB plumbing exist; needs a
-      route + a settings UI).
+- [x] **Adult session settings** — `PATCH /profiles/:id` edits `sessionCards` /
+      `sessionSeconds` / `newPerSession` (partial-merge, bounds-validated route +
+      a Settings modal on the profile picker). Note: `sessionSeconds` is stored
+      but **not yet enforced** — the planner caps by card count only; a
+      time-based session cap is still TODO.
 - [ ] **Resume an interrupted session** (DESIGN.md §10) — same-day reopen should
       resume from `Session.workingState`; today `startSession` always plans fresh.
 - [ ] **Adult dashboard** (roadmap v1.1) — accuracy/speed trends from the

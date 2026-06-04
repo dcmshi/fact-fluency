@@ -4,7 +4,7 @@
  * DATABASE_URL's scheme (sqlite: vs postgres://). Implementations land with the
  * persistence work; this file pins the contract.
  */
-import type { FactProgress, Operation, OperationStat, Profile } from '@shared';
+import type { FactProgress, Operation, OperationStat, Profile, ProfileSettings } from '@shared';
 import { PostgresDb } from './postgres';
 import { SqliteDb } from './sqlite';
 
@@ -48,6 +48,7 @@ export interface Db {
   listProfiles(accountId: string): Promise<Profile[]>;
   getProfile(profileId: string): Promise<Profile | null>;
   createProfile(p: Omit<Profile, 'id' | 'createdAt' | 'streak'>): Promise<Profile>;
+  updateProfileSettings(profileId: string, settings: ProfileSettings): Promise<Profile>;
   getProfileStreak(profileId: string): Promise<{ streak: number; lastPlayedDay: string | null }>;
   setProfileStreak(profileId: string, streak: number, day: string): Promise<void>;
 

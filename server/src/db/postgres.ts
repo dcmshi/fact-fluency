@@ -124,6 +124,16 @@ export class PostgresDb implements Db {
     return profile;
   }
 
+  async updateProfileSettings(profileId: string, settings: ProfileSettings): Promise<Profile> {
+    await this.pool.query('UPDATE profile SET settings = $1 WHERE id = $2', [
+      JSON.stringify(settings),
+      profileId,
+    ]);
+    const profile = await this.getProfile(profileId);
+    if (!profile) throw new Error(`profile not found: ${profileId}`);
+    return profile;
+  }
+
   async getProfileStreak(profileId: string): Promise<{ streak: number; lastPlayedDay: string | null }> {
     const row = await this.one<{ streak: number; last_played_day: string | null }>(
       'SELECT streak, last_played_day FROM profile WHERE id = $1',

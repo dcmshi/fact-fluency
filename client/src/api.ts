@@ -7,6 +7,7 @@ import type {
   AnswerResponse,
   FactSet,
   Profile,
+  ProfileSettings,
   ProgressView,
   SessionResponse,
   SessionSummary,
@@ -49,6 +50,8 @@ export const api = {
   listProfiles: () => req<{ profiles: Profile[] }>('GET', '/profiles'),
   createProfile: (displayName: string, avatar: string) =>
     req<{ profile: Profile }>('POST', '/profiles', { displayName, avatar }),
+  updateSettings: (profileId: string, settings: Partial<ProfileSettings>) =>
+    req<{ profile: Profile }>('PATCH', `/profiles/${profileId}`, { settings }),
   getFactSets: (profileId: string) =>
     req<{ catalog: FactSet[]; enabledIds: string[] }>('GET', `/profiles/${profileId}/factsets`),
   setFactSets: (profileId: string, enabledIds: string[]) =>

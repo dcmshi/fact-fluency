@@ -110,6 +110,50 @@ describe('profiles', () => {
     expect((await agent.put(`/api/profiles/${id}/factsets`).send({ enabledIds: ['nope'] })).status).toBe(400);
   });
 
+  it('patches session settings (partial merge) and rejects bad values', async () => {
+    const agent = await authed();
+    const { body } = await agent.post('/api/profiles').send({ displayName: 'Kid', avatar: '🦊' });
+    const id = body.profile.id;
+
+    // Partial PATCH: only sessionCards changes; the others keep their defaults.
+    const patched = await agent.patch(`/api/profiles/${id}`).send({ settings: { sessionCards: 12 } });
+    expect(patched.status).toBe(200);
+    expect(patched.body.profile.settings).toEqual({
+      sessionCards: 12,
+      sessionSeconds: 180,
+      newPerSession: 3,
+    });
+
+    // newPerSession: 0 is valid (review-only) — not treated as "unset".
+    const zeroNew = await agent.patch(`/api/profiles/${id}`).send({ settings: { newPerSession: 0 } });
+    expect(zeroNew.body.profile.settings.newPerSession).toBe(0);
+
+    // Persisted across reads.
+    const list = await agent.get('/api/profiles');
+    expect(list.body.profiles[0].settings).toEqual({
+      sessionCards: 12,
+      sessionSeconds: 180,
+      newPerSession: 0,
+    });
+
+    // Out-of-range and non-integer values are rejected.
+    expect((await agent.patch(`/api/profiles/${id}`).send({ settings: { sessionCards: 1 } })).status).toBe(400);
+    expect((await agent.patch(`/api/profiles/${id}`).send({ settings: { newPerSession: 11 } })).status).toBe(400);
+    expect((await agent.patch(`/api/profiles/${id}`).send({ settings: { sessionCards: 12.5 } })).status).toBe(400);
+    expect((await agent.patch(`/api/profiles/${id}`).send({ settings: 'nope' })).status).toBe(400);
+  });
+
+  it("returns 404 patching another account's profile", async () => {
+    const a = await authed();
+    const { body } = await a.post('/api/profiles').send({ displayName: 'Kid', avatar: '🦊' });
+
+    const b = request.agent(app);
+    await b.post('/api/auth/signup').send({ ...CREDS, email: 'other2@home.test' });
+    expect(
+      (await b.patch(`/api/profiles/${body.profile.id}`).send({ settings: { sessionCards: 10 } })).status,
+    ).toBe(404);
+  });
+
   it("hides another account's profile (404 on ownership mismatch)", async () => {
     const a = await authed();
     const { body } = await a.post('/api/profiles').send({ displayName: 'Kid', avatar: '🦊' });

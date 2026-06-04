@@ -60,6 +60,17 @@ describe('profiles', () => {
     expect(list[0].settings.sessionCards).toBe(20);
     expect(await db.listProfiles('other-account')).toEqual([]);
   });
+
+  it('updates settings and returns the refreshed profile', async () => {
+    const { profile } = await makeAccountAndProfile();
+    const updated = await db.updateProfileSettings(profile.id, {
+      sessionCards: 15,
+      sessionSeconds: 120,
+      newPerSession: 2,
+    });
+    expect(updated.settings).toEqual({ sessionCards: 15, sessionSeconds: 120, newPerSession: 2 });
+    expect((await db.getProfile(profile.id))?.settings.sessionCards).toBe(15);
+  });
 });
 
 describe('enabled fact sets', () => {

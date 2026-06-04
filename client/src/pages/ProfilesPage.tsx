@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { FactSet, Profile } from '@shared';
+import type { FactSet, Profile, ProfileSettings } from '@shared';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { AVATARS, OP_LABEL, OP_SYMBOL } from '../ops';
@@ -12,6 +12,7 @@ export function ProfilesPage() {
   const [profiles, setProfiles] = useState<Profile[] | null>(null);
   const [adding, setAdding] = useState(false);
   const [managing, setManaging] = useState<Profile | null>(null);
+  const [settingsFor, setSettingsFor] = useState<Profile | null>(null);
 
   const refresh = () => api.listProfiles().then((r) => setProfiles(r.profiles));
   useEffect(() => {
@@ -52,6 +53,9 @@ export function ProfilesPage() {
                 <button className="btn ghost" onClick={() => setManaging(p)}>
                   Facts
                 </button>
+                <button className="btn ghost" onClick={() => setSettingsFor(p)}>
+                  Settings
+                </button>
               </div>
             </div>
           ))}
@@ -75,7 +79,84 @@ export function ProfilesPage() {
         />
       )}
       {managing && <FactSetsModal profile={managing} onClose={() => setManaging(null)} />}
+      {settingsFor && (
+        <SettingsModal
+          profile={settingsFor}
+          onClose={() => setSettingsFor(null)}
+          onSaved={() => {
+            setSettingsFor(null);
+            refresh();
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+/** Editable session settings with their inclusive bounds — mirrors the server's
+ *  SETTING_BOUNDS so the UI rejects out-of-range input before the round-trip. */
+const SETTING_FIELDS: {
+  key: keyof ProfileSettings;
+  label: string;
+  hint: string;
+  min: number;
+  max: number;
+}[] = [
+  { key: 'sessionCards', label: 'Cards per session', hint: 'How many questions a session aims for.', min: 5, max: 50 },
+  { key: 'sessionSeconds', label: 'Session length (seconds)', hint: 'Target time budget for a session.', min: 30, max: 600 },
+  { key: 'newPerSession', label: 'New facts per session', hint: 'How many fresh facts trickle in each time.', min: 0, max: 10 },
+];
+
+function SettingsModal({
+  profile,
+  onClose,
+  onSaved,
+}: {
+  profile: Profile;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [values, setValues] = useState<ProfileSettings>(profile.settings);
+  const [busy, setBusy] = useState(false);
+
+  const outOfRange = SETTING_FIELDS.some(({ key, min, max }) => {
+    const v = values[key];
+    return !Number.isInteger(v) || v < min || v > max;
+  });
+
+  async function save() {
+    if (outOfRange) return;
+    setBusy(true);
+    try {
+      await api.updateSettings(profile.id, values);
+      onSaved();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal onClose={onClose} title={`${profile.avatar} ${profile.displayName}'s settings`}>
+      {SETTING_FIELDS.map(({ key, label, hint, min, max }) => (
+        <div className="field" key={key}>
+          <label htmlFor={`set-${key}`}>{label}</label>
+          <input
+            id={`set-${key}`}
+            type="number"
+            min={min}
+            max={max}
+            value={values[key]}
+            onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.valueAsNumber }))}
+          />
+          <span className="muted" style={{ fontSize: '0.85rem' }}>
+            {hint} ({min}–{max})
+          </span>
+        </div>
+      ))}
+      <button className="btn sun full" disabled={busy || outOfRange} onClick={save}>
+        {busy ? 'Saving…' : 'Save'}
+      </button>
+    </Modal>
   );
 }
 

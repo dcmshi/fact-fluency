@@ -44,6 +44,17 @@ describe('PostgresDb (pg-mem)', () => {
     expect(await db.getProfileStreak(profile.id)).toEqual({ streak: 3, lastPlayedDay: '2026-06-03' });
   });
 
+  it('updates profile settings', async () => {
+    const { profile } = await accountAndProfile();
+    const updated = await db.updateProfileSettings(profile.id, {
+      sessionCards: 15,
+      sessionSeconds: 120,
+      newPerSession: 2,
+    });
+    expect(updated.settings).toEqual({ sessionCards: 15, sessionSeconds: 120, newPerSession: 2 });
+    expect((await db.getProfile(profile.id))?.settings.sessionSeconds).toBe(120);
+  });
+
   it('replaces enabled fact sets', async () => {
     const { profile } = await accountAndProfile();
     await db.setEnabledSetIds(profile.id, ['add-0-10', 'mul-0-5']);

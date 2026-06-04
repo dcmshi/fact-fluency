@@ -17,6 +17,23 @@ const DEFAULT_SETTINGS: ProfileSettings = {
 
 const CATALOG_IDS = new Set(SEED_CATALOG.map((s) => s.id));
 
+/** Inclusive bounds for each editable setting (DESIGN.md §4.4). */
+const SETTING_BOUNDS: Record<keyof ProfileSettings, [min: number, max: number]> = {
+  sessionCards: [5, 50],
+  sessionSeconds: [30, 600],
+  newPerSession: [0, 10],
+};
+
+/** Returns the first invalid field name, or null if every field is in range. */
+function invalidSetting(s: ProfileSettings): keyof ProfileSettings | null {
+  for (const key of Object.keys(SETTING_BOUNDS) as (keyof ProfileSettings)[]) {
+    const [min, max] = SETTING_BOUNDS[key];
+    const v = s[key];
+    if (typeof v !== 'number' || !Number.isInteger(v) || v < min || v > max) return key;
+  }
+  return null;
+}
+
 export function createProfileRouter(db: Db): Router {
   const router = Router();
   router.use(requireAuth);
@@ -52,6 +69,34 @@ export function createProfileRouter(db: Db): Router {
       // Onboarding pre-check (DESIGN.md §3.3).
       await db.setEnabledSetIds(profile.id, DEFAULT_ENABLED_SET_IDS);
       return res.status(201).json({ profile });
+    } catch (err) {
+      return next(err);
+    }
+  });
+
+  // Edit per-profile session settings (DESIGN.md §8). Partial PATCH: provided
+  // fields override, the rest keep their current value; the merged result is
+  // validated as a whole.
+  router.patch('/:id', async (req, res, next) => {
+    try {
+      const profile = await db.getProfile(req.params.id);
+      if (!profile || profile.accountId !== req.accountId!) {
+        return res.status(404).json({ error: 'profile_not_found' });
+      }
+      const incoming = (req.body ?? {}).settings;
+      if (typeof incoming !== 'object' || incoming === null) {
+        return res.status(400).json({ error: 'invalid_settings' });
+      }
+      const merged: ProfileSettings = {
+        sessionCards: incoming.sessionCards ?? profile.settings.sessionCards,
+        sessionSeconds: incoming.sessionSeconds ?? profile.settings.sessionSeconds,
+        newPerSession: incoming.newPerSession ?? profile.settings.newPerSession,
+      };
+      if (invalidSetting(merged)) {
+        return res.status(400).json({ error: 'invalid_settings' });
+      }
+      const updated = await db.updateProfileSettings(req.params.id, merged);
+      return res.json({ profile: updated });
     } catch (err) {
       return next(err);
     }

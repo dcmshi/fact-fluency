@@ -149,6 +149,15 @@ export class SqliteDb implements Db {
     return profile;
   }
 
+  async updateProfileSettings(profileId: string, settings: ProfileSettings): Promise<Profile> {
+    this.db
+      .prepare('UPDATE profile SET settings = ? WHERE id = ?')
+      .run(JSON.stringify(settings), profileId);
+    const profile = await this.getProfile(profileId);
+    if (!profile) throw new Error(`profile not found: ${profileId}`);
+    return profile;
+  }
+
   // --- fact sets ---
 
   async listEnabledSetIds(profileId: string): Promise<string[]> {
