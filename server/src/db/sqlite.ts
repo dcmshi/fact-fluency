@@ -7,8 +7,8 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
-import type { FactProgress, OperationStat, Profile, ProfileSettings } from '@shared';
-import type { Db } from './index';
+import type { FactProgress, Operation, OperationStat, Profile, ProfileSettings } from '@shared';
+import type { AttemptRecord, Db, SessionRecord } from './index';
 import { SCHEMA } from './schema';
 
 interface ProfileRow {
@@ -90,6 +90,13 @@ export class SqliteDb implements Db {
     this.db.prepare('DELETE FROM auth_session WHERE token = ?').run(token);
   }
 
+  async getAccountTimezone(accountId: string): Promise<string | null> {
+    const row = this.db.prepare('SELECT timezone FROM account WHERE id = ?').get(accountId) as
+      | { timezone: string }
+      | undefined;
+    return row?.timezone ?? null;
+  }
+
   // --- profiles ---
 
   async listProfiles(accountId: string): Promise<Profile[]> {
@@ -97,6 +104,13 @@ export class SqliteDb implements Db {
       .prepare('SELECT * FROM profile WHERE account_id = ? ORDER BY created_at')
       .all(accountId) as ProfileRow[];
     return rows.map(toProfile);
+  }
+
+  async getProfile(profileId: string): Promise<Profile | null> {
+    const row = this.db.prepare('SELECT * FROM profile WHERE id = ?').get(profileId) as
+      | ProfileRow
+      | undefined;
+    return row ? toProfile(row) : null;
   }
 
   async createProfile(p: Omit<Profile, 'id' | 'createdAt'>): Promise<Profile> {
@@ -145,6 +159,29 @@ export class SqliteDb implements Db {
     return rows.map(toProgress);
   }
 
+  async getProgressForFact(profileId: string, factId: string): Promise<FactProgress | null> {
+    const row = this.db
+      .prepare('SELECT * FROM fact_progress WHERE profile_id = ? AND fact_id = ?')
+      .get(profileId, factId) as ProgressRow | undefined;
+    return row ? toProgress(row) : null;
+  }
+
+  async countDueReview(profileId: string, now: number): Promise<number> {
+    const row = this.db
+      .prepare(
+        'SELECT COUNT(*) AS n FROM fact_progress WHERE profile_id = ? AND box >= 1 AND due_at <= ?',
+      )
+      .get(profileId, now) as { n: number };
+    return row.n;
+  }
+
+  async countLearning(profileId: string): Promise<number> {
+    const row = this.db
+      .prepare('SELECT COUNT(*) AS n FROM fact_progress WHERE profile_id = ? AND box = 0')
+      .get(profileId) as { n: number };
+    return row.n;
+  }
+
   async upsertProgress(p: FactProgress): Promise<void> {
     this.db
       .prepare(
@@ -165,12 +202,14 @@ export class SqliteDb implements Db {
     const rows = this.db
       .prepare('SELECT * FROM operation_stat WHERE profile_id = ?')
       .all(profileId) as OperationStatRow[];
-    return rows.map((r) => ({
-      profileId: r.profile_id,
-      operation: r.operation as OperationStat['operation'],
-      medianMsEwma: r.median_ms_ewma,
-      correctSamples: r.correct_samples,
-    }));
+    return rows.map(toOperationStat);
+  }
+
+  async getOperationStat(profileId: string, operation: Operation): Promise<OperationStat | null> {
+    const row = this.db
+      .prepare('SELECT * FROM operation_stat WHERE profile_id = ? AND operation = ?')
+      .get(profileId, operation) as OperationStatRow | undefined;
+    return row ? toOperationStat(row) : null;
   }
 
   async upsertOperationStat(s: OperationStat): Promise<void> {
@@ -184,9 +223,95 @@ export class SqliteDb implements Db {
       .run(s);
   }
 
+  // --- sessions & attempts ---
+
+  async createSession(s: SessionRecord): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT INTO session (id, profile_id, started_at, completed_at, planned_count, working_state)
+         VALUES (@id, @profileId, @startedAt, @completedAt, @plannedCount, @workingState)`,
+      )
+      .run(s);
+  }
+
+  async getSession(id: string): Promise<SessionRecord | null> {
+    const row = this.db.prepare('SELECT * FROM session WHERE id = ?').get(id) as
+      | {
+          id: string;
+          profile_id: string;
+          started_at: number;
+          completed_at: number | null;
+          planned_count: number;
+          working_state: string;
+        }
+      | undefined;
+    if (!row) return null;
+    return {
+      id: row.id,
+      profileId: row.profile_id,
+      startedAt: row.started_at,
+      completedAt: row.completed_at,
+      plannedCount: row.planned_count,
+      workingState: row.working_state,
+    };
+  }
+
+  async updateSessionWorkingState(id: string, workingState: string): Promise<void> {
+    this.db.prepare('UPDATE session SET working_state = ? WHERE id = ?').run(workingState, id);
+  }
+
+  async completeSession(id: string, completedAt: number): Promise<void> {
+    this.db.prepare('UPDATE session SET completed_at = ? WHERE id = ?').run(completedAt, id);
+  }
+
+  async appendAttempt(a: AttemptRecord): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT INTO attempt (id, session_id, profile_id, fact_id, given, correct, fast, response_ms, answered_at)
+         VALUES (@id, @sessionId, @profileId, @factId, @given, @correct, @fast, @responseMs, @answeredAt)`,
+      )
+      .run({ ...a, correct: a.correct ? 1 : 0, fast: a.fast ? 1 : 0 });
+  }
+
+  async listSessionAttempts(sessionId: string): Promise<AttemptRecord[]> {
+    const rows = this.db
+      .prepare('SELECT * FROM attempt WHERE session_id = ? ORDER BY answered_at')
+      .all(sessionId) as {
+      id: string;
+      session_id: string;
+      profile_id: string;
+      fact_id: string;
+      given: number;
+      correct: number;
+      fast: number;
+      response_ms: number;
+      answered_at: number;
+    }[];
+    return rows.map((r) => ({
+      id: r.id,
+      sessionId: r.session_id,
+      profileId: r.profile_id,
+      factId: r.fact_id,
+      given: r.given,
+      correct: !!r.correct,
+      fast: !!r.fast,
+      responseMs: r.response_ms,
+      answeredAt: r.answered_at,
+    }));
+  }
+
   async close(): Promise<void> {
     this.db.close();
   }
+}
+
+function toOperationStat(r: OperationStatRow): OperationStat {
+  return {
+    profileId: r.profile_id,
+    operation: r.operation as Operation,
+    medianMsEwma: r.median_ms_ewma,
+    correctSamples: r.correct_samples,
+  };
 }
 
 function toProfile(r: ProfileRow): Profile {

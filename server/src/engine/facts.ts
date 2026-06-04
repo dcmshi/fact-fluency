@@ -7,7 +7,7 @@
  * addition (never negative); division the inverse of multiplication (whole
  * quotients, never ÷0).
  */
-import type { Fact, Operation, RangeSpec } from '@shared';
+import type { Fact, FactSet, Operation, RangeSpec } from '@shared';
 
 /** Canonical, stable id for a fact. Commutative ops are written with a ≤ b. */
 export function factId(operation: Operation, a: number, b: number): string {
@@ -82,7 +82,23 @@ export function generateFacts(operation: Operation, range: RangeSpec): Fact[] {
     }
   }
 
-  return [...byId.values()].sort(
-    (x, y) => x.operandA + x.operandB - (y.operandA + y.operandB) || x.answer - y.answer,
-  );
+  return [...byId.values()].sort(byDifficulty);
+}
+
+/** Ascending difficulty: operand sum, then answer (DESIGN.md §3.2). */
+function byDifficulty(x: Fact, y: Fact): number {
+  return x.operandA + x.operandB - (y.operandA + y.operandB) || x.answer - y.answer;
+}
+
+/**
+ * The de-duplicated candidate fact universe across several enabled sets,
+ * globally ordered easiest-first. Overlapping sets (e.g. add 0–5 ⊂ add 0–10)
+ * contribute each fact once.
+ */
+export function generateFactsForSets(sets: FactSet[]): Fact[] {
+  const byId = new Map<string, Fact>();
+  for (const set of sets) {
+    for (const fact of generateFacts(set.operation, set.rangeSpec)) byId.set(fact.id, fact);
+  }
+  return [...byId.values()].sort(byDifficulty);
 }

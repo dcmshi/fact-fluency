@@ -4,8 +4,31 @@
  * DATABASE_URL's scheme (sqlite: vs postgres://). Implementations land with the
  * persistence work; this file pins the contract.
  */
-import type { FactProgress, OperationStat, Profile } from '@shared';
+import type { FactProgress, Operation, OperationStat, Profile } from '@shared';
 import { SqliteDb } from './sqlite';
+
+/** A play session row (DESIGN.md §4.9). `workingState` is opaque JSON. */
+export interface SessionRecord {
+  id: string;
+  profileId: string;
+  startedAt: number;
+  completedAt: number | null;
+  plannedCount: number;
+  workingState: string;
+}
+
+/** An append-only attempt log row (DESIGN.md §6). */
+export interface AttemptRecord {
+  id: string;
+  sessionId: string;
+  profileId: string;
+  factId: string;
+  given: number;
+  correct: boolean;
+  fast: boolean;
+  responseMs: number;
+  answeredAt: number;
+}
 
 export interface Db {
   // --- accounts & auth ---
@@ -15,8 +38,11 @@ export interface Db {
   findAccountIdByToken(token: string): Promise<string | null>;
   deleteAuthSession(token: string): Promise<void>;
 
+  getAccountTimezone(accountId: string): Promise<string | null>;
+
   // --- profiles ---
   listProfiles(accountId: string): Promise<Profile[]>;
+  getProfile(profileId: string): Promise<Profile | null>;
   createProfile(p: Omit<Profile, 'id' | 'createdAt'>): Promise<Profile>;
 
   // --- fact sets ---
@@ -25,9 +51,23 @@ export interface Db {
 
   // --- progress & stats ---
   getProgress(profileId: string): Promise<FactProgress[]>;
+  getProgressForFact(profileId: string, factId: string): Promise<FactProgress | null>;
   upsertProgress(p: FactProgress): Promise<void>;
+  /** Count due review facts (box ≥ 1, dueAt ≤ now) — drives "all caught up". */
+  countDueReview(profileId: string, now: number): Promise<number>;
+  /** Count facts still in the learning phase (box 0). */
+  countLearning(profileId: string): Promise<number>;
   getOperationStats(profileId: string): Promise<OperationStat[]>;
+  getOperationStat(profileId: string, operation: Operation): Promise<OperationStat | null>;
   upsertOperationStat(s: OperationStat): Promise<void>;
+
+  // --- sessions & attempts ---
+  createSession(s: SessionRecord): Promise<void>;
+  getSession(id: string): Promise<SessionRecord | null>;
+  updateSessionWorkingState(id: string, workingState: string): Promise<void>;
+  completeSession(id: string, completedAt: number): Promise<void>;
+  appendAttempt(a: AttemptRecord): Promise<void>;
+  listSessionAttempts(sessionId: string): Promise<AttemptRecord[]>;
 
   close(): Promise<void>;
 }
