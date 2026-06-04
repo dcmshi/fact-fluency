@@ -5,8 +5,6 @@
  * persistence work; this file pins the contract.
  */
 import type { FactProgress, Operation, OperationStat, Profile, ProfileSettings } from '@shared';
-import { PostgresDb } from './postgres';
-import { SqliteDb } from './sqlite';
 
 /** A play session row (DESIGN.md §4.9). `workingState` is opaque JSON. */
 export interface SessionRecord {
@@ -111,9 +109,20 @@ export function parseSqliteFilename(databaseUrl: string): string {
   return rest === ':memory:' ? ':memory:' : rest;
 }
 
-/** Open the DB selected by DATABASE_URL. Call `migrate()` before serving. */
+/**
+ * Open the DB selected by DATABASE_URL. Call `migrate()` before serving.
+ *
+ * The adapter module is required lazily so each environment only loads its own
+ * driver: a Postgres deploy (Render) never pulls in the native `better-sqlite3`
+ * binary, and a local SQLite run never loads `pg`. Mirrors the lazy `pg` load
+ * inside `PostgresDb.fromUrl`.
+ */
 export function createDb(databaseUrl: string): Db {
   const kind = adapterKindFor(databaseUrl);
-  if (kind === 'sqlite') return new SqliteDb(parseSqliteFilename(databaseUrl));
+  if (kind === 'sqlite') {
+    const { SqliteDb } = require('./sqlite') as typeof import('./sqlite');
+    return new SqliteDb(parseSqliteFilename(databaseUrl));
+  }
+  const { PostgresDb } = require('./postgres') as typeof import('./postgres');
   return PostgresDb.fromUrl(databaseUrl);
 }
