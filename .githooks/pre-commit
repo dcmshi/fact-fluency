@@ -1,0 +1,12 @@
+#!/bin/sh
+# Pre-commit gate: typecheck + tests must pass before a commit lands.
+# Bypass with `git commit --no-verify` when you really need to.
+set -e
+
+echo "pre-commit › typecheck"
+npm run typecheck
+
+echo "pre-commit › tests"
+npm test
+
+echo "pre-commit › ok"
