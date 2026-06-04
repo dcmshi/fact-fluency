@@ -1,0 +1,30 @@
+# Render blueprint (DESIGN.md §5.2): one web service serving the built SPA +
+# API, backed by a managed Postgres. Deploy via Render → "New + → Blueprint".
+services:
+  - type: web
+    name: fact-fluency
+    runtime: node
+    plan: free
+    # Build all workspaces (client bundle + server bundle). --include=dev is
+    # required because NODE_ENV=production otherwise makes npm skip the
+    # devDependencies (vite, esbuild, typescript) the build needs.
+    buildCommand: npm install --include=dev && npm run build
+    # Express serves the built client and the API from one process.
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: fact-fluency-db
+          property: connectionString
+      - key: COOKIE_SECRET
+        generateValue: true
+
+databases:
+  - name: fact-fluency-db
+    plan: free
+    # Render managed Postgres requires SSL; the adapter sets
+    # ssl.rejectUnauthorized=false for non-localhost connections.

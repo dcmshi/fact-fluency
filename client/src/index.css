@@ -74,6 +74,13 @@ button {
   cursor: pointer;
 }
 
+/* keyboard-only focus ring (doesn't show on mouse/touch press) */
+:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
 /* --- layout shells --- */
 .screen {
   min-height: 100%;

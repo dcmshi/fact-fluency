@@ -17,6 +17,7 @@ interface ProfileRow {
   display_name: string;
   avatar: string;
   settings: string;
+  streak: number;
   created_at: number;
 }
 
@@ -51,6 +52,11 @@ export class SqliteDb implements Db {
     this.db = new Database(filename);
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('foreign_keys = ON');
+    this.db.exec(SCHEMA);
+  }
+
+  // Schema is applied in the constructor; migrate() satisfies the interface.
+  async migrate(): Promise<void> {
     this.db.exec(SCHEMA);
   }
 
@@ -113,8 +119,21 @@ export class SqliteDb implements Db {
     return row ? toProfile(row) : null;
   }
 
-  async createProfile(p: Omit<Profile, 'id' | 'createdAt'>): Promise<Profile> {
-    const profile: Profile = { ...p, id: randomUUID(), createdAt: Date.now() };
+  async getProfileStreak(profileId: string): Promise<{ streak: number; lastPlayedDay: string | null }> {
+    const row = this.db
+      .prepare('SELECT streak, last_played_day FROM profile WHERE id = ?')
+      .get(profileId) as { streak: number; last_played_day: string | null } | undefined;
+    return { streak: row?.streak ?? 0, lastPlayedDay: row?.last_played_day ?? null };
+  }
+
+  async setProfileStreak(profileId: string, streak: number, day: string): Promise<void> {
+    this.db
+      .prepare('UPDATE profile SET streak = ?, last_played_day = ? WHERE id = ?')
+      .run(streak, day, profileId);
+  }
+
+  async createProfile(p: Omit<Profile, 'id' | 'createdAt' | 'streak'>): Promise<Profile> {
+    const profile: Profile = { ...p, id: randomUUID(), streak: 0, createdAt: Date.now() };
     this.db
       .prepare(
         'INSERT INTO profile (id, account_id, display_name, avatar, settings, created_at) VALUES (?, ?, ?, ?, ?, ?)',
@@ -321,6 +340,7 @@ function toProfile(r: ProfileRow): Profile {
     displayName: r.display_name,
     avatar: r.avatar,
     settings: JSON.parse(r.settings) as ProfileSettings,
+    streak: r.streak,
     createdAt: r.created_at,
   };
 }

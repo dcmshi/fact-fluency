@@ -5,6 +5,7 @@
  * persistence work; this file pins the contract.
  */
 import type { FactProgress, Operation, OperationStat, Profile } from '@shared';
+import { PostgresDb } from './postgres';
 import { SqliteDb } from './sqlite';
 
 /** A play session row (DESIGN.md §4.9). `workingState` is opaque JSON. */
@@ -31,6 +32,9 @@ export interface AttemptRecord {
 }
 
 export interface Db {
+  /** Apply the schema (idempotent). SQLite does this in its constructor too. */
+  migrate(): Promise<void>;
+
   // --- accounts & auth ---
   createAccount(email: string, passwordHash: string, timezone: string): Promise<string>;
   findAccountByEmail(email: string): Promise<{ id: string; passwordHash: string } | null>;
@@ -43,7 +47,9 @@ export interface Db {
   // --- profiles ---
   listProfiles(accountId: string): Promise<Profile[]>;
   getProfile(profileId: string): Promise<Profile | null>;
-  createProfile(p: Omit<Profile, 'id' | 'createdAt'>): Promise<Profile>;
+  createProfile(p: Omit<Profile, 'id' | 'createdAt' | 'streak'>): Promise<Profile>;
+  getProfileStreak(profileId: string): Promise<{ streak: number; lastPlayedDay: string | null }>;
+  setProfileStreak(profileId: string, streak: number, day: string): Promise<void>;
 
   // --- fact sets ---
   listEnabledSetIds(profileId: string): Promise<string[]>;
@@ -87,9 +93,9 @@ export function parseSqliteFilename(databaseUrl: string): string {
   return rest === ':memory:' ? ':memory:' : rest;
 }
 
-/** Open (and migrate) the DB selected by DATABASE_URL. */
+/** Open the DB selected by DATABASE_URL. Call `migrate()` before serving. */
 export function createDb(databaseUrl: string): Db {
   const kind = adapterKindFor(databaseUrl);
   if (kind === 'sqlite') return new SqliteDb(parseSqliteFilename(databaseUrl));
-  throw new Error('Postgres adapter not implemented yet');
+  return PostgresDb.fromUrl(databaseUrl);
 }

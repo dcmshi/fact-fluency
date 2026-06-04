@@ -85,6 +85,26 @@ Per-workspace: append `-w server` / `-w client` / `-w shared` (e.g.
 - Dev-only `npm audit` warnings come from the esbuild/vite/vitest chain
   (GHSA-67mh-4wv8-2f99); they don't affect the production server/static bundle.
 
+## Database adapters
+
+`createDb(DATABASE_URL)` picks an adapter by scheme; both implement the same `Db`
+interface (`server/src/db/index.ts`):
+
+- **SQLite** (`sqlite:` — local/dev): better-sqlite3, schema applied in the
+  constructor. Tested directly.
+- **Postgres** (`postgres://` — Render): `pg`, async `migrate()`. Tested against
+  **pg-mem** (no live DB needed). Note PG types: BIGINT for epoch-ms columns
+  (INTEGER overflows), and the int8 parser is set to Number.
+
+Bootstrap awaits `db.migrate()` before serving, so a fresh DB self-migrates.
+
+## Deployment (Render)
+
+`render.yaml` is a Blueprint: one Node web service (`npm start`) serving the
+built SPA + API, backed by a managed Postgres (`DATABASE_URL` injected). The
+build uses `npm install --include=dev` because `NODE_ENV=production` would
+otherwise skip the devDependencies the build needs.
+
 ## Conventions
 
 - **TypeScript everywhere**, `strict` on. Shared types live in `/shared`, not

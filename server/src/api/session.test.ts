@@ -78,6 +78,19 @@ describe('session loop', () => {
     expect(summary.body.cardsPlayed).toBe(deck.length);
     expect(summary.body.correct).toBe(deck.length - 1); // the one wrong answer
     expect(summary.body.pointsEarned).toBeGreaterThan(0);
+    expect(summary.body.streak).toBe(1); // first day playing
+  });
+
+  it('keeps the streak at 1 when completing twice the same day', async () => {
+    const { agent, profileId } = await setup();
+    const { body: session } = await agent.post(`/api/profiles/${profileId}/session`);
+    const first = await agent.post(`/api/sessions/${session.sessionId}/complete`);
+    const second = await agent.post(`/api/sessions/${session.sessionId}/complete`);
+    expect(first.body.streak).toBe(1);
+    expect(second.body.streak).toBe(1);
+    // And it surfaces on the profile.
+    const profiles = await agent.get('/api/profiles');
+    expect(profiles.body.profiles[0].streak).toBe(1);
   });
 
   it('graduates a new fact to box 1 after two in-session correct answers', async () => {

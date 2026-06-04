@@ -171,6 +171,17 @@
 .done-card h1 {
   font-size: clamp(2rem, 8vw, 2.8rem);
 }
+.streak-ribbon {
+  align-self: center;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: #b8541f;
+  background: #ffe6c7;
+  border-radius: 999px;
+  padding: 0.35rem 1rem;
+  box-shadow: 0 3px 0 #f0c79a;
+}
+
 .summary-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

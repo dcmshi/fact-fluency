@@ -77,6 +77,8 @@ export interface Profile {
   displayName: string;
   avatar: string;
   settings: ProfileSettings;
+  /** Consecutive days with a completed session (DESIGN.md §4.10). */
+  streak: number;
   createdAt: number;
 }
 
@@ -129,6 +131,8 @@ export interface SessionSummary {
   fastCorrect: number;
   mastered: number;
   pointsEarned: number;
+  /** Day streak after this session (DESIGN.md §4.10). */
+  streak: number;
 }
 
 // ---------------------------------------------------------------------------

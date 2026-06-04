@@ -41,6 +41,7 @@ export function ProfilesPage() {
             <div className="profile-tile rise" key={p.id} style={{ animationDelay: `${i * 0.06}s` }}>
               <div className="avatar">{p.avatar}</div>
               <div className="profile-name">{p.displayName}</div>
+              {p.streak > 1 && <div className="streak-badge">🔥 {p.streak}</div>}
               <button className="btn sun full" onClick={() => navigate(`/play/${p.id}`)}>
                 Play ▶
               </button>

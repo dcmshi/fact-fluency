@@ -53,6 +53,16 @@
   font-size: 1.15rem;
 }
 
+.streak-badge {
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: #b8541f;
+  background: #ffe6c7;
+  border-radius: 999px;
+  padding: 0.1rem 0.6rem;
+  margin-top: -0.3rem;
+}
+
 .tile-actions {
   display: flex;
   gap: 0.25rem;

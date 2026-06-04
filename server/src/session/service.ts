@@ -64,6 +64,31 @@ function tzOffsetMinutes(timeZone: string, atMs: number): number {
   }
 }
 
+/** Calendar day (YYYY-MM-DD) for an instant in a timezone. en-CA yields ISO. */
+function dayInTz(timeZone: string, atMs: number): string {
+  try {
+    return new Date(atMs).toLocaleDateString('en-CA', { timeZone });
+  } catch {
+    return new Date(atMs).toLocaleDateString('en-CA');
+  }
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Update the day streak on session completion (DESIGN.md §4.10): same day → no
+ * change; yesterday → +1; otherwise → reset to 1. Idempotent for the same day.
+ */
+async function bumpStreak(db: Db, profileId: string, timezone: string, now: number): Promise<number> {
+  const today = dayInTz(timezone, now);
+  const { streak, lastPlayedDay } = await db.getProfileStreak(profileId);
+  if (lastPlayedDay === today) return streak;
+  const yesterday = dayInTz(timezone, now - DAY_MS);
+  const next = lastPlayedDay === yesterday ? streak + 1 : 1;
+  await db.setProfileStreak(profileId, next, today);
+  return next;
+}
+
 async function requireOwnedProfile(db: Db, accountId: string, profileId: string) {
   const profile = await db.getProfile(profileId);
   if (!profile || profile.accountId !== accountId) {
@@ -200,6 +225,9 @@ export async function complete(
   await requireOwnedProfile(db, accountId, session.profileId);
   if (!session.completedAt) await db.completeSession(sessionId, now);
 
+  const timezone = (await db.getAccountTimezone(accountId)) ?? 'UTC';
+  const streak = await bumpStreak(db, session.profileId, timezone, now);
+
   const attempts = await db.listSessionAttempts(sessionId);
   const correct = attempts.filter((a) => a.correct).length;
   const fastCorrect = attempts.filter((a) => a.fast).length;
@@ -217,5 +245,6 @@ export async function complete(
     fastCorrect,
     mastered,
     pointsEarned: correct + fastCorrect, // +1 correct, +1 fast bonus (§10)
+    streak,
   };
 }

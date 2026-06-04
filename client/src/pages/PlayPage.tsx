@@ -101,6 +101,8 @@ export function PlayPage() {
     setResult({ correct, fast });
     setPhase('feedback');
     setPlayed((n) => n + 1);
+    // Subtle haptic on touch devices: a tap for correct, a double-buzz for a miss.
+    navigator.vibrate?.(correct ? 18 : [40, 50, 40]);
 
     let injects: { factId: string; afterOffset: number }[] = [];
     let caught = false;
@@ -235,6 +237,9 @@ export function PlayPage() {
           {caughtUp && <Confetti />}
           <div className="big-emoji">{caughtUp ? '🎉' : '🌟'}</div>
           <h1>{caughtUp ? 'All caught up!' : 'Nice work!'}</h1>
+          {summary.streak > 1 && (
+            <div className="streak-ribbon">🔥 {summary.streak}-day streak!</div>
+          )}
           <div className="summary-stats">
             <Stat label="Played" value={summary.cardsPlayed} />
             <Stat label="Correct" value={summary.correct} />
