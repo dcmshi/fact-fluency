@@ -14,7 +14,9 @@ import { ewma, fluencyThreshold, isFast, updateOperationStat } from './threshold
 
 export interface GradeInput {
   fact: Fact;
-  given: number;
+  /** Whether the round was answered correctly (the interaction decides this —
+   *  a clean munch clear, a right typed answer, etc.). */
+  correct: boolean;
   responseMs: number;
   now: number;
   /** Current persistent state, or null for a brand-new fact's first recall. */
@@ -53,10 +55,9 @@ function baseProgress(profileId: string, factId: string): FactProgress {
 }
 
 export function gradeAnswer(input: GradeInput): GradeResult {
-  const { fact, given, responseMs, now, stat, tzOffsetMin } = input;
+  const { fact, correct, responseMs, now, stat, tzOffsetMin } = input;
   const prev = input.progress ?? baseProgress(stat.profileId, fact.id);
 
-  const correct = given === fact.answer;
   const threshold = fluencyThreshold(fact.operation, stat);
   const fast = correct && isFast(responseMs, threshold);
 

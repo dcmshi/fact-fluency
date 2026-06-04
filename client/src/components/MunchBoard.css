@@ -1,0 +1,109 @@
+.munch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  max-width: 460px;
+}
+
+.munch-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  text-align: center;
+}
+.munch-instruction {
+  font-weight: 800;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+.munch-expr {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 9vw, 2.8rem);
+  color: var(--ink);
+}
+.munch-op {
+  color: var(--sun);
+}
+.munch-remaining {
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  background: var(--paper-2);
+  border-radius: 999px;
+  padding: 0.1rem 0.6rem;
+}
+
+.munch-grid {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+.munch-cell {
+  position: relative;
+  aspect-ratio: 1;
+  border: 3px solid var(--line);
+  background: var(--card);
+  border-radius: var(--r-sm);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.1rem, 5vw, 1.6rem);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  transition:
+    transform 0.08s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+.munch-cell:not(.eaten):hover {
+  transform: translateY(-2px);
+  border-color: var(--sun);
+}
+.munch-cell.here {
+  border-color: var(--sun);
+  box-shadow: 0 0 0 3px rgba(255, 200, 61, 0.35);
+}
+.munch-cell.eaten {
+  background: var(--paper-2);
+  border-style: dashed;
+  border-color: var(--line);
+  color: transparent;
+}
+.muncher {
+  position: absolute;
+  font-size: 1.4em;
+  line-height: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2));
+}
+.munch-cell.flash-ok {
+  background: var(--correct);
+  border-color: var(--correct);
+  color: #fff;
+  animation: munch-pop 0.3s ease;
+}
+.munch-cell.flash-no {
+  background: var(--wrong);
+  border-color: var(--wrong);
+  color: #fff;
+  animation: munch-shake 0.3s ease;
+}
+@keyframes munch-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+@keyframes munch-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.munch-hint {
+  font-size: 0.78rem;
+  text-align: center;
+}

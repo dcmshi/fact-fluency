@@ -499,3 +499,28 @@ These were resolved to keep implementation unambiguous; revisit if needed:
 - Starting fact-set defaults per typical grade band.
 - How aggressively to raise `newPerSession` for a kid racing ahead (auto-bump vs
   adult-controlled).
+
+## 12. Addendum — Number Munchers interaction (supersedes §4.6 step 2, §4.7)
+
+The recall interaction pivoted from typed entry to a **Number Munchers–style
+grid game**, to make practice feel like play. This *replaces* the typed
+number-pad (§4.7) and step 2 of the study-first intro (§4.6); everything else
+in §4 is unchanged — crucially, the **spaced-repetition + fluency engine still
+chooses which facts appear and still owns all scheduling state.** Munching is a
+new *interaction layer* over the same brain.
+
+- **A round:** the fact's expression (e.g. `3 × 4`) shows at the top with a
+  relation — *munch everything **equal to** / **less than** / **greater than***
+  it — over a 5×5 grid of numbers. The kid drives a muncher (arrows/WASD +
+  Space, or tap) to eat the cells satisfying the relation vs the answer.
+- **Board generation** is a pure, seeded function (`engine/munch.ts`): correct
+  cells + plausible distractors, ≥1 correct guaranteed, `<` only when feasible.
+  Boards travel in the `Card` and persist in `workingState` (resume replays the
+  same board).
+- **Grading reuse:** `gradeAnswer` now takes `correct` (not `given`) — the
+  round decides it: `correct` = a **clean clear** (all correct eaten, zero wrong
+  munches); `responseMs` = **time to first correct munch** (recognition speed,
+  feeding the same per-op `fast` threshold). Promotion/demotion, boxes, dueAt,
+  operation stats, dashboard, coins/themes, streaks all carry over unchanged.
+- **Non-punitive (§4.8):** no chasing enemies, no visible countdown. Study-first
+  still teaches a brand-new fact before its first munch round.

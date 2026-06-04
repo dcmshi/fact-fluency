@@ -30,7 +30,7 @@ function reviewProgress(over: Partial<FactProgress>): FactProgress {
 function grade(over: Partial<GradeInput>): ReturnType<typeof gradeAnswer> {
   return gradeAnswer({
     fact: FACT,
-    given: 56,
+    correct: true,
     responseMs: 2000,
     now: NOW,
     progress: null,
@@ -43,7 +43,7 @@ function grade(over: Partial<GradeInput>): ReturnType<typeof gradeAnswer> {
 
 describe('correctness & fluency', () => {
   it('marks a wrong answer incorrect and not fast', () => {
-    const r = grade({ given: 42, progress: reviewProgress({}) });
+    const r = grade({ correct: false, progress: reviewProgress({}) });
     expect(r.correct).toBe(false);
     expect(r.fast).toBe(false);
   });
@@ -75,7 +75,7 @@ describe('review transitions', () => {
   });
 
   it('demotes and re-queues on a wrong answer', () => {
-    const r = grade({ given: 0, progress: reviewProgress({ box: 3 }) });
+    const r = grade({ correct: false, progress: reviewProgress({ box: 3 }) });
     expect(r.progress.box).toBe(1);
     expect(r.requeue).toBe(true);
     expect(r.progress.correctStreak).toBe(0);
@@ -95,7 +95,7 @@ describe('learning (box 0) graduation', () => {
   });
 
   it('resets the in-session counter on a wrong learning answer', () => {
-    const r = grade({ given: 1, progress: null, inSessionCorrect: 1 });
+    const r = grade({ correct: false, progress: null, inSessionCorrect: 1 });
     expect(r.progress.box).toBe(0);
     expect(r.inSessionCorrect).toBe(0);
     expect(r.requeue).toBe(true);
@@ -107,7 +107,7 @@ describe('stat & progress bookkeeping', () => {
     const correct = grade({ responseMs: 2500, progress: reviewProgress({}), stat: stat({ medianMsEwma: 3000, correctSamples: 5 }) });
     expect(correct.stat.correctSamples).toBe(6);
 
-    const wrong = grade({ given: 0, progress: reviewProgress({}), stat: stat({ medianMsEwma: 3000, correctSamples: 5 }) });
+    const wrong = grade({ correct: false, progress: reviewProgress({}), stat: stat({ medianMsEwma: 3000, correctSamples: 5 }) });
     expect(wrong.stat.correctSamples).toBe(5);
     expect(wrong.stat.medianMsEwma).toBe(3000);
   });

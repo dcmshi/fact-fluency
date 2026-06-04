@@ -19,6 +19,7 @@ import { SEED_CATALOG } from '../data/catalog';
 import type { Db, SessionRecord } from '../db';
 import { familyHint, generateFactsForSets } from '../engine/facts';
 import { gradeAnswer } from '../engine/grade';
+import { buildBoard, makeRng, pickRelation, seedFrom } from '../engine/munch';
 import { planSession } from '../engine/planner';
 import { fluencyThreshold } from '../engine/threshold';
 
@@ -168,19 +169,24 @@ export async function startSession(
 
   const facts = generateFactsForSets(sets);
   const progressByFactId = new Map((await db.getProgress(profileId)).map((p) => [p.factId, p]));
+  const sessionId = randomUUID();
   const deck = planSession({
     facts,
     progressByFactId,
     now,
     sessionCards: profile.settings.sessionCards,
     newPerSession: profile.settings.newPerSession,
-  }).map((card) => {
+  }).map((card, i) => {
     // Frame a new sub/div intro with its known inverse sibling (DESIGN.md §9).
     const hint = card.isNew ? familyHint(card.fact) : null;
-    return hint ? { ...card, family: hint } : card;
+    // A munch board per round; seeded per (session, fact, index) for variety,
+    // and persisted in workingState so resume replays the identical board.
+    const rng = makeRng(seedFrom(`${sessionId}:${card.fact.id}:${i}`));
+    const relation = pickRelation(card.answer, rng);
+    const board = buildBoard({ target: card.answer, relation, rng });
+    return { ...card, ...(hint ? { family: hint } : {}), board };
   });
 
-  const sessionId = randomUUID();
   const workingState: WorkingState = { deck, learning: {} };
   await db.createSession({
     id: sessionId,
@@ -209,7 +215,7 @@ export async function answer(
 ): Promise<AnswerResponse> {
   if (
     typeof body?.factId !== 'string' ||
-    typeof body?.given !== 'number' ||
+    typeof body?.correct !== 'boolean' ||
     typeof body?.responseMs !== 'number'
   ) {
     throw new SessionError(400, 'invalid_answer');
@@ -233,7 +239,7 @@ export async function answer(
 
   const result = gradeAnswer({
     fact,
-    given: body.given,
+    correct: body.correct,
     responseMs: body.responseMs,
     now,
     progress,
@@ -249,7 +255,9 @@ export async function answer(
     sessionId,
     profileId,
     factId: body.factId,
-    given: body.given,
+    // `given` repurposed for munch: count of wrong munches this round (signal
+    // for future tuning; not used in grading or aggregation).
+    given: typeof body.wrongMunches === 'number' ? body.wrongMunches : 0,
     correct: result.correct,
     fast: result.fast,
     responseMs: body.responseMs,

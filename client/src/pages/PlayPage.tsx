@@ -3,9 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import type { Card, SessionResponse, SessionSummary } from '@shared';
 import { api, ApiError } from '../api';
 import { Confetti } from '../components/Confetti';
-import { NumberPad } from '../components/NumberPad';
+import { MunchBoard, type RoundResult } from '../components/MunchBoard';
 import { OP_CLASS, OP_SYMBOL } from '../ops';
-import { isMuted, playComplete, playCorrect, playFast, playWrong, setMuted } from '../sound';
+import { isMuted, playComplete, playCorrect, playWrong, setMuted } from '../sound';
 import { enqueueAnswer, flushAnswers, markPendingComplete } from '../syncQueue';
 import { useTheme } from '../useTheme';
 import './PlayPage.css';
@@ -15,9 +15,7 @@ const OP_WORD: Record<string, string> = { add: 'plus', sub: 'minus', mul: 'times
 const eqText = (a: number, op: string, b: number, answer: number) =>
   `${a} ${OP_WORD[op] ?? op} ${b} equals ${answer}`;
 
-type Phase = 'loading' | 'study' | 'prompt' | 'feedback' | 'done' | 'error';
-const MAX_DIGITS = 3;
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+type Phase = 'loading' | 'study' | 'munch' | 'done' | 'error';
 
 export function PlayPage() {
   const { profileId = '' } = useParams();
@@ -26,10 +24,9 @@ export function PlayPage() {
   const [session, setSession] = useState<SessionResponse | null>(null);
   const [queue, setQueue] = useState<Card[]>([]);
   const [phase, setPhase] = useState<Phase>('loading');
-  const [entry, setEntry] = useState('');
-  const [result, setResult] = useState<{ correct: boolean; fast: boolean } | null>(null);
   const [studyReady, setStudyReady] = useState(false);
   const [played, setPlayed] = useState(0);
+  const [roundNonce, setRoundNonce] = useState(0);
   const [summary, setSummary] = useState<SessionSummary | null>(null);
   const [caughtUp, setCaughtUp] = useState(false);
   const [offlineFinish, setOfflineFinish] = useState(false);
@@ -37,7 +34,6 @@ export function PlayPage() {
   const [announce, setAnnounce] = useState('');
   const [muted, setMutedState] = useState(isMuted());
 
-  const timerStart = useRef(0);
   const sessionStart = useRef(0);
   const sessionRef = useRef<SessionResponse | null>(null);
 
@@ -45,22 +41,24 @@ export function PlayPage() {
 
   const current = queue[0] ?? null;
 
+  // Begin a munch round for the current card (fresh MunchBoard via roundNonce).
+  const startRound = useCallback(() => {
+    setRoundNonce((n) => n + 1);
+    setPhase('munch');
+  }, []);
+
   const goNext = useCallback(
     async (nextQueue: Card[]) => {
       const s = sessionRef.current;
-      // Soft time cap (§4.4): once the budget is spent, wrap up between cards —
-      // at least the first card always plays, since the budget is checked here
-      // *after* each card rather than mid-card.
+      // Soft time cap (§4.4): once the budget is spent, wrap up between rounds.
       const timeUp =
         s != null && performance.now() - sessionStart.current >= s.sessionSeconds * 1000;
       if (nextQueue.length === 0 || timeUp) {
         const sid = sessionRef.current!.sessionId;
         try {
-          // Make sure every report reached the server before reconciling.
           await flushAnswers();
           setSummary(await api.complete(sid));
         } catch {
-          // Offline at the finish: keep the work, credit it on reconnect.
           markPendingComplete(sid);
           setOfflineFinish(true);
         }
@@ -70,19 +68,16 @@ export function PlayPage() {
         return;
       }
       setQueue(nextQueue);
-      setEntry('');
-      setResult(null);
       if (nextQueue[0].isNew) {
         const f = nextQueue[0].fact;
         setAnnounce(`New fact. ${eqText(f.operandA, f.operation, f.operandB, nextQueue[0].answer)}.`);
         setStudyReady(false);
         setPhase('study');
       } else {
-        timerStart.current = performance.now();
-        setPhase('prompt');
+        startRound();
       }
     },
-    [],
+    [startRound],
   );
 
   const start = useCallback(async () => {
@@ -114,76 +109,65 @@ export function PlayPage() {
     return () => clearTimeout(t);
   }, [phase, current?.fact.id]);
 
-  const beginRecall = useCallback(() => {
-    timerStart.current = performance.now();
-    setEntry('');
-    setPhase('prompt');
+  const onMunch = useCallback((correct: boolean) => {
+    if (correct) playCorrect();
+    else playWrong();
   }, []);
 
-  const submit = useCallback(async () => {
-    if (!current || entry === '' || !session) return;
-    const responseMs = Math.round(performance.now() - timerStart.current);
-    const given = Number(entry);
-    const op = current.fact.operation;
-    const correct = given === current.answer;
-    const fast = correct && responseMs <= session.thresholds[op];
+  const finishRound = useCallback(
+    async (r: RoundResult) => {
+      const s = sessionRef.current;
+      if (!current || !s) return;
+      setPlayed((n) => n + 1);
+      navigator.vibrate?.(r.correct ? 18 : [40, 50, 40]);
 
-    setResult({ correct, fast });
-    setPhase('feedback');
-    setPlayed((n) => n + 1);
-    // Subtle haptic on touch devices: a tap for correct, a double-buzz for a miss.
-    navigator.vibrate?.(correct ? 18 : [40, 50, 40]);
-    if (fast) playFast();
-    else if (correct) playCorrect();
-    else playWrong();
-    setAnnounce(
-      correct
-        ? fast
-          ? 'Correct, and fast!'
-          : 'Correct!'
-        : `Not quite. ${eqText(current.fact.operandA, op, current.fact.operandB, current.answer)}.`,
-    );
+      const body = {
+        factId: current.fact.id,
+        correct: r.correct,
+        responseMs: r.responseMs,
+        wrongMunches: r.wrongMunches,
+      };
+      let injects: { factId: string; afterOffset: number }[] = [];
+      let caught = false;
+      let fast = false;
+      try {
+        const resp = await api.answer(s.sessionId, body);
+        injects = resp.injects ?? [];
+        caught = !!resp.caughtUp;
+        fast = resp.fast;
+      } catch {
+        // Offline (or a blip): queue the report; it replays on reconnect.
+        enqueueAnswer(s.sessionId, body);
+      }
+      setAnnounce(
+        r.correct ? (fast ? 'All munched, super fast!' : 'All munched!') : 'Some were wrong — keep going!',
+      );
+      if (caught) setCaughtUp(true);
 
-    let injects: { factId: string; afterOffset: number }[] = [];
-    let caught = false;
-    try {
-      const resp = await api.answer(session.sessionId, { factId: current.fact.id, given, responseMs });
-      injects = resp.injects ?? [];
-      caught = !!resp.caughtUp;
-    } catch {
-      // Offline (or a blip): queue the report; it replays on reconnect. The
-      // deck is client-held, so play continues without server re-shows.
-      enqueueAnswer(session.sessionId, { factId: current.fact.id, given, responseMs });
-    }
+      let next = queue.slice(1);
+      for (const inj of injects) {
+        const card = s.deck.find((c) => c.fact.id === inj.factId);
+        if (!card) continue;
+        const at = Math.min(inj.afterOffset, next.length);
+        next = [...next.slice(0, at), { ...card, isNew: false }, ...next.slice(at)];
+      }
+      await goNext(next);
+    },
+    [current, queue, goNext],
+  );
 
-    await delay(correct ? 700 : 1600); // hold longer on a miss so the answer reads
-    if (caught) setCaughtUp(true);
-
-    let next = queue.slice(1);
-    for (const inj of injects) {
-      const card = session.deck.find((c) => c.fact.id === inj.factId);
-      if (!card) continue;
-      const at = Math.min(inj.afterOffset, next.length);
-      next = [...next.slice(0, at), { ...card, isNew: false }, ...next.slice(at)];
-    }
-    await goNext(next);
-  }, [current, entry, session, queue, goNext]);
-
-  // Hardware keyboard support.
+  // Study card: Enter/Space dismisses to start the round.
   useEffect(() => {
+    if (phase !== 'study') return;
     function onKey(e: KeyboardEvent) {
-      if (phase === 'study' && studyReady && (e.key === 'Enter' || e.key === ' ')) {
+      if (studyReady && (e.key === 'Enter' || e.key === ' ')) {
         e.preventDefault();
-        beginRecall();
-      } else if (phase === 'prompt') {
-        if (e.key >= '0' && e.key <= '9') setEntry((s) => (s.length < MAX_DIGITS ? s + e.key : s));
-        else if (e.key === 'Backspace') setEntry((s) => s.slice(0, -1));
-        else if (e.key === 'Enter') submit();
+        startRound();
       }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [phase, studyReady, beginRecall, submit]);
+  }, [phase, studyReady, startRound]);
 
   const opClass = current ? OP_CLASS[current.fact.operation] : '';
   const progress = session ? Math.min(100, (played / Math.max(1, session.deck.length)) * 100) : 0;
@@ -209,7 +193,7 @@ export function PlayPage() {
         </button>
       </header>
 
-      {/* Screen-reader announcements for study intros and answer feedback. */}
+      {/* Screen-reader announcements for study intros and munch instructions. */}
       <div className="sr-only" role="status" aria-live="assertive">
         {announce}
       </div>
@@ -231,68 +215,43 @@ export function PlayPage() {
         </div>
       )}
 
-      {(phase === 'study' || phase === 'prompt' || phase === 'feedback') && current && (
+      {phase === 'study' && current && (
         <div className="play-center">
-          {phase === 'study' ? (
-            <div className="card study-card rise" key={current.fact.id}>
-              <div className="study-tag">New fact — take a look!</div>
-              {current.family && (
-                <div className="family-hint">
-                  <span className="family-eq">
-                    {current.family.operandA} {OP_SYMBOL[current.family.operation]}{' '}
-                    {current.family.operandB} = {current.family.answer}
-                  </span>
-                  <span className="family-so">so…</span>
-                </div>
-              )}
-              <div className="equation big">
-                <span>{current.fact.operandA}</span>
-                <span className="op">{OP_SYMBOL[current.fact.operation]}</span>
-                <span>{current.fact.operandB}</span>
-                <span className="op">=</span>
-                <span className="answer-reveal">{current.answer}</span>
-              </div>
-              <button className="btn sun full" disabled={!studyReady} onClick={beginRecall}>
-                {studyReady ? 'Got it!' : '…'}
-              </button>
-            </div>
-          ) : (
-            <div className={`card quiz-card ${result ? (result.correct ? 'is-correct' : 'is-wrong') : ''}`}>
-              <div className="equation big">
-                <span>{current.fact.operandA}</span>
-                <span className="op">{OP_SYMBOL[current.fact.operation]}</span>
-                <span>{current.fact.operandB}</span>
-                <span className="op">=</span>
-                <span className={`entry ${phase === 'feedback' && result && !result.correct ? 'struck' : ''}`}>
-                  {entry || (phase === 'prompt' ? <span className="caret">_</span> : '?')}
+          <div className="card study-card rise" key={current.fact.id}>
+            <div className="study-tag">New fact — take a look!</div>
+            {current.family && (
+              <div className="family-hint">
+                <span className="family-eq">
+                  {current.family.operandA} {OP_SYMBOL[current.family.operation]}{' '}
+                  {current.family.operandB} = {current.family.answer}
                 </span>
+                <span className="family-so">so…</span>
               </div>
-
-              {phase === 'feedback' && result && (
-                <div className={`verdict ${result.correct ? 'ok' : 'no'}`}>
-                  {result.correct ? (
-                    <>
-                      {result.fast ? '⚡ Lightning fast!' : '✓ Correct!'}
-                    </>
-                  ) : (
-                    <>
-                      Almost — it’s <strong>{current.answer}</strong>
-                    </>
-                  )}
-                </div>
-              )}
+            )}
+            <div className="equation big">
+              <span>{current.fact.operandA}</span>
+              <span className="op">{OP_SYMBOL[current.fact.operation]}</span>
+              <span>{current.fact.operandB}</span>
+              <span className="op">=</span>
+              <span className="answer-reveal">{current.answer}</span>
             </div>
-          )}
+            <button className="btn sun full" disabled={!studyReady} onClick={startRound}>
+              {studyReady ? 'Got it!' : '…'}
+            </button>
+          </div>
+        </div>
+      )}
 
-          {phase === 'prompt' && (
-            <NumberPad
-              onDigit={(d) => setEntry((s) => (s.length < MAX_DIGITS ? s + d : s))}
-              onBackspace={() => setEntry((s) => s.slice(0, -1))}
-              onSubmit={submit}
-              canSubmit={entry !== ''}
-            />
-          )}
-          {phase === 'feedback' && <div className="pad-spacer" />}
+      {phase === 'munch' && current && current.board && (
+        <div className="play-center">
+          <MunchBoard
+            key={roundNonce}
+            board={current.board}
+            fact={current.fact}
+            onMunch={onMunch}
+            onComplete={finishRound}
+            announce={setAnnounce}
+          />
         </div>
       )}
 
@@ -315,9 +274,7 @@ export function PlayPage() {
           {caughtUp && <Confetti />}
           <div className="big-emoji">{caughtUp ? '🎉' : '🌟'}</div>
           <h1>{caughtUp ? 'All caught up!' : 'Nice work!'}</h1>
-          {summary.streak > 1 && (
-            <div className="streak-ribbon">🔥 {summary.streak}-day streak!</div>
-          )}
+          {summary.streak > 1 && <div className="streak-ribbon">🔥 {summary.streak}-day streak!</div>}
           <div className="summary-stats">
             <Stat label="Played" value={summary.cardsPlayed} />
             <Stat label="Correct" value={summary.correct} />

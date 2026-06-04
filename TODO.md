@@ -8,6 +8,12 @@ This is a backlog, not a commitment — pick from it as needed.
 
 ## Features
 
+- [x] **Number Munchers play mode** (pivot — DESIGN.md §12) — replaced typed
+      recall with a 5×5 grid game: munch every cell =/</> the fact's answer,
+      driven by arrows/WASD or tap. Pure seeded board generator (`engine/munch.ts`);
+      `gradeAnswer` now takes `correct` (clean clear) with `responseMs` = time to
+      first correct munch, so the spaced-repetition engine + dashboard + rewards
+      all carry over. Calm (no enemies/countdown). Verified in-browser end-to-end.
 - [x] **Adult session settings** — `PATCH /profiles/:id` edits `sessionCards` /
       `sessionSeconds` / `newPerSession` (partial-merge, bounds-validated route +
       a Settings modal on the profile picker). `sessionSeconds` is carried on the

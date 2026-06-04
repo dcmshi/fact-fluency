@@ -74,7 +74,7 @@ describe('session loop', () => {
     const first = deck[0];
     const ok = await agent
       .post(`/api/sessions/${sessionId}/answer`)
-      .send({ factId: first.fact.id, given: first.answer, responseMs: 1500 });
+      .send({ factId: first.fact.id, correct: true, responseMs: 1500 });
     expect(ok.status).toBe(200);
     expect(ok.body.correct).toBe(true);
     expect(ok.body.fast).toBe(true);
@@ -88,7 +88,7 @@ describe('session loop', () => {
     const second = deck[1];
     const wrong = await agent
       .post(`/api/sessions/${sessionId}/answer`)
-      .send({ factId: second.fact.id, given: second.answer + 1, responseMs: 1500 });
+      .send({ factId: second.fact.id, correct: false, responseMs: 1500 });
     expect(wrong.body.correct).toBe(false);
     expect(wrong.body.fast).toBe(false);
 
@@ -96,7 +96,7 @@ describe('session loop', () => {
     for (const card of deck.slice(2)) {
       await agent
         .post(`/api/sessions/${sessionId}/answer`)
-        .send({ factId: card.fact.id, given: card.answer, responseMs: 1500 });
+        .send({ factId: card.fact.id, correct: true, responseMs: 1500 });
     }
     const summary = await agent.post(`/api/sessions/${sessionId}/complete`);
     expect(summary.status).toBe(200);
@@ -124,13 +124,13 @@ describe('session loop', () => {
     const deck = first.deck as Card[];
     const [c0, c1, c2] = deck;
 
-    const send = (factId: string, given: number) =>
-      agent.post(`/api/sessions/${first.sessionId}/answer`).send({ factId, given, responseMs: 1500 });
+    const send = (factId: string, correct: boolean) =>
+      agent.post(`/api/sessions/${first.sessionId}/answer`).send({ factId, correct, responseMs: 1500 });
 
     // Graduate c0 (two correct → box 1), partially learn c1 (one correct → box 0).
-    await send(c0.fact.id, c0.answer);
-    await send(c0.fact.id, c0.answer);
-    await send(c1.fact.id, c1.answer);
+    await send(c0.fact.id, true);
+    await send(c0.fact.id, true);
+    await send(c1.fact.id, true);
 
     // Reopen the same day → same session id, handled fact gone, learning fact kept.
     const { body: resumed } = await agent.post(`/api/profiles/${profileId}/session`);
@@ -174,12 +174,12 @@ describe('session loop', () => {
 
     const a1 = await agent
       .post(`/api/sessions/${sessionId}/answer`)
-      .send({ factId: card.fact.id, given: card.answer, responseMs: 1500 });
+      .send({ factId: card.fact.id, correct: true, responseMs: 1500 });
     expect(a1.body.updatedProgress.box).toBe(0);
 
     const a2 = await agent
       .post(`/api/sessions/${sessionId}/answer`)
-      .send({ factId: card.fact.id, given: card.answer, responseMs: 1500 });
+      .send({ factId: card.fact.id, correct: true, responseMs: 1500 });
     expect(a2.body.updatedProgress.box).toBe(1);
     expect(a2.body.updatedProgress.state).toBe('review');
   });
@@ -199,7 +199,7 @@ describe('rewards', () => {
     for (const c of session.deck as Card[]) {
       await agent
         .post(`/api/sessions/${session.sessionId}/answer`)
-        .send({ factId: c.fact.id, given: c.answer, responseMs: 1200 });
+        .send({ factId: c.fact.id, correct: true, responseMs: 1200 });
     }
     const first = await agent.post(`/api/sessions/${session.sessionId}/complete`);
     expect(first.body.pointsEarned).toBeGreaterThan(0);
@@ -286,7 +286,7 @@ describe('session errors', () => {
     const { body } = await agent.post(`/api/profiles/${profileId}/session`);
     const res = await agent
       .post(`/api/sessions/${body.sessionId}/answer`)
-      .send({ factId: 'mul:99x99', given: 0, responseMs: 1000 });
+      .send({ factId: 'mul:99x99', correct: true, responseMs: 1000 });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('fact_not_in_session');
   });
@@ -319,13 +319,13 @@ describe('progress view', () => {
     // Two correct, one wrong.
     await agent
       .post(`/api/sessions/${session.sessionId}/answer`)
-      .send({ factId: deck[0].fact.id, given: deck[0].answer, responseMs: 1200 });
+      .send({ factId: deck[0].fact.id, correct: true, responseMs: 1200 });
     await agent
       .post(`/api/sessions/${session.sessionId}/answer`)
-      .send({ factId: deck[1].fact.id, given: deck[1].answer, responseMs: 1300 });
+      .send({ factId: deck[1].fact.id, correct: true, responseMs: 1300 });
     await agent
       .post(`/api/sessions/${session.sessionId}/answer`)
-      .send({ factId: deck[2].fact.id, given: deck[2].answer + 1, responseMs: 1300 });
+      .send({ factId: deck[2].fact.id, correct: false, responseMs: 1300 });
 
     const res = await agent.get(`/api/profiles/${profileId}/dashboard`);
     expect(res.status).toBe(200);
@@ -354,7 +354,7 @@ describe('progress view', () => {
     const card = session.deck[0];
     await agent
       .post(`/api/sessions/${session.sessionId}/answer`)
-      .send({ factId: card.fact.id, given: card.answer, responseMs: 1500 });
+      .send({ factId: card.fact.id, correct: true, responseMs: 1500 });
 
     const res = await agent.get(`/api/profiles/${profileId}/progress`);
     const learning = res.body.grids

@@ -129,6 +129,19 @@ export interface FactHint {
   answer: number;
 }
 
+/** Comparison a munch round asks for: cells equal to / less than / greater than
+ *  the fact's answer (Number Munchers–style play). */
+export type MunchRelation = '=' | '<' | '>';
+
+/** A pre-generated munch board: a `size`×`size` grid (row-major `cells`) where
+ *  the cells satisfying `relation` vs `target` are the ones to munch. */
+export interface MunchBoard {
+  target: number;
+  relation: MunchRelation;
+  size: number;
+  cells: number[];
+}
+
 /** A card the client plays. `answer` is embedded for instant feedback (§4.7). */
 export interface Card {
   fact: Fact;
@@ -136,6 +149,8 @@ export interface Card {
   isNew: boolean;
   /** For a new sub/div intro: the known mul/add sibling shown on the study card. */
   family?: FactHint;
+  /** The munch grid for this round (server-generated). */
+  board?: MunchBoard;
 }
 
 /** Per-operation "fast enough" cutoffs (ms), sent so the client can render
@@ -155,8 +170,13 @@ export interface SessionResponse {
 
 export interface AnswerRequest {
   factId: string;
-  given: number;
+  /** Round outcome decided by the client interaction (a clean munch clear). The
+   *  server is still the sole writer of scheduling state from this report. */
+  correct: boolean;
+  /** Recognition latency — time to the first correct munch (ms). Feeds `fast`. */
   responseMs: number;
+  /** Optional: wrong munches this round (logged for tuning; not used in grading). */
+  wrongMunches?: number;
 }
 
 /** Splice a re-show `afterOffset` cards later in the client's deck (§4.9). */
