@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Card, SessionResponse } from '@shared';
 import { createApp } from '../app';
 import { SqliteDb } from '../db/sqlite';
+import * as sessions from '../session/service';
 
 let db: SqliteDb;
 let app: ReturnType<typeof createApp>;
@@ -100,6 +101,54 @@ describe('session loop', () => {
     // And it surfaces on the profile.
     const profiles = await agent.get('/api/profiles');
     expect(profiles.body.profiles[0].streak).toBe(1);
+  });
+
+  it('resumes a same-day interrupted session, dropping handled facts', async () => {
+    const { agent, profileId } = await setup();
+    const { body: first } = await agent.post(`/api/profiles/${profileId}/session`);
+    const deck = first.deck as Card[];
+    const [c0, c1, c2] = deck;
+
+    const send = (factId: string, given: number) =>
+      agent.post(`/api/sessions/${first.sessionId}/answer`).send({ factId, given, responseMs: 1500 });
+
+    // Graduate c0 (two correct → box 1), partially learn c1 (one correct → box 0).
+    await send(c0.fact.id, c0.answer);
+    await send(c0.fact.id, c0.answer);
+    await send(c1.fact.id, c1.answer);
+
+    // Reopen the same day → same session id, handled fact gone, learning fact kept.
+    const { body: resumed } = await agent.post(`/api/profiles/${profileId}/session`);
+    expect(resumed.sessionId).toBe(first.sessionId);
+    const ids = (resumed.deck as Card[]).map((c) => c.fact.id);
+    expect(ids).not.toContain(c0.fact.id); // graduated → dropped
+    const r1 = (resumed.deck as Card[]).find((c) => c.fact.id === c1.fact.id);
+    expect(r1?.isNew).toBe(false); // still learning, already studied today
+    const r2 = (resumed.deck as Card[]).find((c) => c.fact.id === c2.fact.id);
+    expect(r2?.isNew).toBe(true); // never reached → keeps study-first
+
+    // And it stayed a single open session (one active session per profile).
+    expect((await db.getOpenSession(profileId))?.id).toBe(first.sessionId);
+  });
+
+  it('discards a stale prior-day session and plans fresh', async () => {
+    const accountId = await db.createAccount('p@x.co', 'h', 'UTC');
+    const profile = await db.createProfile({
+      accountId,
+      displayName: 'K',
+      avatar: '🦊',
+      settings: { sessionCards: 20, sessionSeconds: 180, newPerSession: 3 },
+    });
+    await db.setEnabledSetIds(profile.id, ['add-0-10']);
+
+    const yesterday = Date.UTC(2026, 5, 3, 12);
+    const today = Date.UTC(2026, 5, 4, 12);
+    const first = await sessions.startSession(db, accountId, profile.id, yesterday);
+    const second = await sessions.startSession(db, accountId, profile.id, today);
+
+    expect(second.sessionId).not.toBe(first.sessionId);
+    // The stale one is closed; only the fresh session is open.
+    expect((await db.getOpenSession(profile.id))?.id).toBe(second.sessionId);
   });
 
   it('graduates a new fact to box 1 after two in-session correct answers', async () => {

@@ -14,8 +14,13 @@ This is a backlog, not a commitment — pick from it as needed.
       session response and enforced client-side as a silent soft cap (§4.4): the
       player wraps up between cards once the budget is spent, no visible
       countdown (§4.8).
-- [ ] **Resume an interrupted session** (DESIGN.md §10) — same-day reopen should
-      resume from `Session.workingState`; today `startSession` always plans fresh.
+- [x] **Resume an interrupted session** (DESIGN.md §10) — `startSession` now
+      reuses a same-day open session, rebuilding the remaining deck from
+      `workingState` + the `Attempt` log (handled facts dropped, still-learning
+      facts kept without re-study, unanswered facts keep study-first). A
+      prior-day open session is discarded and a fresh one planned (one active
+      session per profile). Note: client-side in-session re-show *injects* aren't
+      reconstructed on resume — the persistent box schedule resurfaces those.
 - [ ] **Adult dashboard** (roadmap v1.1) — accuracy/speed trends from the
       `Attempt` log; "suggested next set to enable".
 - [ ] **Unlockable avatars / themes** (roadmap v1.1) — reward points spend.

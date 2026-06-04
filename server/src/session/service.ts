@@ -16,7 +16,7 @@ import type {
   Thresholds,
 } from '@shared';
 import { SEED_CATALOG } from '../data/catalog';
-import type { Db } from '../db';
+import type { Db, SessionRecord } from '../db';
 import { generateFactsForSets } from '../engine/facts';
 import { gradeAnswer } from '../engine/grade';
 import { planSession } from '../engine/planner';
@@ -97,6 +97,43 @@ async function requireOwnedProfile(db: Db, accountId: string, profileId: string)
   return profile;
 }
 
+/** Current per-operation fast cutoffs for a profile (DESIGN.md §4.5). */
+async function computeThresholds(db: Db, profileId: string): Promise<Thresholds> {
+  const stats = await db.getOperationStats(profileId);
+  const statByOp = new Map(stats.map((s) => [s.operation, s]));
+  const thresholds = {} as Thresholds;
+  for (const op of OPERATIONS) {
+    thresholds[op] = fluencyThreshold(op, statByOp.get(op) ?? zeroStat(profileId, op));
+  }
+  return thresholds;
+}
+
+/**
+ * Reconstruct the cards still worth playing in an interrupted session
+ * (DESIGN.md §10). A planned card is dropped once its fact has been answered
+ * *and* has left the learning phase (box ≥ 1); facts never answered keep their
+ * place (and their study-first `isNew`), and facts still learning are kept but
+ * no longer flagged new — they were already studied today.
+ */
+async function buildResumeDeck(db: Db, session: SessionRecord, profileId: string): Promise<Card[]> {
+  const ws: WorkingState = JSON.parse(session.workingState);
+  const attempts = await db.listSessionAttempts(session.id);
+  const answered = new Set(attempts.map((a) => a.factId));
+  const progressByFactId = new Map((await db.getProgress(profileId)).map((p) => [p.factId, p]));
+
+  const remaining: Card[] = [];
+  for (const card of ws.deck) {
+    if (!answered.has(card.fact.id)) {
+      remaining.push(card);
+      continue;
+    }
+    if (progressByFactId.get(card.fact.id)?.box === 0) {
+      remaining.push({ ...card, isNew: false });
+    }
+  }
+  return remaining;
+}
+
 export async function startSession(
   db: Db,
   accountId: string,
@@ -109,9 +146,27 @@ export async function startSession(
   const sets = SEED_CATALOG.filter((s) => enabled.has(s.id));
   if (sets.length === 0) throw new SessionError(400, 'no_enabled_sets');
 
+  // Resume an interrupted session reopened the same day; otherwise discard a
+  // stale open session and plan fresh (DESIGN.md §10, one active session/profile).
+  const timezone = (await db.getAccountTimezone(accountId)) ?? 'UTC';
+  const open = await db.getOpenSession(profileId);
+  if (open) {
+    const sameDay = dayInTz(timezone, open.startedAt) === dayInTz(timezone, now);
+    const resumeDeck = sameDay ? await buildResumeDeck(db, open, profileId) : [];
+    if (resumeDeck.length > 0) {
+      return {
+        sessionId: open.id,
+        deck: resumeDeck,
+        thresholds: await computeThresholds(db, profileId),
+        sessionSeconds: profile.settings.sessionSeconds,
+      };
+    }
+    // Nothing left to resume (or a different day): close it and plan fresh.
+    await db.completeSession(open.id, now);
+  }
+
   const facts = generateFactsForSets(sets);
-  const progress = await db.getProgress(profileId);
-  const progressByFactId = new Map(progress.map((p) => [p.factId, p]));
+  const progressByFactId = new Map((await db.getProgress(profileId)).map((p) => [p.factId, p]));
   const deck = planSession({
     facts,
     progressByFactId,
@@ -131,14 +186,12 @@ export async function startSession(
     workingState: JSON.stringify(workingState),
   });
 
-  const stats = await db.getOperationStats(profileId);
-  const statByOp = new Map(stats.map((s) => [s.operation, s]));
-  const thresholds = {} as Thresholds;
-  for (const op of OPERATIONS) {
-    thresholds[op] = fluencyThreshold(op, statByOp.get(op) ?? zeroStat(profileId, op));
-  }
-
-  return { sessionId, deck, thresholds, sessionSeconds: profile.settings.sessionSeconds };
+  return {
+    sessionId,
+    deck,
+    thresholds: await computeThresholds(db, profileId),
+    sessionSeconds: profile.settings.sessionSeconds,
+  };
 }
 
 export async function answer(

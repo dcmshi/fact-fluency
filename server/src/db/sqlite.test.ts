@@ -113,6 +113,30 @@ describe('fact progress', () => {
   });
 });
 
+describe('sessions', () => {
+  const make = (id: string, profileId: string, startedAt: number) => ({
+    id,
+    profileId,
+    startedAt,
+    completedAt: null,
+    plannedCount: 3,
+    workingState: '{}',
+  });
+
+  it('getOpenSession returns the most recent incomplete session, null once closed', async () => {
+    const { profile } = await makeAccountAndProfile();
+    await db.createSession(make('s1', profile.id, 1));
+    await db.createSession(make('s2', profile.id, 5));
+    expect((await db.getOpenSession(profile.id))?.id).toBe('s2'); // latest open
+
+    await db.completeSession('s2', 9);
+    expect((await db.getOpenSession(profile.id))?.id).toBe('s1'); // falls back to the older open one
+
+    await db.completeSession('s1', 9);
+    expect(await db.getOpenSession(profile.id)).toBeNull();
+  });
+});
+
 describe('operation stats', () => {
   it('upserts per (profile, operation)', async () => {
     const { profile } = await makeAccountAndProfile();

@@ -42,6 +42,26 @@ interface OperationStatRow {
   correct_samples: number;
 }
 
+interface SessionRow {
+  id: string;
+  profile_id: string;
+  started_at: number;
+  completed_at: number | null;
+  planned_count: number;
+  working_state: string;
+}
+
+function toSession(r: SessionRow): SessionRecord {
+  return {
+    id: r.id,
+    profileId: r.profile_id,
+    startedAt: r.started_at,
+    completedAt: r.completed_at,
+    plannedCount: r.planned_count,
+    workingState: r.working_state,
+  };
+}
+
 export class SqliteDb implements Db {
   private readonly db: Database.Database;
 
@@ -264,24 +284,18 @@ export class SqliteDb implements Db {
 
   async getSession(id: string): Promise<SessionRecord | null> {
     const row = this.db.prepare('SELECT * FROM session WHERE id = ?').get(id) as
-      | {
-          id: string;
-          profile_id: string;
-          started_at: number;
-          completed_at: number | null;
-          planned_count: number;
-          working_state: string;
-        }
+      | SessionRow
       | undefined;
-    if (!row) return null;
-    return {
-      id: row.id,
-      profileId: row.profile_id,
-      startedAt: row.started_at,
-      completedAt: row.completed_at,
-      plannedCount: row.planned_count,
-      workingState: row.working_state,
-    };
+    return row ? toSession(row) : null;
+  }
+
+  async getOpenSession(profileId: string): Promise<SessionRecord | null> {
+    const row = this.db
+      .prepare(
+        'SELECT * FROM session WHERE profile_id = ? AND completed_at IS NULL ORDER BY started_at DESC LIMIT 1',
+      )
+      .get(profileId) as SessionRow | undefined;
+    return row ? toSession(row) : null;
   }
 
   async updateSessionWorkingState(id: string, workingState: string): Promise<void> {

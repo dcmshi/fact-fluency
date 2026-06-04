@@ -253,23 +253,16 @@ export class PostgresDb implements Db {
   }
 
   async getSession(id: string): Promise<SessionRecord | null> {
-    const row = await this.one<{
-      id: string;
-      profile_id: string;
-      started_at: number;
-      completed_at: number | null;
-      planned_count: number;
-      working_state: string;
-    }>('SELECT * FROM session WHERE id = $1', [id]);
-    if (!row) return null;
-    return {
-      id: row.id,
-      profileId: row.profile_id,
-      startedAt: row.started_at,
-      completedAt: row.completed_at,
-      plannedCount: row.planned_count,
-      workingState: row.working_state,
-    };
+    const row = await this.one<SessionRow>('SELECT * FROM session WHERE id = $1', [id]);
+    return row ? toSession(row) : null;
+  }
+
+  async getOpenSession(profileId: string): Promise<SessionRecord | null> {
+    const row = await this.one<SessionRow>(
+      'SELECT * FROM session WHERE profile_id = $1 AND completed_at IS NULL ORDER BY started_at DESC LIMIT 1',
+      [profileId],
+    );
+    return row ? toSession(row) : null;
   }
 
   async updateSessionWorkingState(id: string, workingState: string): Promise<void> {
@@ -347,6 +340,25 @@ interface OperationStatRow {
   operation: string;
   median_ms_ewma: number;
   correct_samples: number;
+}
+interface SessionRow {
+  id: string;
+  profile_id: string;
+  started_at: number;
+  completed_at: number | null;
+  planned_count: number;
+  working_state: string;
+}
+
+function toSession(r: SessionRow): SessionRecord {
+  return {
+    id: r.id,
+    profileId: r.profile_id,
+    startedAt: Number(r.started_at),
+    completedAt: r.completed_at === null ? null : Number(r.completed_at),
+    plannedCount: r.planned_count,
+    workingState: r.working_state,
+  };
 }
 
 function toProfile(r: ProfileRow): Profile {

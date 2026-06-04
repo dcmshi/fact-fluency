@@ -71,6 +71,9 @@ export interface Db {
   // --- sessions & attempts ---
   createSession(s: SessionRecord): Promise<void>;
   getSession(id: string): Promise<SessionRecord | null>;
+  /** Most recent not-yet-completed session for a profile, or null. Backs
+   *  same-day resume (DESIGN.md §10); at most one is expected to be open. */
+  getOpenSession(profileId: string): Promise<SessionRecord | null>;
   updateSessionWorkingState(id: string, workingState: string): Promise<void>;
   completeSession(id: string, completedAt: number): Promise<void>;
   appendAttempt(a: AttemptRecord): Promise<void>;

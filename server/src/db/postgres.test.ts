@@ -120,4 +120,23 @@ describe('PostgresDb (pg-mem)', () => {
     expect(attempts[0].correct).toBe(true);
     expect(attempts[0].fast).toBe(true);
   });
+
+  it('getOpenSession tracks the latest incomplete session', async () => {
+    const { profile } = await accountAndProfile();
+    const row = (id: string, startedAt: number) => ({
+      id,
+      profileId: profile.id,
+      startedAt,
+      completedAt: null,
+      plannedCount: 3,
+      workingState: '{}',
+    });
+    await db.createSession(row('s1', 1));
+    await db.createSession(row('s2', 5));
+    expect((await db.getOpenSession(profile.id))?.id).toBe('s2');
+    await db.completeSession('s2', 9);
+    expect((await db.getOpenSession(profile.id))?.id).toBe('s1');
+    await db.completeSession('s1', 9);
+    expect(await db.getOpenSession(profile.id)).toBeNull();
+  });
 });
