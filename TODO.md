@@ -55,12 +55,20 @@ This is a backlog, not a commitment — pick from it as needed.
 
 ## Polish
 
-- [ ] **aria-live** announcements for answer feedback (screen-reader support).
+- [x] **aria-live** announcements for answer feedback (screen-reader support) —
+      an assertive `.sr-only` live region in the player announces the study intro
+      ("New fact. 7 times 8 equals 56.") and each result ("Correct, and fast!" /
+      "Not quite. …equals 56.").
 - [x] **PWA manifest** + icons so it installs on a tablet/Chromebook (done with
       the offline work). Note: ships a single SVG icon (Chrome/Chromebook accept
       it); add 192/512 PNG icons later for the strictest install criteria.
-- [ ] Loading skeletons / nicer empty states (profiles, progress).
-- [ ] Optional sound effects (with a mute toggle).
+- [x] Loading skeletons / nicer empty states — shimmer skeleton tiles on the
+      profile picker and skeleton dashboard/grid cards on the progress page while
+      data loads.
+- [x] Optional sound effects (with a mute toggle) — Web Audio–synthesized cues
+      (no binary assets): rising note for correct, sparkle for fast, soft low blip
+      for wrong (non-punitive per §4.8), ascending fanfare on complete. Speaker
+      toggle in the play header; mute persists in localStorage.
 
 ## Engine tuning (needs real usage data — DESIGN.md §4.5, §11)
 

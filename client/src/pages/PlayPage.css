@@ -240,3 +240,10 @@
   color: var(--ink-soft);
   opacity: 0.75;
 }
+
+.mute-btn {
+  margin-left: auto;
+  font-size: 1.1rem;
+  padding-left: 0.6rem;
+  padding-right: 0.6rem;
+}

@@ -39,9 +39,9 @@ export function ProgressPage() {
       </header>
 
       <div className="stack" style={{ maxWidth: 720 }}>
-        {dash && <Dashboard dash={dash} />}
+        {dash ? <Dashboard dash={dash} /> : <DashboardSkeleton />}
 
-        {!view && <p className="muted">Loading…</p>}
+        {!view && <GridSkeleton />}
         {view?.grids.length === 0 && (
           <p className="muted">No fact sets enabled yet — pick some from the profiles screen.</p>
         )}
@@ -66,6 +66,28 @@ export function ProgressPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <section className="dash card" aria-hidden="true">
+      <div className="dash-cards">
+        {[0, 1, 2, 3].map((i) => (
+          <div className="skeleton" key={i} style={{ height: 78 }} />
+        ))}
+      </div>
+      <div className="skeleton" style={{ height: 84, marginTop: '1.1rem' }} />
+    </section>
+  );
+}
+
+function GridSkeleton() {
+  return (
+    <section className="grid-card card" aria-hidden="true">
+      <div className="skeleton" style={{ width: '40%', height: 20, marginBottom: '1rem' }} />
+      <div className="skeleton" style={{ height: 180 }} />
+    </section>
   );
 }
 

@@ -37,9 +37,15 @@ export function ProfilesPage() {
           Who’s practicing?
         </h1>
 
-        {!profiles && <p className="muted">Loading…</p>}
-
         <div className="profile-grid">
+          {!profiles &&
+            [0, 1, 2].map((i) => (
+              <div className="profile-tile" key={`sk-${i}`} aria-hidden="true">
+                <div className="skeleton" style={{ width: 64, height: 64, borderRadius: '50%' }} />
+                <div className="skeleton" style={{ width: '60%', height: 16, marginTop: 12 }} />
+                <div className="skeleton" style={{ width: '100%', height: 40, marginTop: 14 }} />
+              </div>
+            ))}
           {profiles?.map((p, i) => (
             <div className="profile-tile rise" key={p.id} style={{ animationDelay: `${i * 0.06}s` }}>
               <div className="avatar">{p.avatar}</div>

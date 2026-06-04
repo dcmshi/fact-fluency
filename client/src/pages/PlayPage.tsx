@@ -5,9 +5,15 @@ import { api, ApiError } from '../api';
 import { Confetti } from '../components/Confetti';
 import { NumberPad } from '../components/NumberPad';
 import { OP_CLASS, OP_SYMBOL } from '../ops';
+import { isMuted, playComplete, playCorrect, playFast, playWrong, setMuted } from '../sound';
 import { enqueueAnswer, flushAnswers, markPendingComplete } from '../syncQueue';
 import { useTheme } from '../useTheme';
 import './PlayPage.css';
+
+/** Spoken form of an operation, for screen-reader announcements. */
+const OP_WORD: Record<string, string> = { add: 'plus', sub: 'minus', mul: 'times', div: 'divided by' };
+const eqText = (a: number, op: string, b: number, answer: number) =>
+  `${a} ${OP_WORD[op] ?? op} ${b} equals ${answer}`;
 
 type Phase = 'loading' | 'study' | 'prompt' | 'feedback' | 'done' | 'error';
 const MAX_DIGITS = 3;
@@ -28,6 +34,8 @@ export function PlayPage() {
   const [caughtUp, setCaughtUp] = useState(false);
   const [offlineFinish, setOfflineFinish] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [announce, setAnnounce] = useState('');
+  const [muted, setMutedState] = useState(isMuted());
 
   const timerStart = useRef(0);
   const sessionStart = useRef(0);
@@ -56,6 +64,8 @@ export function PlayPage() {
           markPendingComplete(sid);
           setOfflineFinish(true);
         }
+        playComplete();
+        setAnnounce('Session complete. Nice work!');
         setPhase('done');
         return;
       }
@@ -63,6 +73,8 @@ export function PlayPage() {
       setEntry('');
       setResult(null);
       if (nextQueue[0].isNew) {
+        const f = nextQueue[0].fact;
+        setAnnounce(`New fact. ${eqText(f.operandA, f.operation, f.operandB, nextQueue[0].answer)}.`);
         setStudyReady(false);
         setPhase('study');
       } else {
@@ -121,6 +133,16 @@ export function PlayPage() {
     setPlayed((n) => n + 1);
     // Subtle haptic on touch devices: a tap for correct, a double-buzz for a miss.
     navigator.vibrate?.(correct ? 18 : [40, 50, 40]);
+    if (fast) playFast();
+    else if (correct) playCorrect();
+    else playWrong();
+    setAnnounce(
+      correct
+        ? fast
+          ? 'Correct, and fast!'
+          : 'Correct!'
+        : `Not quite. ${eqText(current.fact.operandA, op, current.fact.operandB, current.answer)}.`,
+    );
 
     let injects: { factId: string; afterOffset: number }[] = [];
     let caught = false;
@@ -177,7 +199,20 @@ export function PlayPage() {
             <div className="progress-fill" style={{ width: `${progress}%` }} />
           </div>
         )}
+        <button
+          className="btn ghost mute-btn"
+          aria-label={muted ? 'Unmute sounds' : 'Mute sounds'}
+          aria-pressed={muted}
+          onClick={() => setMutedState(setMuted(!muted))}
+        >
+          {muted ? '🔇' : '🔊'}
+        </button>
       </header>
+
+      {/* Screen-reader announcements for study intros and answer feedback. */}
+      <div className="sr-only" role="status" aria-live="assertive">
+        {announce}
+      </div>
 
       {phase === 'loading' && <div className="play-center muted">Setting up…</div>}
 
