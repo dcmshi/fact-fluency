@@ -30,6 +30,10 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
   const loginLimit = rateLimit({ windowMs: LOGIN_WINDOW_MS, max: LOGIN_MAX, keyPrefix: 'login:' });
   const signupLimit = rateLimit({ windowMs: SIGNUP_WINDOW_MS, max: SIGNUP_MAX, keyPrefix: 'signup:' });
 
+  // A throwaway hash to verify against when the email is unknown, so a missing
+  // account costs the same argon2 time as a wrong password (no timing oracle).
+  const dummyHash = hashPassword('timing-equalizer-not-a-real-password');
+
   async function startSession(accountId: string, res: import('express').Response) {
     const token = generateToken();
     await db.createAuthSession(accountId, token, Date.now() + SESSION_TTL_MS);
@@ -65,9 +69,10 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
         return res.status(400).json({ error: 'invalid_credentials' });
       }
       const account = await db.findAccountByEmail(email);
-      // Verify even when the account is missing would be ideal to avoid timing
-      // leaks; acceptable here given the threat model (DESIGN.md §4.7).
-      if (!account || !(await verifyPassword(account.passwordHash, password))) {
+      // Always run one verify so a missing account and a wrong password take the
+      // same time (no account-enumeration timing oracle).
+      const ok = await verifyPassword(account?.passwordHash ?? (await dummyHash), password);
+      if (!account || !ok) {
         return res.status(401).json({ error: 'invalid_credentials' });
       }
       await startSession(account.id, res);

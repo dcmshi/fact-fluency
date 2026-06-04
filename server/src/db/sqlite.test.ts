@@ -49,6 +49,15 @@ describe('accounts & auth', () => {
     await db.deleteAuthSession('tok');
     expect(await db.findAccountIdByToken('tok')).toBeNull();
   });
+
+  it('prunes only expired auth sessions', async () => {
+    const accountId = await db.createAccount('p3@home.test', 'h', 'UTC');
+    await db.createAuthSession(accountId, 'live', Date.now() + 60_000);
+    await db.createAuthSession(accountId, 'dead', Date.now() - 1);
+    expect(await db.deleteExpiredAuthSessions(Date.now())).toBe(1);
+    expect(await db.findAccountIdByToken('live')).toBe(accountId);
+    expect(await db.findAccountIdByToken('dead')).toBeNull();
+  });
 });
 
 describe('profiles', () => {

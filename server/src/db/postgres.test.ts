@@ -33,6 +33,9 @@ describe('PostgresDb (pg-mem)', () => {
     await db.createAuthSession(accountId, 'dead', Date.now() - 1);
     expect(await db.findAccountIdByToken('live')).toBe(accountId);
     expect(await db.findAccountIdByToken('dead')).toBeNull();
+
+    expect(await db.deleteExpiredAuthSessions(Date.now())).toBe(1); // prunes 'dead' only
+    expect(await db.findAccountIdByToken('live')).toBe(accountId);
   });
 
   it('creates profiles (streak 0) and updates the streak', async () => {

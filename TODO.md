@@ -92,8 +92,14 @@ This is a backlog, not a commitment — pick from it as needed.
       play→complete (coins/streak), unlock+equip, dashboard trends — exercising
       every write path incl. the `ON CONFLICT` upserts and BIGINT columns.
       `migrate()` self-applied the schema on first boot. Node pinned to 24.13.1.
-- [ ] Decide on auth-session cleanup (expired `auth_session` rows accumulate;
-      add a periodic prune or a TTL job).
+- [x] Auth-session cleanup — `deleteExpiredAuthSessions` on both adapters; pruned
+      on boot and every 12h (unref'd timer) in `index.ts`. Adapter-tested.
+- [x] Auth hardening — login timing equalization (always run one argon2 verify, so
+      a missing account costs the same as a wrong password); security headers
+      (`nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, prod-only CSP allowing
+      Google Fonts); tokenless CSRF defense (same-origin guard on mutating `/api`
+      requests, pairing with `SameSite=Lax`). CSP verified in a prod build (no
+      violations). `security.ts` + tests.
 - [x] Rate-limit auth endpoints — dependency-free fixed-window per-IP limiter
       (`rateLimit.ts`, pure core + thin middleware). Login 10/15min, signup
       6/hr; returns 429 + `Retry-After`. `trust proxy` enabled in prod so the

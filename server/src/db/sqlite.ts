@@ -151,6 +151,10 @@ export class SqliteDb implements Db {
     this.db.prepare('DELETE FROM auth_session WHERE token = ?').run(token);
   }
 
+  async deleteExpiredAuthSessions(now: number): Promise<number> {
+    return this.db.prepare('DELETE FROM auth_session WHERE expires_at <= ?').run(now).changes;
+  }
+
   async getAccountTimezone(accountId: string): Promise<string | null> {
     const row = this.db.prepare('SELECT timezone FROM account WHERE id = ?').get(accountId) as
       | { timezone: string }

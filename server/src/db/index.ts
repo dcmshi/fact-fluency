@@ -39,6 +39,8 @@ export interface Db {
   createAuthSession(accountId: string, token: string, expiresAt: number): Promise<void>;
   findAccountIdByToken(token: string): Promise<string | null>;
   deleteAuthSession(token: string): Promise<void>;
+  /** Delete auth sessions that expired at/before `now`; returns the count. */
+  deleteExpiredAuthSessions(now: number): Promise<number>;
 
   getAccountTimezone(accountId: string): Promise<string | null>;
 

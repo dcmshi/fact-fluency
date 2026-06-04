@@ -86,6 +86,15 @@ export class PostgresDb implements Db {
     await this.pool.query('DELETE FROM auth_session WHERE token = $1', [token]);
   }
 
+  async deleteExpiredAuthSessions(now: number): Promise<number> {
+    // RETURNING so the count comes back via the {rows} pool interface.
+    const { rows } = await this.pool.query(
+      'DELETE FROM auth_session WHERE expires_at <= $1 RETURNING token',
+      [now],
+    );
+    return rows.length;
+  }
+
   async getAccountTimezone(accountId: string): Promise<string | null> {
     const row = await this.one<{ timezone: string }>('SELECT timezone FROM account WHERE id = $1', [
       accountId,

@@ -8,6 +8,7 @@ import express, { type Application, type NextFunction, type Request, type Respon
 import { createApiRouter } from './api';
 import { attachAccount } from './auth/middleware';
 import type { Db } from './db';
+import { sameOriginGuard, securityHeaders } from './security';
 
 export function createApp(db: Db, isProd: boolean): Application {
   const app = express();
@@ -15,11 +16,12 @@ export function createApp(db: Db, isProd: boolean): Application {
   // client IP (per-IP rate limiting depends on this). Off in dev/test so req.ip
   // is the local socket.
   if (isProd) app.set('trust proxy', true);
+  app.use(securityHeaders(isProd));
   app.use(express.json());
   app.use(cookieParser(process.env.COOKIE_SECRET ?? 'dev-only-change-me'));
   app.use(attachAccount(db));
 
-  app.use('/api', createApiRouter(db, isProd));
+  app.use('/api', sameOriginGuard(), createApiRouter(db, isProd));
 
   if (isProd) {
     const clientDist = path.resolve(__dirname, '../../client/dist');
