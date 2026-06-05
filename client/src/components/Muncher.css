@@ -9,14 +9,17 @@
   transform-box: fill-box;
   transform-origin: 50% 90%; /* pivot at the feet for bounces/squash */
 }
-.m-mouth {
+/* A tiny smile at rest; the open maw only appears while eating (kawaii). */
+.m-smile {
+  transition: opacity 0.1s;
+}
+.m-maw {
   transform-box: fill-box;
-  transform-origin: center;
-  transform: scaleY(0.3); /* near-closed at rest */
+  transform-origin: 50% 0%; /* jaw opens downward */
+  transform: scaleY(0);
+  opacity: 0;
 }
 .m-tongue {
-  transform-box: fill-box;
-  transform-origin: top center;
   opacity: 0;
 }
 .m-eye {
@@ -32,28 +35,33 @@
   animation: m-blink 5s ease-in-out infinite;
 }
 
-/* chomp — maw snaps open then shut, with a little head dip */
-.muncher[data-state='chomp'] .m-mouth {
+/* chomp — smile gives way to a maw that snaps open then shut, with a head dip */
+.muncher[data-state='chomp'] .m-smile {
+  opacity: 0;
+}
+.muncher[data-state='chomp'] .m-maw {
+  opacity: 1;
   animation: m-chomp 0.3s ease-in-out;
 }
 .muncher[data-state='chomp'] .m-rig {
   animation: m-dip 0.3s ease-in-out;
 }
 
-/* happy — big bounce + wiggle, mouth grins open */
+/* happy — keep the smile and do a big bounce + wiggle */
 .muncher[data-state='happy'] .m-rig {
   animation: m-bounce 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.muncher[data-state='happy'] .m-mouth {
-  transform: scaleY(0.85);
-}
 
 /* bleh — recoil shake, mouth open, tongue flops out (non-punitive, just silly) */
+.muncher[data-state='bleh'] .m-smile {
+  opacity: 0;
+}
+.muncher[data-state='bleh'] .m-maw {
+  opacity: 1;
+  transform: scaleY(0.95);
+}
 .muncher[data-state='bleh'] .m-rig {
   animation: m-shake 0.5s ease-in-out;
-}
-.muncher[data-state='bleh'] .m-mouth {
-  transform: scaleY(0.9);
 }
 .muncher[data-state='bleh'] .m-tongue {
   opacity: 1;
@@ -69,9 +77,9 @@
   96% { transform: scaleY(0.12); }
 }
 @keyframes m-chomp {
-  0% { transform: scaleY(0.3); }
+  0% { transform: scaleY(0); }
   45% { transform: scaleY(1); }
-  100% { transform: scaleY(0.3); }
+  100% { transform: scaleY(0); }
 }
 @keyframes m-dip {
   0%, 100% { transform: translateY(0) scaleY(1); }
