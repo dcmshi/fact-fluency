@@ -35,6 +35,13 @@ This is a backlog, not a commitment — pick from it as needed.
       suggestion banner, an accuracy bar chart + speed sparkline, then the grid.
       Cross-operation suggestions (e.g. start subtraction) are intentionally
       out of scope for v1.
+- [x] **Unlockable munchers + celebration effects** — the board character is now
+      a chosen animal (7 illustrated SVG munchers with idle/chomp/happy/bleh
+      animations; cat + dog free, fox/frog/bunny/panda/dragon premium), and the
+      correct-answer burst is a chosen effect (confetti free, sparkles/stars/
+      fireworks premium). Both are coin-spent reward kinds (additive
+      `profile_muncher` / `profile_effect` tables) equipped from the shop and
+      carried on the session to the board.
 - [x] **Unlockable avatars / themes** (roadmap v1.1) — reward points spend.
       Coins accrue on session completion (credited once, idempotent); a kid-facing
       Rewards shop on the profile picker spends them to unlock avatars + palette

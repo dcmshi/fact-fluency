@@ -170,7 +170,7 @@ export function Muncher({
 }: {
   animal: string;
   state?: MuncherState;
-  size?: number;
+  size?: number | string;
 }) {
   const spec = ANIMALS[animal] ?? ANIMALS.cat;
   return (

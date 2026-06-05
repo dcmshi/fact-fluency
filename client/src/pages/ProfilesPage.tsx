@@ -3,9 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import type { FactSet, GradeBand, Profile, ProfileSettings, RewardItem } from '@shared';
 import { api } from '../api';
 import { useAuth } from '../auth';
+import { Muncher } from '../components/Muncher';
 import { AVATARS, OP_LABEL, OP_SYMBOL } from '../ops';
 import { useTheme } from '../useTheme';
 import './ProfilesPage.css';
+
+/** Shop preview icon per celebration effect. */
+const EFFECT_ICON: Record<string, string> = {
+  confetti: '🎉',
+  sparkles: '✨',
+  stars: '🌟',
+  fireworks: '🎆',
+};
 
 export function ProfilesPage() {
   const { logout } = useAuth();
@@ -120,6 +129,8 @@ function RewardsModal({ profile, onClose }: { profile: Profile; onClose: () => v
   const [catalog, setCatalog] = useState<RewardItem[] | null>(null);
   const [equippedAvatar, setEquippedAvatar] = useState(profile.avatar);
   const [equippedTheme, setEquippedTheme] = useState(profile.theme);
+  const [equippedMuncher, setEquippedMuncher] = useState('cat');
+  const [equippedEffect, setEquippedEffect] = useState('confetti');
   const [busy, setBusy] = useState<string | null>(null);
 
   // Live-preview the equipped theme across the whole picker while open.
@@ -132,20 +143,31 @@ function RewardsModal({ profile, onClose }: { profile: Profile; onClose: () => v
       setCatalog(r.catalog);
       setEquippedAvatar(r.equippedAvatar);
       setEquippedTheme(r.equippedTheme);
+      setEquippedMuncher(r.equippedMuncher);
+      setEquippedEffect(r.equippedEffect);
     });
   }, [profile.id]);
+
+  const isEquipped = (item: RewardItem) =>
+    item.kind === 'avatar'
+      ? item.value === equippedAvatar
+      : item.kind === 'theme'
+        ? item.value === equippedTheme
+        : item.kind === 'muncher'
+          ? item.value === equippedMuncher
+          : item.value === equippedEffect;
 
   async function equip(item: RewardItem) {
     const r = await api.equipReward(profile.id, item.id);
     setEquippedAvatar(r.equippedAvatar);
     setEquippedTheme(r.equippedTheme);
+    setEquippedMuncher(r.equippedMuncher);
+    setEquippedEffect(r.equippedEffect);
   }
 
   async function act(item: RewardItem) {
     const isOwned = owned.has(item.id);
-    const equipped =
-      item.kind === 'avatar' ? item.value === equippedAvatar : item.value === equippedTheme;
-    if (equipped) return;
+    if (isEquipped(item)) return;
     setBusy(item.id);
     try {
       if (isOwned) {
@@ -161,40 +183,30 @@ function RewardsModal({ profile, onClose }: { profile: Profile; onClose: () => v
     }
   }
 
-  const avatars = (catalog ?? []).filter((i) => i.kind === 'avatar');
-  const themes = (catalog ?? []).filter((i) => i.kind === 'theme');
+  const byKind = (kind: RewardItem['kind']) => (catalog ?? []).filter((i) => i.kind === kind);
+  const section = (title: string, kind: RewardItem['kind']) => (
+    <RewardSection title={title}>
+      {byKind(kind).map((item) => (
+        <RewardTile
+          key={item.id}
+          item={item}
+          owned={owned.has(item.id)}
+          equipped={isEquipped(item)}
+          affordable={coins >= item.cost}
+          busy={busy === item.id}
+          onClick={() => act(item)}
+        />
+      ))}
+    </RewardSection>
+  );
 
   return (
     <Modal onClose={onClose} title={`${equippedAvatar} ${profile.displayName}'s rewards`}>
       <div className="coin-balance">⭐ {coins} coins</div>
-
-      <RewardSection title="Avatars">
-        {avatars.map((item) => (
-          <RewardTile
-            key={item.id}
-            item={item}
-            owned={owned.has(item.id)}
-            equipped={item.value === equippedAvatar}
-            affordable={coins >= item.cost}
-            busy={busy === item.id}
-            onClick={() => act(item)}
-          />
-        ))}
-      </RewardSection>
-
-      <RewardSection title="Themes">
-        {themes.map((item) => (
-          <RewardTile
-            key={item.id}
-            item={item}
-            owned={owned.has(item.id)}
-            equipped={item.value === equippedTheme}
-            affordable={coins >= item.cost}
-            busy={busy === item.id}
-            onClick={() => act(item)}
-          />
-        ))}
-      </RewardSection>
+      {section('Munchers', 'muncher')}
+      {section('Celebrations', 'effect')}
+      {section('Avatars', 'avatar')}
+      {section('Themes', 'theme')}
     </Modal>
   );
 }
@@ -232,9 +244,10 @@ function RewardTile({
       title={item.label}
     >
       <div className="reward-preview">
-        {item.kind === 'avatar' ? (
-          <span className="reward-emoji">{item.value}</span>
-        ) : (
+        {item.kind === 'avatar' && <span className="reward-emoji">{item.value}</span>}
+        {item.kind === 'muncher' && <Muncher animal={item.value} state="idle" size={44} />}
+        {item.kind === 'effect' && <span className="reward-emoji">{EFFECT_ICON[item.value] ?? '🎉'}</span>}
+        {item.kind === 'theme' && (
           <span className="reward-swatches">
             {(item.swatches ?? []).map((c, i) => (
               <span key={i} className="reward-swatch" style={{ background: c }} />

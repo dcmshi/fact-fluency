@@ -248,6 +248,8 @@ export function PlayPage() {
             key={roundNonce}
             board={current.board}
             fact={current.fact}
+            muncher={session?.muncher ?? 'cat'}
+            effect={session?.effect ?? 'confetti'}
             onMunch={onMunch}
             onComplete={finishRound}
             announce={setAnnounce}

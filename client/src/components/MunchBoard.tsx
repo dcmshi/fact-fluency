@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Fact, MunchBoard as Board, MunchRelation } from '@shared';
 import { OP_SYMBOL } from '../ops';
+import { CelebrationBurst } from './CelebrationBurst';
+import { Muncher, type MuncherState } from './Muncher';
 import './MunchBoard.css';
 
 const RELATION_PHRASE: Record<MunchRelation, string> = {
@@ -30,12 +32,16 @@ export interface RoundResult {
 export function MunchBoard({
   board,
   fact,
+  muncher,
+  effect,
   onMunch,
   onComplete,
   announce,
 }: {
   board: Board;
   fact: Fact;
+  muncher: string;
+  effect: string;
   onMunch: (correct: boolean) => void;
   onComplete: (r: RoundResult) => void;
   announce?: (msg: string) => void;
@@ -52,9 +58,23 @@ export function MunchBoard({
   const [pos, setPos] = useState(Math.floor((size * size) / 2));
   const [eaten, setEaten] = useState<Set<number>>(new Set());
   const [flash, setFlash] = useState<{ idx: number; ok: boolean } | null>(null);
+  const [muncherState, setMuncherState] = useState<MuncherState>('idle');
+  const [bursts, setBursts] = useState<{ id: number; idx: number }[]>([]);
 
   const posRef = useRef(pos);
   posRef.current = pos;
+  const burstId = useRef(0);
+  // Drive the muncher: chomp → (happy | bleh) → idle, cleaned up on unmount.
+  const stateTimers = useRef<number[]>([]);
+  useEffect(() => () => stateTimers.current.forEach((t) => clearTimeout(t)), []);
+  const reactMuncher = useCallback((correct: boolean) => {
+    stateTimers.current.forEach((t) => clearTimeout(t));
+    setMuncherState('chomp');
+    stateTimers.current = [
+      window.setTimeout(() => setMuncherState(correct ? 'happy' : 'bleh'), 300),
+      window.setTimeout(() => setMuncherState('idle'), correct ? 900 : 800),
+    ];
+  }, []);
   const startRef = useRef(performance.now());
   const firstCorrectRef = useRef<number | null>(null);
   const wrongRef = useRef(0);
@@ -83,8 +103,14 @@ export function MunchBoard({
           wrongRef.current += 1;
         }
         onMunch(isCorrect);
+        reactMuncher(isCorrect);
         setFlash({ idx, ok: isCorrect });
         window.setTimeout(() => setFlash((f) => (f && f.idx === idx ? null : f)), 350);
+        if (isCorrect) {
+          const id = ++burstId.current;
+          setBursts((b) => [...b, { id, idx }]);
+          window.setTimeout(() => setBursts((b) => b.filter((x) => x.id !== id)), 900);
+        }
 
         if ([...correctIdx].every((i) => next.has(i)) && !doneRef.current) {
           doneRef.current = true;
@@ -97,7 +123,7 @@ export function MunchBoard({
         return next;
       });
     },
-    [correctIdx, onMunch, onComplete],
+    [correctIdx, onMunch, onComplete, reactMuncher],
   );
 
   const move = useCallback(
@@ -185,7 +211,12 @@ export function MunchBoard({
               disabled={isEaten}
             >
               <span className="munch-num">{isEaten ? '' : v}</span>
-              {isHere && !isEaten && <span className="muncher" aria-hidden="true">😋</span>}
+              {isHere && (
+                <span className="muncher-slot" aria-hidden="true">
+                  <Muncher animal={muncher} state={muncherState} size="100%" />
+                </span>
+              )}
+              {bursts.some((b) => b.idx === i) && <CelebrationBurst variant={effect} />}
             </button>
           );
         })}
