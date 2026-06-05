@@ -23,11 +23,11 @@ their avatar and play — no logins for them.
 **Number Munchers play** — munch every cell that's `= / < / >` the fact, with a
 muncher you drive by keyboard or tap (shown here in the unlockable *Ocean* theme):
 
-![Munch round](docs/screenshots/munch.png)
+![Munch round](docs/screenshots/munch-v2.png)
 
 | Profile picker | Adult dashboard | Rewards shop |
 | --- | --- | --- |
-| ![Profiles](docs/screenshots/profiles.png) | ![Dashboard](docs/screenshots/dashboard.png) | ![Rewards](docs/screenshots/rewards.png) |
+| ![Profiles](docs/screenshots/profiles-v2.png) | ![Dashboard](docs/screenshots/dashboard-v2.png) | ![Rewards](docs/screenshots/rewards-v2.png) |
 
 ---
 
