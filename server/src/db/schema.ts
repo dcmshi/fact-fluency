@@ -105,4 +105,15 @@ CREATE TABLE IF NOT EXISTS profile_unlock (
   item_id    TEXT NOT NULL,
   PRIMARY KEY (profile_id, item_id)
 );
+
+-- Equipped muncher character (separate additive table; default applied in code).
+CREATE TABLE IF NOT EXISTS profile_muncher (
+  profile_id TEXT PRIMARY KEY REFERENCES profile(id) ON DELETE CASCADE,
+  muncher    TEXT NOT NULL DEFAULT 'cat'
+);
+
+CREATE TABLE IF NOT EXISTS profile_effect (
+  profile_id TEXT PRIMARY KEY REFERENCES profile(id) ON DELETE CASCADE,
+  effect     TEXT NOT NULL DEFAULT 'confetti'
+);
 `;

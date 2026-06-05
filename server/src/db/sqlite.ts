@@ -257,6 +257,38 @@ export class SqliteDb implements Db {
       .run(profileId, theme);
   }
 
+  async getEquippedMuncher(profileId: string): Promise<string> {
+    const row = this.db
+      .prepare('SELECT muncher FROM profile_muncher WHERE profile_id = ?')
+      .get(profileId) as { muncher: string } | undefined;
+    return row?.muncher ?? 'cat';
+  }
+
+  async setEquippedMuncher(profileId: string, muncher: string): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT INTO profile_muncher (profile_id, muncher) VALUES (?, ?)
+         ON CONFLICT(profile_id) DO UPDATE SET muncher = excluded.muncher`,
+      )
+      .run(profileId, muncher);
+  }
+
+  async getEquippedEffect(profileId: string): Promise<string> {
+    const row = this.db
+      .prepare('SELECT effect FROM profile_effect WHERE profile_id = ?')
+      .get(profileId) as { effect: string } | undefined;
+    return row?.effect ?? 'confetti';
+  }
+
+  async setEquippedEffect(profileId: string, effect: string): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT INTO profile_effect (profile_id, effect) VALUES (?, ?)
+         ON CONFLICT(profile_id) DO UPDATE SET effect = excluded.effect`,
+      )
+      .run(profileId, effect);
+  }
+
   async listUnlocks(profileId: string): Promise<string[]> {
     const rows = this.db
       .prepare('SELECT item_id FROM profile_unlock WHERE profile_id = ?')

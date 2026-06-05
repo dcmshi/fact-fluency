@@ -161,6 +161,8 @@ export async function startSession(
         thresholds: await computeThresholds(db, profileId),
         sessionSeconds: profile.settings.sessionSeconds,
         theme: profile.theme,
+        muncher: await db.getEquippedMuncher(profileId),
+        effect: await db.getEquippedEffect(profileId),
       };
     }
     // Nothing left to resume (or a different day): close it and plan fresh.
@@ -203,6 +205,8 @@ export async function startSession(
     thresholds: await computeThresholds(db, profileId),
     sessionSeconds: profile.settings.sessionSeconds,
     theme: profile.theme,
+    muncher: await db.getEquippedMuncher(profileId),
+    effect: await db.getEquippedEffect(profileId),
   };
 }
 

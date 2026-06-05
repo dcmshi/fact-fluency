@@ -80,7 +80,10 @@ export const api = {
   unlockReward: (profileId: string, itemId: string) =>
     req<{ coins: number; owned: string[] }>('POST', `/profiles/${profileId}/rewards/unlock`, { itemId }),
   equipReward: (profileId: string, itemId: string) =>
-    req<{ equippedAvatar: string; equippedTheme: string }>('POST', `/profiles/${profileId}/rewards/equip`, {
-      itemId,
-    }),
+    req<{
+      equippedAvatar: string;
+      equippedTheme: string;
+      equippedMuncher: string;
+      equippedEffect: string;
+    }>('POST', `/profiles/${profileId}/rewards/equip`, { itemId }),
 };

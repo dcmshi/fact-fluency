@@ -58,6 +58,10 @@ export interface Db {
   /** Set the absolute coin balance; upserts the reward row. */
   setCoins(profileId: string, coins: number): Promise<void>;
   setProfileTheme(profileId: string, theme: string): Promise<void>;
+  getEquippedMuncher(profileId: string): Promise<string>;
+  setEquippedMuncher(profileId: string, muncher: string): Promise<void>;
+  getEquippedEffect(profileId: string): Promise<string>;
+  setEquippedEffect(profileId: string, effect: string): Promise<void>;
   listUnlocks(profileId: string): Promise<string[]>;
   addUnlock(profileId: string, itemId: string): Promise<void>;
   getProfileStreak(profileId: string): Promise<{ streak: number; lastPlayedDay: string | null }>;

@@ -182,6 +182,38 @@ export class PostgresDb implements Db {
     );
   }
 
+  async getEquippedMuncher(profileId: string): Promise<string> {
+    const row = await this.one<{ muncher: string }>(
+      'SELECT muncher FROM profile_muncher WHERE profile_id = $1',
+      [profileId],
+    );
+    return row?.muncher ?? 'cat';
+  }
+
+  async setEquippedMuncher(profileId: string, muncher: string): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO profile_muncher (profile_id, muncher) VALUES ($1,$2)
+       ON CONFLICT (profile_id) DO UPDATE SET muncher = EXCLUDED.muncher`,
+      [profileId, muncher],
+    );
+  }
+
+  async getEquippedEffect(profileId: string): Promise<string> {
+    const row = await this.one<{ effect: string }>(
+      'SELECT effect FROM profile_effect WHERE profile_id = $1',
+      [profileId],
+    );
+    return row?.effect ?? 'confetti';
+  }
+
+  async setEquippedEffect(profileId: string, effect: string): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO profile_effect (profile_id, effect) VALUES ($1,$2)
+       ON CONFLICT (profile_id) DO UPDATE SET effect = EXCLUDED.effect`,
+      [profileId, effect],
+    );
+  }
+
   async listUnlocks(profileId: string): Promise<string[]> {
     return (
       await this.rows<{ item_id: string }>(

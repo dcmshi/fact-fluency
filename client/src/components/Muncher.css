@@ -1,0 +1,97 @@
+/* Muncher characters — a shared rig animated by [data-state]. Chunky toy-like
+   creatures for the play board. transform-box: fill-box lets each SVG part pivot
+   on its own bounding box. Honors prefers-reduced-motion via the global rule. */
+.muncher {
+  display: block;
+  overflow: visible;
+}
+.m-rig {
+  transform-box: fill-box;
+  transform-origin: 50% 90%; /* pivot at the feet for bounces/squash */
+}
+.m-mouth {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scaleY(0.3); /* near-closed at rest */
+}
+.m-tongue {
+  transform-box: fill-box;
+  transform-origin: top center;
+  opacity: 0;
+}
+.m-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* idle — gentle breathing bob + an occasional slow blink */
+.muncher[data-state='idle'] .m-rig {
+  animation: m-bob 2.6s ease-in-out infinite;
+}
+.muncher[data-state='idle'] .m-eye {
+  animation: m-blink 5s ease-in-out infinite;
+}
+
+/* chomp — maw snaps open then shut, with a little head dip */
+.muncher[data-state='chomp'] .m-mouth {
+  animation: m-chomp 0.3s ease-in-out;
+}
+.muncher[data-state='chomp'] .m-rig {
+  animation: m-dip 0.3s ease-in-out;
+}
+
+/* happy — big bounce + wiggle, mouth grins open */
+.muncher[data-state='happy'] .m-rig {
+  animation: m-bounce 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.muncher[data-state='happy'] .m-mouth {
+  transform: scaleY(0.85);
+}
+
+/* bleh — recoil shake, mouth open, tongue flops out (non-punitive, just silly) */
+.muncher[data-state='bleh'] .m-rig {
+  animation: m-shake 0.5s ease-in-out;
+}
+.muncher[data-state='bleh'] .m-mouth {
+  transform: scaleY(0.9);
+}
+.muncher[data-state='bleh'] .m-tongue {
+  opacity: 1;
+  animation: m-bleh-tongue 0.5s ease-out forwards;
+}
+
+@keyframes m-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2.5px); }
+}
+@keyframes m-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  96% { transform: scaleY(0.12); }
+}
+@keyframes m-chomp {
+  0% { transform: scaleY(0.3); }
+  45% { transform: scaleY(1); }
+  100% { transform: scaleY(0.3); }
+}
+@keyframes m-dip {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50% { transform: translateY(3px) scaleY(0.94); }
+}
+@keyframes m-bounce {
+  0% { transform: translateY(0) rotate(0); }
+  30% { transform: translateY(-15px) rotate(-7deg); }
+  55% { transform: translateY(0) rotate(6deg); }
+  75% { transform: translateY(-5px) rotate(-2deg); }
+  100% { transform: translateY(0) rotate(0); }
+}
+@keyframes m-shake {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  20% { transform: translateX(-4px) rotate(-5deg); }
+  40% { transform: translateX(4px) rotate(4deg); }
+  60% { transform: translateX(-3px) rotate(-2deg); }
+  80% { transform: translateX(2px) rotate(1deg); }
+}
+@keyframes m-bleh-tongue {
+  0% { transform: translateY(0) scaleY(0.5); }
+  100% { transform: translateY(10px) scaleY(1); }
+}

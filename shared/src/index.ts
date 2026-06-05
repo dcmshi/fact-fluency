@@ -99,7 +99,7 @@ export interface Profile {
 // Rewards — unlockable avatars/themes bought with earned points (roadmap v1.1)
 // ---------------------------------------------------------------------------
 
-export type RewardKind = 'avatar' | 'theme';
+export type RewardKind = 'avatar' | 'theme' | 'muncher' | 'effect';
 
 /** A catalog entry a kid can unlock and equip. Cost 0 = free / starter item. */
 export interface RewardItem {
@@ -108,9 +108,10 @@ export interface RewardItem {
   label: string;
   /** Coins to unlock; 0 means owned by default. */
   cost: number;
-  /** avatar → the emoji; theme → the theme id applied as `body[data-theme]`. */
+  /** avatar → the emoji; theme → the `body[data-theme]` id; muncher → the
+   *  animal key; effect → the celebration-burst key. All client-rendered. */
   value: string;
-  /** Theme preview swatch colors (hex); omitted for avatars. */
+  /** Theme preview swatch colors (hex); omitted for the others. */
   swatches?: string[];
 }
 
@@ -119,9 +120,11 @@ export interface RewardsView {
   catalog: RewardItem[];
   /** Item ids the kid owns (includes all cost-0 items). */
   owned: string[];
-  /** Currently-equipped avatar emoji + theme id. */
+  /** Currently-equipped avatar emoji, theme id, muncher animal, and effect. */
   equippedAvatar: string;
   equippedTheme: string;
+  equippedMuncher: string;
+  equippedEffect: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -174,6 +177,10 @@ export interface SessionResponse {
   sessionSeconds: number;
   /** The kid's equipped theme id, so the player screen renders in their palette. */
   theme: string;
+  /** The kid's equipped muncher animal key (the character on the board). */
+  muncher: string;
+  /** The kid's equipped celebration-effect key (burst on a correct munch). */
+  effect: string;
 }
 
 export interface AnswerRequest {

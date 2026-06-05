@@ -39,7 +39,40 @@ const THEMES: RewardItem[] = [
   { id: 'theme-midnight', kind: 'theme', label: 'Midnight', cost: 150, value: 'midnight', swatches: ['#20233a', '#7c9cff', '#ffc83d'] },
 ];
 
-export const REWARD_CATALOG: RewardItem[] = [...FREE_AVATAR_ITEMS, ...PREMIUM_AVATARS, ...THEMES];
+// Muncher characters (the animal on the play board). `value` is the animal key
+// the client renders as an animated SVG. 'cat' is the free default.
+const MUNCHERS: RewardItem[] = [
+  { id: 'muncher-cat', kind: 'muncher', label: 'Cat', cost: 0, value: 'cat' },
+  { id: 'muncher-dog', kind: 'muncher', label: 'Dog', cost: 0, value: 'dog' },
+  { id: 'muncher-fox', kind: 'muncher', label: 'Fox', cost: 40, value: 'fox' },
+  { id: 'muncher-frog', kind: 'muncher', label: 'Frog', cost: 60, value: 'frog' },
+  { id: 'muncher-bunny', kind: 'muncher', label: 'Bunny', cost: 90, value: 'bunny' },
+  { id: 'muncher-panda', kind: 'muncher', label: 'Panda', cost: 130, value: 'panda' },
+  { id: 'muncher-dragon', kind: 'muncher', label: 'Dragon', cost: 220, value: 'dragon' },
+];
+
+/** The free default muncher every profile starts with. */
+export const DEFAULT_MUNCHER = 'cat';
+
+// Celebration effects (the burst on a correct munch). `value` is the effect key
+// the client renders. 'confetti' is the free default.
+const EFFECTS: RewardItem[] = [
+  { id: 'effect-confetti', kind: 'effect', label: 'Confetti', cost: 0, value: 'confetti' },
+  { id: 'effect-sparkles', kind: 'effect', label: 'Sparkles', cost: 50, value: 'sparkles' },
+  { id: 'effect-stars', kind: 'effect', label: 'Shooting stars', cost: 90, value: 'stars' },
+  { id: 'effect-fireworks', kind: 'effect', label: 'Fireworks', cost: 160, value: 'fireworks' },
+];
+
+/** The free default celebration effect. */
+export const DEFAULT_EFFECT = 'confetti';
+
+export const REWARD_CATALOG: RewardItem[] = [
+  ...FREE_AVATAR_ITEMS,
+  ...PREMIUM_AVATARS,
+  ...MUNCHERS,
+  ...EFFECTS,
+  ...THEMES,
+];
 
 const BY_ID = new Map(REWARD_CATALOG.map((r) => [r.id, r]));
 

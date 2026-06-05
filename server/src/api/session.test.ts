@@ -213,6 +213,35 @@ describe('rewards', () => {
     expect(rewards.body.catalog.length).toBeGreaterThan(0);
     expect(rewards.body.owned).toContain('theme-classic'); // free item owned by default
     expect(rewards.body.equippedTheme).toBe('classic');
+    expect(rewards.body.equippedMuncher).toBe('cat'); // default muncher
+    expect(rewards.body.equippedEffect).toBe('confetti'); // default effect
+  });
+
+  it('equips an owned celebration effect, surfaced on the session', async () => {
+    const { agent, profileId } = await setup();
+    await db.addCoins(profileId, 100);
+    const unlock = await agent
+      .post(`/api/profiles/${profileId}/rewards/unlock`)
+      .send({ itemId: 'effect-sparkles' }); // cost 50
+    expect(unlock.status).toBe(200);
+    const equip = await agent
+      .post(`/api/profiles/${profileId}/rewards/equip`)
+      .send({ itemId: 'effect-sparkles' });
+    expect(equip.body.equippedEffect).toBe('sparkles');
+    const session = await agent.post(`/api/profiles/${profileId}/session`);
+    expect(session.body.effect).toBe('sparkles');
+  });
+
+  it('equips an owned muncher and surfaces it on the session', async () => {
+    const { agent, profileId } = await setup();
+    // 'dog' is a free muncher → equippable without coins.
+    const equip = await agent
+      .post(`/api/profiles/${profileId}/rewards/equip`)
+      .send({ itemId: 'muncher-dog' });
+    expect(equip.status).toBe(200);
+    expect(equip.body.equippedMuncher).toBe('dog');
+    const session = await agent.post(`/api/profiles/${profileId}/session`);
+    expect(session.body.muncher).toBe('dog'); // travels with the deck to the board
   });
 
   it('unlocks and equips with coins, rejecting overspend and unowned equips', async () => {

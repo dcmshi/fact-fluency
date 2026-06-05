@@ -22,6 +22,8 @@ export async function getRewards(db: Db, accountId: string, profileId: string): 
     owned: await ownedIds(db, profileId),
     equippedAvatar: profile.avatar,
     equippedTheme: profile.theme,
+    equippedMuncher: await db.getEquippedMuncher(profileId),
+    equippedEffect: await db.getEquippedEffect(profileId),
   };
 }
 
@@ -50,7 +52,12 @@ export async function equipReward(
   accountId: string,
   profileId: string,
   itemId: string,
-): Promise<{ equippedAvatar: string; equippedTheme: string }> {
+): Promise<{
+  equippedAvatar: string;
+  equippedTheme: string;
+  equippedMuncher: string;
+  equippedEffect: string;
+}> {
   const profile = await requireOwnedProfile(db, accountId, profileId);
   const item = rewardById(itemId);
   if (!item) throw new SessionError(400, 'unknown_item');
@@ -58,10 +65,14 @@ export async function equipReward(
   if (!owned) throw new SessionError(403, 'not_owned');
 
   if (item.kind === 'avatar') await db.updateProfileAvatar(profileId, item.value);
-  else await db.setProfileTheme(profileId, item.value);
+  else if (item.kind === 'theme') await db.setProfileTheme(profileId, item.value);
+  else if (item.kind === 'muncher') await db.setEquippedMuncher(profileId, item.value);
+  else await db.setEquippedEffect(profileId, item.value);
 
   return {
     equippedAvatar: item.kind === 'avatar' ? item.value : profile.avatar,
     equippedTheme: item.kind === 'theme' ? item.value : profile.theme,
+    equippedMuncher: item.kind === 'muncher' ? item.value : await db.getEquippedMuncher(profileId),
+    equippedEffect: item.kind === 'effect' ? item.value : await db.getEquippedEffect(profileId),
   };
 }

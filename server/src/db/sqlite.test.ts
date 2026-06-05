@@ -193,6 +193,15 @@ describe('rewards', () => {
     const listed = (await db.listProfiles(accountId))[0];
     expect(listed).toMatchObject({ avatar: '🐉', coins: 10, theme: 'ocean' });
   });
+
+  it('defaults and updates the equipped muncher', async () => {
+    const { profile } = await makeAccountAndProfile();
+    expect(await db.getEquippedMuncher(profile.id)).toBe('cat'); // default
+    await db.setEquippedMuncher(profile.id, 'dragon');
+    expect(await db.getEquippedMuncher(profile.id)).toBe('dragon');
+    await db.setEquippedMuncher(profile.id, 'dog'); // upsert
+    expect(await db.getEquippedMuncher(profile.id)).toBe('dog');
+  });
 });
 
 describe('operation stats', () => {
