@@ -47,15 +47,19 @@ the client-closure items are plausible and want a close read before changes.
       and every session/progress build now reuse it.
 - [x] **Rate-limit profile creation.** Per-IP fixed window (20/hr) on
       `POST /api/profiles`, mirroring the auth limiters. HTTP-tested.
+- [x] **Adopt React Query** (DESIGN.md §5.1). Added `@tanstack/react-query` with a
+      `QueryClient` whose retry skips 4xx (a 401/404 isn't worth retrying) and a
+      30s `staleTime`. `auth` is now backed by a `['me']` query (401 → logged-out,
+      no retry storm); the profiles list, catalog, rewards, fact sets, progress,
+      and dashboard are `useQuery` reads; settings/create/fact-sets/unlock/equip
+      and session-complete are mutations that invalidate the right keys (shared
+      `qk` map in `api.ts`). Failed reads now render a retry affordance instead of
+      a stuck skeleton. The imperative session-play loop in `PlayPage` stays as-is
+      (stateful game flow, not cached server-state) but invalidates profiles/
+      progress/dashboard on completion. _Not yet verified in-browser._
 
 **Backlog (not yet done):**
 
-- [ ] **Adopt React Query (or amend the design doc).** DESIGN.md §5.1 specifies
-      React Query for client server-state; the client actually uses manual
-      `useState` + `.then()` with no dedup/invalidation, and several `.then()`
-      chains lack `.catch()` (`ProfilesPage` profiles/catalog/factsets loads) so a
-      failed request leaves the UI stuck on a skeleton. Either adopt it (read
-      queries + mutations that invalidate) or update the doc to match reality.
 - [ ] **Thin out the repeated ownership pattern.** `requireOwnedProfile` /
       `owns()` (the latter loads _all_ profiles then `.some()`) recurs across
       service/dashboard/progress/profiles routes — fold into one middleware that

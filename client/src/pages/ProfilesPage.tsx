@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import type { FactSet, GradeBand, Profile, ProfileSettings, RewardItem } from '@shared';
-import { api } from '../api';
+import type { FactSet, Profile, ProfileSettings, RewardItem } from '@shared';
+import { api, qk } from '../api';
 import { useAuth } from '../auth';
 import { Muncher } from '../components/Muncher';
 import { AVATARS, OP_LABEL, OP_SYMBOL } from '../ops';
@@ -19,16 +20,19 @@ const EFFECT_ICON: Record<string, string> = {
 export function ProfilesPage() {
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const [profiles, setProfiles] = useState<Profile[] | null>(null);
   const [adding, setAdding] = useState(false);
   const [managing, setManaging] = useState<Profile | null>(null);
   const [settingsFor, setSettingsFor] = useState<Profile | null>(null);
   const [rewardsFor, setRewardsFor] = useState<Profile | null>(null);
 
-  const refresh = () => api.listProfiles().then((r) => setProfiles(r.profiles));
-  useEffect(() => {
-    refresh();
-  }, []);
+  const {
+    data: profiles,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: qk.profiles,
+    queryFn: () => api.listProfiles().then((r) => r.profiles),
+  });
 
   return (
     <div className="screen">
@@ -46,8 +50,18 @@ export function ProfilesPage() {
           Who’s practicing?
         </h1>
 
+        {isError && (
+          <div className="card" role="alert" style={{ textAlign: 'center' }}>
+            <p className="muted">Couldn’t load profiles.</p>
+            <button className="btn ghost" onClick={() => refetch()}>
+              Try again
+            </button>
+          </div>
+        )}
+
         <div className="profile-grid">
           {!profiles &&
+            !isError &&
             [0, 1, 2].map((i) => (
               <div className="profile-tile" key={`sk-${i}`} aria-hidden="true">
                 <div className="skeleton" style={{ width: 64, height: 64, borderRadius: '50%' }} />
@@ -95,39 +109,23 @@ export function ProfilesPage() {
       </div>
 
       {adding && (
-        <AddProfileModal
-          onClose={() => setAdding(false)}
-          onCreated={() => {
-            setAdding(false);
-            refresh();
-          }}
-        />
+        <AddProfileModal onClose={() => setAdding(false)} onCreated={() => setAdding(false)} />
       )}
       {managing && <FactSetsModal profile={managing} onClose={() => setManaging(null)} />}
       {settingsFor && (
         <SettingsModal
           profile={settingsFor}
           onClose={() => setSettingsFor(null)}
-          onSaved={() => {
-            setSettingsFor(null);
-            refresh();
-          }}
+          onSaved={() => setSettingsFor(null)}
         />
       )}
-      {rewardsFor && (
-        <RewardsModal
-          profile={rewardsFor}
-          onClose={() => {
-            setRewardsFor(null);
-            refresh();
-          }}
-        />
-      )}
+      {rewardsFor && <RewardsModal profile={rewardsFor} onClose={() => setRewardsFor(null)} />}
     </div>
   );
 }
 
 function RewardsModal({ profile, onClose }: { profile: Profile; onClose: () => void }) {
+  const queryClient = useQueryClient();
   const [coins, setCoins] = useState(profile.coins);
   const [owned, setOwned] = useState<Set<string>>(new Set());
   const [catalog, setCatalog] = useState<RewardItem[] | null>(null);
@@ -140,17 +138,22 @@ function RewardsModal({ profile, onClose }: { profile: Profile; onClose: () => v
   // Live-preview the equipped theme across the whole picker while open.
   useTheme(equippedTheme);
 
+  // Cached fetch (deduped across reopens); mirror it into local state so equip
+  // can optimistically update the preview without refetching.
+  const { data: rewards } = useQuery({
+    queryKey: qk.rewards(profile.id),
+    queryFn: () => api.rewards(profile.id),
+  });
   useEffect(() => {
-    api.rewards(profile.id).then((r) => {
-      setCoins(r.coins);
-      setOwned(new Set(r.owned));
-      setCatalog(r.catalog);
-      setEquippedAvatar(r.equippedAvatar);
-      setEquippedTheme(r.equippedTheme);
-      setEquippedMuncher(r.equippedMuncher);
-      setEquippedEffect(r.equippedEffect);
-    });
-  }, [profile.id]);
+    if (!rewards) return;
+    setCoins(rewards.coins);
+    setOwned(new Set(rewards.owned));
+    setCatalog(rewards.catalog);
+    setEquippedAvatar(rewards.equippedAvatar);
+    setEquippedTheme(rewards.equippedTheme);
+    setEquippedMuncher(rewards.equippedMuncher);
+    setEquippedEffect(rewards.equippedEffect);
+  }, [rewards]);
 
   const isEquipped = (item: RewardItem) =>
     item.kind === 'avatar'
@@ -167,6 +170,8 @@ function RewardsModal({ profile, onClose }: { profile: Profile; onClose: () => v
     setEquippedTheme(r.equippedTheme);
     setEquippedMuncher(r.equippedMuncher);
     setEquippedEffect(r.equippedEffect);
+    // An equipped avatar shows on the picker tile — refresh that list.
+    void queryClient.invalidateQueries({ queryKey: qk.profiles });
   }
 
   async function act(item: RewardItem) {
@@ -181,6 +186,9 @@ function RewardsModal({ profile, onClose }: { profile: Profile; onClose: () => v
         setCoins(r.coins);
         setOwned(new Set(r.owned));
         await equip(item); // wear it right away
+        // Coins were spent — refresh the picker badge and the rewards cache.
+        void queryClient.invalidateQueries({ queryKey: qk.profiles });
+        void queryClient.invalidateQueries({ queryKey: qk.rewards(profile.id) });
       }
     } finally {
       setBusy(null);
@@ -308,23 +316,26 @@ function SettingsModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const queryClient = useQueryClient();
   const [values, setValues] = useState<ProfileSettings>(profile.settings);
-  const [busy, setBusy] = useState(false);
 
   const outOfRange = SETTING_FIELDS.some(({ key, min, max }) => {
     const v = values[key];
     return !Number.isInteger(v) || v < min || v > max;
   });
 
-  async function save() {
-    if (outOfRange) return;
-    setBusy(true);
-    try {
-      await api.updateSettings(profile.id, values);
+  const saveMut = useMutation({
+    mutationFn: () => api.updateSettings(profile.id, values),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.profiles });
       onSaved();
-    } finally {
-      setBusy(false);
-    }
+    },
+  });
+  const busy = saveMut.isPending;
+
+  function save() {
+    if (outOfRange) return;
+    saveMut.mutate();
   }
 
   return (
@@ -353,25 +364,29 @@ function SettingsModal({
 }
 
 function AddProfileModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState(AVATARS[0]);
-  const [bands, setBands] = useState<GradeBand[]>([]);
   const [band, setBand] = useState(''); // '' = starter mix (default sets)
-  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    api.catalog().then((r) => setBands(r.gradeBands));
-  }, []);
+  const { data: bands = [] } = useQuery({
+    queryKey: qk.catalog,
+    queryFn: () => api.catalog().then((r) => r.gradeBands),
+    staleTime: Infinity, // the catalog is static
+  });
 
-  async function create() {
-    if (!name.trim()) return;
-    setBusy(true);
-    try {
-      await api.createProfile(name.trim(), avatar, band || undefined);
+  const createMut = useMutation({
+    mutationFn: () => api.createProfile(name.trim(), avatar, band || undefined),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.profiles });
       onCreated();
-    } finally {
-      setBusy(false);
-    }
+    },
+  });
+  const busy = createMut.isPending;
+
+  function create() {
+    if (!name.trim()) return;
+    createMut.mutate();
   }
 
   return (
@@ -422,16 +437,17 @@ function AddProfileModal({ onClose, onCreated }: { onClose: () => void; onCreate
 }
 
 function FactSetsModal({ profile, onClose }: { profile: Profile; onClose: () => void }) {
-  const [catalog, setCatalog] = useState<FactSet[] | null>(null);
+  const queryClient = useQueryClient();
   const [enabled, setEnabled] = useState<Set<string>>(new Set());
-  const [busy, setBusy] = useState(false);
 
+  const { data } = useQuery({
+    queryKey: qk.factSets(profile.id),
+    queryFn: () => api.getFactSets(profile.id),
+  });
+  const catalog = data?.catalog ?? null;
   useEffect(() => {
-    api.getFactSets(profile.id).then((r) => {
-      setCatalog(r.catalog);
-      setEnabled(new Set(r.enabledIds));
-    });
-  }, [profile.id]);
+    if (data) setEnabled(new Set(data.enabledIds));
+  }, [data]);
 
   function toggle(id: string) {
     setEnabled((prev) => {
@@ -442,14 +458,20 @@ function FactSetsModal({ profile, onClose }: { profile: Profile; onClose: () => 
     });
   }
 
-  async function save() {
-    setBusy(true);
-    try {
-      await api.setFactSets(profile.id, [...enabled]);
+  const saveMut = useMutation({
+    mutationFn: () => api.setFactSets(profile.id, [...enabled]),
+    onSuccess: () => {
+      // Enabled sets change the progress grid + dashboard mastery — refresh both.
+      void queryClient.invalidateQueries({ queryKey: qk.factSets(profile.id) });
+      void queryClient.invalidateQueries({ queryKey: qk.progress(profile.id) });
+      void queryClient.invalidateQueries({ queryKey: qk.dashboard(profile.id) });
       onClose();
-    } finally {
-      setBusy(false);
-    }
+    },
+  });
+  const busy = saveMut.isPending;
+
+  function save() {
+    saveMut.mutate();
   }
 
   const grouped = (catalog ?? []).reduce<Record<string, FactSet[]>>((acc, s) => {

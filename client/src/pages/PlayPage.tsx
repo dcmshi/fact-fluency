@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Card, SessionResponse, SessionSummary } from '@shared';
-import { api, ApiError } from '../api';
+import { api, ApiError, qk } from '../api';
 import { Confetti } from '../components/Confetti';
 import { MunchBoard, type RoundResult } from '../components/MunchBoard';
 import { OP_CLASS, OP_SYMBOL } from '../ops';
@@ -25,6 +26,7 @@ type Phase = 'loading' | 'study' | 'munch' | 'done' | 'error';
 export function PlayPage() {
   const { profileId = '' } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [session, setSession] = useState<SessionResponse | null>(null);
   const [queue, setQueue] = useState<Card[]>([]);
@@ -63,6 +65,11 @@ export function PlayPage() {
         try {
           await flushAnswers();
           setSummary(await api.complete(sid));
+          // Completion credits coins + streak and advances mastery — refresh the
+          // picker and progress views so they're current when the kid returns.
+          void queryClient.invalidateQueries({ queryKey: qk.profiles });
+          void queryClient.invalidateQueries({ queryKey: qk.progress(profileId) });
+          void queryClient.invalidateQueries({ queryKey: qk.dashboard(profileId) });
         } catch {
           markPendingComplete(sid);
           setOfflineFinish(true);
@@ -84,7 +91,7 @@ export function PlayPage() {
         startRound();
       }
     },
-    [startRound],
+    [startRound, queryClient, profileId],
   );
 
   const start = useCallback(async () => {

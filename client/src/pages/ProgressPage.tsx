@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { Box, CellState, DashboardView, DayTrend, ProgressGrid, ProgressView } from '@shared';
-import { api } from '../api';
+import type { Box, CellState, DashboardView, DayTrend, ProgressGrid } from '@shared';
+import { api, qk } from '../api';
 import { OP_HEX, OP_LABEL, OP_SYMBOL } from '../ops';
 import './ProgressPage.css';
 
@@ -19,13 +19,14 @@ function cellColor(op: keyof typeof OP_HEX, box: Box | null, state: CellState): 
 export function ProgressPage() {
   const { profileId = '' } = useParams();
   const navigate = useNavigate();
-  const [view, setView] = useState<ProgressView | null>(null);
-  const [dash, setDash] = useState<DashboardView | null>(null);
-
-  useEffect(() => {
-    api.dashboard(profileId).then(setDash);
-    api.progress(profileId).then(setView);
-  }, [profileId]);
+  const { data: dash } = useQuery({
+    queryKey: qk.dashboard(profileId),
+    queryFn: () => api.dashboard(profileId),
+  });
+  const { data: view } = useQuery({
+    queryKey: qk.progress(profileId),
+    queryFn: () => api.progress(profileId),
+  });
 
   return (
     <div className="screen">

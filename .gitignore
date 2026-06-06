@@ -9,8 +9,14 @@ coverage/
 
 # local database (root-anchored so server/src/data/ source is NOT ignored)
 /data/
+server/data/
 *.sqlite
 *.sqlite3
+# better-sqlite3 WAL-mode sidecar files
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite3-shm
+*.sqlite3-wal
 
 # logs
 *.log

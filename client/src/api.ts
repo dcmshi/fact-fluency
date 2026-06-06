@@ -80,6 +80,7 @@ export const api = {
 
   // rewards
   rewards: (profileId: string) => req<RewardsView>('GET', `/profiles/${profileId}/rewards`),
+  // (qk below: shared React Query cache keys.)
   unlockReward: (profileId: string, itemId: string) =>
     req<{ coins: number; owned: string[] }>('POST', `/profiles/${profileId}/rewards/unlock`, {
       itemId,
@@ -91,4 +92,16 @@ export const api = {
       equippedMuncher: string;
       equippedEffect: string;
     }>('POST', `/profiles/${profileId}/rewards/equip`, { itemId }),
+};
+
+/** Shared React Query cache keys, so reads and the mutations that invalidate
+ *  them never drift apart. */
+export const qk = {
+  me: ['me'] as const,
+  profiles: ['profiles'] as const,
+  catalog: ['catalog'] as const,
+  rewards: (profileId: string) => ['rewards', profileId] as const,
+  factSets: (profileId: string) => ['factsets', profileId] as const,
+  progress: (profileId: string) => ['progress', profileId] as const,
+  dashboard: (profileId: string) => ['dashboard', profileId] as const,
 };
