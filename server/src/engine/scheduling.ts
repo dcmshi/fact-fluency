@@ -44,12 +44,7 @@ function startOfDayAfter(now: number, days: number, tzOffsetMin: number): number
  * result still snaps to a day boundary so review feels like "tomorrow", not
  * "23 hours from now".
  */
-export function dueAtForBox(
-  box: Box,
-  now: number,
-  tzOffsetMin = 0,
-  fraction = 1,
-): number {
+export function dueAtForBox(box: Box, now: number, tzOffsetMin = 0, fraction = 1): number {
   if (box === 0) return now; // handled by the in-session queue; due "next session"
   const days = Math.max(1, Math.round(BOX_INTERVAL_DAYS[box] * fraction));
   return startOfDayAfter(now, days, tzOffsetMin);

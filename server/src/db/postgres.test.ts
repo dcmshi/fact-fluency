@@ -26,7 +26,10 @@ async function accountAndProfile() {
 describe('PostgresDb (pg-mem)', () => {
   it('migrates and round-trips an account + auth session', async () => {
     const accountId = await db.createAccount('p@home.test', 'argon', 'America/Toronto');
-    expect(await db.findAccountByEmail('p@home.test')).toEqual({ id: accountId, passwordHash: 'argon' });
+    expect(await db.findAccountByEmail('p@home.test')).toEqual({
+      id: accountId,
+      passwordHash: 'argon',
+    });
     expect(await db.getAccountTimezone(accountId)).toBe('America/Toronto');
 
     await db.createAuthSession(accountId, 'live', Date.now() + 60_000);
@@ -44,7 +47,10 @@ describe('PostgresDb (pg-mem)', () => {
     expect((await db.listProfiles(accountId))[0].settings.sessionCards).toBe(20);
 
     await db.setProfileStreak(profile.id, 3, '2026-06-03');
-    expect(await db.getProfileStreak(profile.id)).toEqual({ streak: 3, lastPlayedDay: '2026-06-03' });
+    expect(await db.getProfileStreak(profile.id)).toEqual({
+      streak: 3,
+      lastPlayedDay: '2026-06-03',
+    });
   });
 
   it('updates profile settings', async () => {

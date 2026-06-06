@@ -14,7 +14,11 @@ async function ownedIds(db: Db, profileId: string): Promise<string[]> {
   return [...new Set([...FREE_ITEM_IDS, ...(await db.listUnlocks(profileId))])];
 }
 
-export async function getRewards(db: Db, accountId: string, profileId: string): Promise<RewardsView> {
+export async function getRewards(
+  db: Db,
+  accountId: string,
+  profileId: string,
+): Promise<RewardsView> {
   const profile = await requireOwnedProfile(db, accountId, profileId);
   return {
     coins: profile.coins,

@@ -4,12 +4,7 @@
  * does the IO; this decides correctness, fluency, the new box, and re-show.
  */
 import type { Fact, FactProgress, OperationStat } from '@shared';
-import {
-  dueAtForBox,
-  stateForBox,
-  stepLearning,
-  transitionReview,
-} from './scheduling';
+import { dueAtForBox, stateForBox, stepLearning, transitionReview } from './scheduling';
 import { ewma, fluencyThreshold, isFast, updateOperationStat } from './threshold';
 
 export interface GradeInput {

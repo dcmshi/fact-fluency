@@ -11,7 +11,9 @@ let ctx: AudioContext | null = null;
 
 function audio(): AudioContext | null {
   try {
-    const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    const Ctor =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctor) return null;
     ctx ??= new Ctor();
     if (ctx.state === 'suspended') void ctx.resume();

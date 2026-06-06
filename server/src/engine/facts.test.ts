@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { factId, familyHint, generateFacts } from './facts';
 
 describe('familyHint', () => {
-  const fact = (operation: 'add' | 'sub' | 'mul' | 'div', operandA: number, operandB: number, answer: number) => ({
+  const fact = (
+    operation: 'add' | 'sub' | 'mul' | 'div',
+    operandA: number,
+    operandB: number,
+    answer: number,
+  ) => ({
     id: factId(operation, operandA, operandB),
     operation,
     operandA,

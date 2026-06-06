@@ -21,6 +21,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .me()
       .then((r) => setAccountId(r.accountId))
       .catch((e) => {
+        // A 401 is the normal "not logged in" path; surface anything else.
+        // eslint-disable-next-line no-console
         if (!(e instanceof ApiError && e.status === 401)) console.error(e);
       })
       .finally(() => setLoading(false));

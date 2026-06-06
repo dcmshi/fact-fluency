@@ -42,7 +42,9 @@ describe('planSession — composition', () => {
   it('caps the deck at sessionCards and keeps facts unique', () => {
     // 50 due-review facts (so the cap under test is sessionCards, not new-fact).
     const facts = Array.from({ length: 50 }, (_, i) => fact(i));
-    const progressByFactId = new Map(facts.map((f) => [f.id, { ...progress(2, NOW - 1000), factId: f.id }]));
+    const progressByFactId = new Map(
+      facts.map((f) => [f.id, { ...progress(2, NOW - 1000), factId: f.id }]),
+    );
     const deck = planSession(input({ facts, progressByFactId, newPerSession: 0 }));
     expect(deck).toHaveLength(20);
     expect(unique(ids(deck))).toBe(true);
@@ -74,7 +76,9 @@ describe('planSession — composition', () => {
   it('mixes a few new facts among due review, without clustering or leading', () => {
     const review = Array.from({ length: 30 }, (_, i) => fact(100 + i));
     const unseen = Array.from({ length: 30 }, (_, i) => fact(i));
-    const progressByFactId = new Map(review.map((f) => [f.id, { ...progress(2, NOW - 1000), factId: f.id }]));
+    const progressByFactId = new Map(
+      review.map((f) => [f.id, { ...progress(2, NOW - 1000), factId: f.id }]),
+    );
     const deck = planSession(input({ facts: [...unseen, ...review], progressByFactId }));
 
     expect(deck).toHaveLength(20);
@@ -100,7 +104,9 @@ describe('planSession — scheduling buckets', () => {
 
   it('treats box-0 (still learning) facts as due even if dueAt is in the future', () => {
     const facts = [fact(1)];
-    const progressByFactId = new Map([['mul:1', { ...progress(0, NOW + 999_999), factId: 'mul:1' }]]);
+    const progressByFactId = new Map([
+      ['mul:1', { ...progress(0, NOW + 999_999), factId: 'mul:1' }],
+    ]);
     const deck = planSession(input({ facts, progressByFactId, newPerSession: 0 }));
     expect(ids(deck)).toEqual(['mul:1']);
     expect(deck[0].isNew).toBe(false); // it has progress, so not "new"

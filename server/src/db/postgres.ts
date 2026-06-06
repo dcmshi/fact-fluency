@@ -5,13 +5,7 @@
  * tests can run it against pg-mem without a live database.
  */
 import { randomUUID } from 'node:crypto';
-import type {
-  FactProgress,
-  Operation,
-  OperationStat,
-  Profile,
-  ProfileSettings,
-} from '@shared';
+import type { FactProgress, Operation, OperationStat, Profile, ProfileSettings } from '@shared';
 import type { AttemptRecord, Db, SessionRecord } from './index';
 import { SCHEMA_PG } from './schema.pg';
 
@@ -26,7 +20,7 @@ export class PostgresDb implements Db {
 
   /** Build a PostgresDb from a DATABASE_URL (lazily loads the `pg` driver). */
   static fromUrl(url: string): PostgresDb {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const pg = require('pg') as typeof import('pg');
     pg.types.setTypeParser(20, (v: string) => parseInt(v, 10)); // BIGINT -> number
     const local = /localhost|127\.0\.0\.1/.test(url);
@@ -41,10 +35,16 @@ export class PostgresDb implements Db {
     await this.pool.query(SCHEMA_PG);
   }
 
-  private async rows<T = Record<string, unknown>>(text: string, params: unknown[] = []): Promise<T[]> {
+  private async rows<T = Record<string, unknown>>(
+    text: string,
+    params: unknown[] = [],
+  ): Promise<T[]> {
     return (await this.pool.query(text, params)).rows as T[];
   }
-  private async one<T = Record<string, unknown>>(text: string, params: unknown[] = []): Promise<T | null> {
+  private async one<T = Record<string, unknown>>(
+    text: string,
+    params: unknown[] = [],
+  ): Promise<T | null> {
     return (await this.rows<T>(text, params))[0] ?? null;
   }
 
@@ -106,9 +106,10 @@ export class PostgresDb implements Db {
 
   async listProfiles(accountId: string): Promise<Profile[]> {
     return (
-      await this.rows<ProfileRow>(`${PROFILE_SELECT} WHERE p.account_id = $1 ORDER BY p.created_at`, [
-        accountId,
-      ])
+      await this.rows<ProfileRow>(
+        `${PROFILE_SELECT} WHERE p.account_id = $1 ORDER BY p.created_at`,
+        [accountId],
+      )
     ).map(toProfile);
   }
 
@@ -240,7 +241,9 @@ export class PostgresDb implements Db {
     return profile;
   }
 
-  async getProfileStreak(profileId: string): Promise<{ streak: number; lastPlayedDay: string | null }> {
+  async getProfileStreak(
+    profileId: string,
+  ): Promise<{ streak: number; lastPlayedDay: string | null }> {
     const row = await this.one<{ streak: number; last_played_day: string | null }>(
       'SELECT streak, last_played_day FROM profile WHERE id = $1',
       [profileId],
@@ -280,9 +283,9 @@ export class PostgresDb implements Db {
   // --- progress & stats ---
 
   async getProgress(profileId: string): Promise<FactProgress[]> {
-    return (await this.rows<ProgressRow>('SELECT * FROM fact_progress WHERE profile_id = $1', [profileId])).map(
-      toProgress,
-    );
+    return (
+      await this.rows<ProgressRow>('SELECT * FROM fact_progress WHERE profile_id = $1', [profileId])
+    ).map(toProgress);
   }
 
   async getProgressForFact(profileId: string, factId: string): Promise<FactProgress | null> {
@@ -319,16 +322,27 @@ export class PostgresDb implements Db {
          box=$3, state=$4, due_at=$5, last_seen_at=$6, reps=$7,
          fast_correct=$8, correct_streak=$9, accuracy_ewma=$10, median_ms_ewma=$11`,
       [
-        p.profileId, p.factId, p.box, p.state, p.dueAt, p.lastSeenAt, p.reps,
-        p.fastCorrect, p.correctStreak, p.accuracyEwma, p.medianMsEwma,
+        p.profileId,
+        p.factId,
+        p.box,
+        p.state,
+        p.dueAt,
+        p.lastSeenAt,
+        p.reps,
+        p.fastCorrect,
+        p.correctStreak,
+        p.accuracyEwma,
+        p.medianMsEwma,
       ],
     );
   }
 
   async getOperationStats(profileId: string): Promise<OperationStat[]> {
-    return (await this.rows<OperationStatRow>('SELECT * FROM operation_stat WHERE profile_id = $1', [profileId])).map(
-      toOperationStat,
-    );
+    return (
+      await this.rows<OperationStatRow>('SELECT * FROM operation_stat WHERE profile_id = $1', [
+        profileId,
+      ])
+    ).map(toOperationStat);
   }
 
   async getOperationStat(profileId: string, operation: Operation): Promise<OperationStat | null> {
@@ -372,7 +386,10 @@ export class PostgresDb implements Db {
   }
 
   async updateSessionWorkingState(id: string, workingState: string): Promise<void> {
-    await this.pool.query('UPDATE session SET working_state = $1 WHERE id = $2', [workingState, id]);
+    await this.pool.query('UPDATE session SET working_state = $1 WHERE id = $2', [
+      workingState,
+      id,
+    ]);
   }
 
   async completeSession(id: string, completedAt: number): Promise<void> {
@@ -383,7 +400,17 @@ export class PostgresDb implements Db {
     await this.pool.query(
       `INSERT INTO attempt (id, session_id, profile_id, fact_id, given, correct, fast, response_ms, answered_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [a.id, a.sessionId, a.profileId, a.factId, a.given, a.correct ? 1 : 0, a.fast ? 1 : 0, a.responseMs, a.answeredAt],
+      [
+        a.id,
+        a.sessionId,
+        a.profileId,
+        a.factId,
+        a.given,
+        a.correct ? 1 : 0,
+        a.fast ? 1 : 0,
+        a.responseMs,
+        a.answeredAt,
+      ],
     );
   }
 

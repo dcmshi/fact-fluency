@@ -2,8 +2,8 @@
 
 A browser-based **math fact fluency** game for kids. It builds genuine
 automaticity in the four operations through **spaced repetition** with a
-**fluency gate** (a fact is only mastered when answered *correctly **and**
-fast*), wrapped in a **Number Munchers–style** grid game so practice feels like
+**fluency gate** (a fact is only mastered when answered _correctly **and**
+fast_), wrapped in a **Number Munchers–style** grid game so practice feels like
 play, not a worksheet.
 
 An adult (parent/teacher) account holds multiple kid profiles; kids just tap
@@ -21,12 +21,12 @@ their avatar and play — no logins for them.
 ## Screenshots
 
 **Number Munchers play** — munch every cell that's `= / < / >` the fact, with a
-muncher you drive by keyboard or tap (shown here in the unlockable *Ocean* theme):
+muncher you drive by keyboard or tap (shown here in the unlockable _Ocean_ theme):
 
 ![Munch round](docs/screenshots/munch-v2.png)
 
-| Profile picker | Adult dashboard | Rewards shop |
-| --- | --- | --- |
+| Profile picker                                | Adult dashboard                                 | Rewards shop                                |
+| --------------------------------------------- | ----------------------------------------------- | ------------------------------------------- |
 | ![Profiles](docs/screenshots/profiles-v2.png) | ![Dashboard](docs/screenshots/dashboard-v2.png) | ![Rewards](docs/screenshots/rewards-v2.png) |
 
 ---

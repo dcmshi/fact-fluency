@@ -16,7 +16,7 @@ services:
     envVars:
       # Pin the Node runtime for deterministic prod builds (matches local dev).
       - key: NODE_VERSION
-        value: "24.13.1"
+        value: '24.13.1'
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL

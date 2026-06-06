@@ -60,7 +60,9 @@ describe('buildTrends', () => {
 });
 
 describe('suggestNextSet', () => {
-  const set = (o: Partial<SetMastery> & Pick<SetMastery, 'setId' | 'aMax' | 'enabled'>): SetMastery => ({
+  const set = (
+    o: Partial<SetMastery> & Pick<SetMastery, 'setId' | 'aMax' | 'enabled'>,
+  ): SetMastery => ({
     operation: 'add',
     label: o.setId,
     total: 10,
@@ -70,7 +72,14 @@ describe('suggestNextSet', () => {
 
   it('suggests the next-larger set once the largest enabled is ≥80% mastered', () => {
     const r = suggestNextSet([
-      set({ setId: 'add-0-10', label: 'Addition 0–10', aMax: 10, enabled: true, total: 10, mastered: 9 }),
+      set({
+        setId: 'add-0-10',
+        label: 'Addition 0–10',
+        aMax: 10,
+        enabled: true,
+        total: 10,
+        mastered: 9,
+      }),
       set({ setId: 'add-0-12', label: 'Addition 0–12', aMax: 12, enabled: false }),
       set({ setId: 'add-0-5', label: 'Addition 0–5', aMax: 5, enabled: false }),
     ]);
@@ -106,7 +115,14 @@ describe('suggestNextSet', () => {
 
   it('does not suggest enabling a brand-new operation (v1 scope)', () => {
     const r = suggestNextSet([
-      set({ setId: 'add-0-10', operation: 'add', aMax: 10, enabled: true, total: 10, mastered: 10 }),
+      set({
+        setId: 'add-0-10',
+        operation: 'add',
+        aMax: 10,
+        enabled: true,
+        total: 10,
+        mastered: 10,
+      }),
       set({ setId: 'sub-0-10', operation: 'sub', aMax: 10, enabled: false }),
     ]);
     // add has no larger set; sub is not enabled so it's not advanced into.

@@ -47,7 +47,9 @@ export interface Db {
   // --- profiles ---
   listProfiles(accountId: string): Promise<Profile[]>;
   getProfile(profileId: string): Promise<Profile | null>;
-  createProfile(p: Omit<Profile, 'id' | 'createdAt' | 'streak' | 'coins' | 'theme'>): Promise<Profile>;
+  createProfile(
+    p: Omit<Profile, 'id' | 'createdAt' | 'streak' | 'coins' | 'theme'>,
+  ): Promise<Profile>;
   updateProfileSettings(profileId: string, settings: ProfileSettings): Promise<Profile>;
   updateProfileAvatar(profileId: string, avatar: string): Promise<void>;
 
@@ -129,9 +131,11 @@ export function parseSqliteFilename(databaseUrl: string): string {
 export function createDb(databaseUrl: string): Db {
   const kind = adapterKindFor(databaseUrl);
   if (kind === 'sqlite') {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy load: keep the native driver out of a Postgres deploy
     const { SqliteDb } = require('./sqlite') as typeof import('./sqlite');
     return new SqliteDb(parseSqliteFilename(databaseUrl));
   }
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy load: keep `pg` out of a SQLite-only run
   const { PostgresDb } = require('./postgres') as typeof import('./postgres');
   return PostgresDb.fromUrl(databaseUrl);
 }

@@ -28,7 +28,11 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
   const router = Router();
 
   const loginLimit = rateLimit({ windowMs: LOGIN_WINDOW_MS, max: LOGIN_MAX, keyPrefix: 'login:' });
-  const signupLimit = rateLimit({ windowMs: SIGNUP_WINDOW_MS, max: SIGNUP_MAX, keyPrefix: 'signup:' });
+  const signupLimit = rateLimit({
+    windowMs: SIGNUP_WINDOW_MS,
+    max: SIGNUP_MAX,
+    keyPrefix: 'signup:',
+  });
 
   // A throwaway hash to verify against when the email is unknown, so a missing
   // account costs the same argon2 time as a wrong password (no timing oracle).

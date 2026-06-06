@@ -3,7 +3,7 @@ import { RateLimiter } from './rateLimit';
 
 describe('RateLimiter', () => {
   it('allows up to max then blocks, with a correct retry-after', () => {
-    let t = 1000;
+    const t = 1000;
     const rl = new RateLimiter({ windowMs: 10_000, max: 3, now: () => t });
 
     expect(rl.hit('a')).toMatchObject({ allowed: true, remaining: 2 });
@@ -16,7 +16,7 @@ describe('RateLimiter', () => {
   });
 
   it('scopes counts per key', () => {
-    let t = 0;
+    const t = 0;
     const rl = new RateLimiter({ windowMs: 1000, max: 1, now: () => t });
     expect(rl.hit('a').allowed).toBe(true);
     expect(rl.hit('a').allowed).toBe(false);

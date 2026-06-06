@@ -6,7 +6,7 @@ and architecture rationale; this file is the quick operational reference.
 ## What this is
 
 A browser-based **math fact fluency** app for kids, built on **spaced
-repetition** with a **fluency gate** (correct *and* fast). An adult
+repetition** with a **fluency gate** (correct _and_ fast). An adult
 (parent/teacher) account holds multiple kid profiles. Runs locally or as a small
 single-service deploy on Render. See `DESIGN.md`.
 

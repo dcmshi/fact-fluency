@@ -56,7 +56,11 @@ export function ProfilesPage() {
               </div>
             ))}
           {profiles?.map((p, i) => (
-            <div className="profile-tile rise" key={p.id} style={{ animationDelay: `${i * 0.06}s` }}>
+            <div
+              className="profile-tile rise"
+              key={p.id}
+              style={{ animationDelay: `${i * 0.06}s` }}
+            >
               <div className="avatar">{p.avatar}</div>
               <div className="profile-name">{p.displayName}</div>
               {p.streak > 1 && <div className="streak-badge">🔥 {p.streak}</div>}
@@ -246,7 +250,9 @@ function RewardTile({
       <div className="reward-preview">
         {item.kind === 'avatar' && <span className="reward-emoji">{item.value}</span>}
         {item.kind === 'muncher' && <Muncher animal={item.value} state="idle" size={44} />}
-        {item.kind === 'effect' && <span className="reward-emoji">{EFFECT_ICON[item.value] ?? '🎉'}</span>}
+        {item.kind === 'effect' && (
+          <span className="reward-emoji">{EFFECT_ICON[item.value] ?? '🎉'}</span>
+        )}
         {item.kind === 'theme' && (
           <span className="reward-swatches">
             {(item.swatches ?? []).map((c, i) => (
@@ -256,9 +262,7 @@ function RewardTile({
         )}
       </div>
       <div className="reward-label">{item.label}</div>
-      <div className="reward-status">
-        {equipped ? '✓ On' : owned ? 'Use' : `⭐ ${item.cost}`}
-      </div>
+      <div className="reward-status">{equipped ? '✓ On' : owned ? 'Use' : `⭐ ${item.cost}`}</div>
     </button>
   );
 }
@@ -272,9 +276,27 @@ const SETTING_FIELDS: {
   min: number;
   max: number;
 }[] = [
-  { key: 'sessionCards', label: 'Cards per session', hint: 'How many questions a session aims for.', min: 5, max: 50 },
-  { key: 'sessionSeconds', label: 'Session length (seconds)', hint: 'Target time budget for a session.', min: 30, max: 600 },
-  { key: 'newPerSession', label: 'New facts per session', hint: 'How many fresh facts trickle in each time.', min: 0, max: 10 },
+  {
+    key: 'sessionCards',
+    label: 'Cards per session',
+    hint: 'How many questions a session aims for.',
+    min: 5,
+    max: 50,
+  },
+  {
+    key: 'sessionSeconds',
+    label: 'Session length (seconds)',
+    hint: 'Target time budget for a session.',
+    min: 30,
+    max: 600,
+  },
+  {
+    key: 'newPerSession',
+    label: 'New facts per session',
+    hint: 'How many fresh facts trickle in each time.',
+    min: 0,
+    max: 10,
+  },
 ];
 
 function SettingsModal({
@@ -375,10 +397,7 @@ function AddProfileModal({ onClose, onCreated }: { onClose: () => void; onCreate
       <div className="field">
         <label>Starting level</label>
         <div className="band-picker">
-          <button
-            className={`set-pill ${band === '' ? 'on' : ''}`}
-            onClick={() => setBand('')}
-          >
+          <button className={`set-pill ${band === '' ? 'on' : ''}`} onClick={() => setBand('')}>
             Starter mix
           </button>
           {bands.map((b) => (
@@ -444,7 +463,8 @@ function FactSetsModal({ profile, onClose }: { profile: Profile; onClose: () => 
       {Object.entries(grouped).map(([op, sets]) => (
         <div key={op} className="set-group">
           <div className="set-group-title">
-            {OP_LABEL[op as keyof typeof OP_LABEL]} <span className="op-sym">{OP_SYMBOL[op as keyof typeof OP_SYMBOL]}</span>
+            {OP_LABEL[op as keyof typeof OP_LABEL]}{' '}
+            <span className="op-sym">{OP_SYMBOL[op as keyof typeof OP_SYMBOL]}</span>
           </div>
           <div className="set-options">
             {sets.map((s) => (

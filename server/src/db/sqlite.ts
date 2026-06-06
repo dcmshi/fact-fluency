@@ -178,7 +178,9 @@ export class SqliteDb implements Db {
     return row ? toProfile(row) : null;
   }
 
-  async getProfileStreak(profileId: string): Promise<{ streak: number; lastPlayedDay: string | null }> {
+  async getProfileStreak(
+    profileId: string,
+  ): Promise<{ streak: number; lastPlayedDay: string | null }> {
     const row = this.db
       .prepare('SELECT streak, last_played_day FROM profile WHERE id = ?')
       .get(profileId) as { streak: number; last_played_day: string | null } | undefined;
@@ -457,7 +459,9 @@ export class SqliteDb implements Db {
 
   async listProfileAttempts(profileId: string, since: number): Promise<AttemptRecord[]> {
     const rows = this.db
-      .prepare('SELECT * FROM attempt WHERE profile_id = ? AND answered_at >= ? ORDER BY answered_at')
+      .prepare(
+        'SELECT * FROM attempt WHERE profile_id = ? AND answered_at >= ? ORDER BY answered_at',
+      )
       .all(profileId, since) as AttemptRow[];
     return rows.map(toAttempt);
   }

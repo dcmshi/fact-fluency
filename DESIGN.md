@@ -6,7 +6,7 @@ A browser-based app that helps kids build **fact fluency** in the four math
 operations (addition, subtraction, multiplication, division) through **spaced
 repetition**, without it feeling like a worksheet grind.
 
-"Fluency" here means more than *getting the right answer* — it means recalling a
+"Fluency" here means more than _getting the right answer_ — it means recalling a
 fact **correctly and quickly** (automatic recall), so working memory is freed up
 for harder problems later.
 
@@ -23,7 +23,7 @@ Two hard requirements drive every design decision:
 
 - Not a full LMS / gradebook export.
 - Not multiplayer or real-time competitive.
-- No video lessons or teaching of *concepts* — this is a **fluency drill**, it
+- No video lessons or teaching of _concepts_ — this is a **fluency drill**, it
   assumes the concept is already understood.
 - No native mobile app (responsive web only).
 
@@ -31,10 +31,10 @@ Two hard requirements drive every design decision:
 
 ## 2. Users & Roles
 
-| Role | Who | Can do |
-| --- | --- | --- |
-| **Adult** (parent/teacher) | Owns the account | Create/manage kid profiles, enable fact sets per kid, view progress dashboards |
-| **Kid** | A profile under an adult | Pick their profile, play sessions, see their own progress map and rewards |
+| Role                       | Who                      | Can do                                                                         |
+| -------------------------- | ------------------------ | ------------------------------------------------------------------------------ |
+| **Adult** (parent/teacher) | Owns the account         | Create/manage kid profiles, enable fact sets per kid, view progress dashboards |
+| **Kid**                    | A profile under an adult | Pick their profile, play sessions, see their own progress map and rewards      |
 
 - One **adult account** (email + password) holds **many kid profiles**.
 - Kids do **not** log in with a password — they tap their profile avatar from a
@@ -80,7 +80,7 @@ FactSet { id, operation, label, rangeSpec: { aMin, aMax, bMin, bMax } }
 Generation rules **per operation** (this is the exact, unambiguous spec):
 
 - **add** — for every `a ∈ [aMin..aMax]`, `b ∈ [bMin..bMax]`: `answer = a + b`.
-  Commutative → **canonicalize so `a ≤ b`** (3+7 and 7+3 are the *same* fact).
+  Commutative → **canonicalize so `a ≤ b`** (3+7 and 7+3 are the _same_ fact).
 - **mul** — same as add, commutative, canonicalize `a ≤ b`. `answer = a · b`.
 - **sub** — generated as the inverse of addition so results are **never
   negative**. Minuend `m ∈ [aMin..aMax]`, subtrahend `b ∈ [bMin..min(m,bMax)]`:
@@ -105,15 +105,15 @@ v1 ships a **broad catalog across all four operations**; the adult enables what
 each kid needs. Sets are named by **operand range** (not by sum) to match the
 full-grid model and avoid "to 10 = sums to 10?" confusion.
 
-| Operation | Seeded sets (rangeSpec interpreted per §3.1) |
-| --- | --- |
-| add | `0–5`, `0–10`, `0–12` |
-| sub | `0–10`, `0–20` (range = minuend; subtrahend `0…minuend`) |
-| mul | `0–5`, `0–10`, `0–12` |
-| div | `0–5`, `0–10`, `0–12` (range = quotient × divisor) |
+| Operation | Seeded sets (rangeSpec interpreted per §3.1)             |
+| --------- | -------------------------------------------------------- |
+| add       | `0–5`, `0–10`, `0–12`                                    |
+| sub       | `0–10`, `0–20` (range = minuend; subtrahend `0…minuend`) |
+| mul       | `0–5`, `0–10`, `0–12`                                    |
+| div       | `0–5`, `0–10`, `0–12` (range = quotient × divisor)       |
 
-**Onboarding pre-checks** a gentle starter — *Addition 0–10* and
-*Multiplication 0–5* — which the adult can change before handing off.
+**Onboarding pre-checks** a gentle starter — _Addition 0–10_ and
+_Multiplication 0–5_ — which the adult can change before handing off.
 
 ---
 
@@ -123,8 +123,8 @@ The heart of the app. Two ideas combined:
 
 1. **Spaced repetition** — schedule each fact to reappear at growing intervals,
    concentrating effort on weak facts.
-2. **Fluency gating** — a fact isn't "mastered" until answered both *correctly*
-   **and** *quickly* (under the kid's adaptive threshold, §4.5). Speed is a
+2. **Fluency gating** — a fact isn't "mastered" until answered both _correctly_
+   **and** _quickly_ (under the kid's adaptive threshold, §4.5). Speed is a
    first-class signal.
 
 ### 4.1 Per-fact state
@@ -155,16 +155,16 @@ There are **two distinct mechanisms**; keeping them separate removes the
 biggest ambiguity in the old draft:
 
 1. **Persistent schedule (Leitner boxes)** — `dueAt` on `FactProgress`. Governs
-   *across* sessions: which facts are due today/this week. Box intervals:
+   _across_ sessions: which facts are due today/this week. Box intervals:
 
-   | Box | State | Interval until due again |
-   | --- | --- | --- |
-   | 0 | learning | n/a — lives in the in-session queue, `dueAt` = next session |
-   | 1 | review | 1 day |
-   | 2 | review | 2 days |
-   | 3 | review | 4 days |
-   | 4 | review | 8 days |
-   | 5 | mastered | 21 days |
+   | Box | State    | Interval until due again                                    |
+   | --- | -------- | ----------------------------------------------------------- |
+   | 0   | learning | n/a — lives in the in-session queue, `dueAt` = next session |
+   | 1   | review   | 1 day                                                       |
+   | 2   | review   | 2 days                                                      |
+   | 3   | review   | 4 days                                                      |
+   | 4   | review   | 8 days                                                      |
+   | 5   | mastered | 21 days                                                     |
 
    Intervals **< 1 day** don't exist in the persistent schedule — that job
    belongs to tier 2. Intervals **≥ 1 day** snap to a **calendar-day boundary**
@@ -172,7 +172,7 @@ biggest ambiguity in the old draft:
    the next morning, not 24h later.
 
 2. **In-session queue** — ephemeral, lives in the `Session` row's working state.
-   Governs *within* a session: incremental rehearsal of just-missed and
+   Governs _within_ a session: incremental rehearsal of just-missed and
    just-introduced facts. A fact re-shown "a few cards later" is the in-session
    queue at work, **not** a sub-day box interval.
 
@@ -181,19 +181,22 @@ biggest ambiguity in the old draft:
 Evaluated on every answer.
 
 **Box 0 (learning, in-session only):**
+
 - A fact enters box 0 via the **study-first** intro (§4.6).
 - Each correct answer increments an in-session counter; **2 correct answers
-  in the session** (speed *not* required — it was just taught) promote it to
+  in the session** (speed _not_ required — it was just taught) promote it to
   **box 1**. Wrong answer resets the in-session counter and re-queues it sooner.
 - At session end: if still box 0, persist at box 0 with `dueAt` = next session.
 
 **Boxes 1–4 (review):**
+
 - **Correct AND fast** → promote +1 box, set `dueAt` from the new box interval.
 - **Correct but slow** → stay in box; set `dueAt` to **half** the box interval
   (knows it, not yet automatic — see it sooner).
 - **Wrong** → demote to `max(0, box − 2)`, add to the in-session re-show queue.
 
 **Box 5 (mastered):**
+
 - **Correct AND fast** → stay mastered, 21-day interval.
 - **Correct but slow** → demote to box 4.
 - **Wrong** → demote to box 2, add to in-session re-show queue.
@@ -222,7 +225,7 @@ playing. The planner fills in this priority order: (1) due review facts, (2)
 soonest-upcoming review facts pulled forward, (3) extra **new** facts beyond the
 normal 2–4 cap, (4) if a set is fully mastered, light review of mastered facts.
 A "you've mastered everything here — ask a grown-up to add more!" state is shown
-only when *all* enabled sets are fully mastered.
+only when _all_ enabled sets are fully mastered.
 
 ### 4.5 Adaptive fluency threshold (pinned)
 
@@ -238,8 +241,8 @@ kid's own speed.
   `K = 1.3`, `floor = 1200ms`, `ceiling` as above. A fact counts as **fast**
   when `responseMs ≤ threshold`.
 
-Rationale: a fact the kid *recalls* lands at/below their typical pace; a fact
-they *compute* (counting up, etc.) runs slower. Anchoring to their own median
+Rationale: a fact the kid _recalls_ lands at/below their typical pace; a fact
+they _compute_ (counting up, etc.) runs slower. Anchoring to their own median
 distinguishes the two and tightens automatically as they speed up — fair to
 beginners, demanding of the fluent. **All constants (`K`, floor, ceiling, sample
 threshold) are tuning knobs** to be calibrated against real `Attempt` data.
@@ -249,7 +252,7 @@ threshold) are tuning knobs** to be calibrated against real `Attempt` data.
 When a brand-new fact first appears:
 
 1. **Study card** — shows the full fact with its answer (`7 × 8 = 56`) for a
-   brief beat (until tap, min ~1.5s). No input. This *teaches*, avoiding a cold
+   brief beat (until tap, min ~1.5s). No input. This _teaches_, avoiding a cold
    failure.
 2. **Immediate typed recall** — the same fact is quizzed right away as a normal
    **typed** question (box 0, attempt 1). Because it was just shown, this is
@@ -280,18 +283,18 @@ Single input modality everywhere: **typed** (§4.7). No multiple-choice.
 
 ### 4.8 Why this won't feel tedious
 
-| Lever | How |
-| --- | --- |
-| Short bursts | 2–3 min sessions; always a clear, near finish line |
-| Adaptive difficulty | ~80% success; new facts trickle in, never flood |
-| Immediate feedback | Instant correct/incorrect, warm and non-punitive |
-| Visible progress | A **fact grid** that lights up as facts master; streaks |
-| Gentle gamification | Points & streaks *reward* effort; slowness is never *punished* |
-| Respect the kid | No harsh visible countdown for beginners; speed is encouraged via the adaptive threshold, not a stopwatch on screen |
+| Lever               | How                                                                                                                 |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Short bursts        | 2–3 min sessions; always a clear, near finish line                                                                  |
+| Adaptive difficulty | ~80% success; new facts trickle in, never flood                                                                     |
+| Immediate feedback  | Instant correct/incorrect, warm and non-punitive                                                                    |
+| Visible progress    | A **fact grid** that lights up as facts master; streaks                                                             |
+| Gentle gamification | Points & streaks _reward_ effort; slowness is never _punished_                                                      |
+| Respect the kid     | No harsh visible countdown for beginners; speed is encouraged via the adaptive threshold, not a stopwatch on screen |
 
 ### 4.9 Card delivery — client-holds-deck, server-injects (pinned)
 
-The client plays through a deck snappily (no round-trip *to advance*), while the
+The client plays through a deck snappily (no round-trip _to advance_), while the
 server stays authoritative over persisted state and reactive re-shows:
 
 1. `POST …/session` returns a **starter deck** (the planned ~20 cards, including
@@ -317,8 +320,8 @@ server stays authoritative over persisted state and reactive re-shows:
 - When the due queue empties, show a celebratory **"all caught up!"** moment.
   Further play is allowed and framed as **bonus**, falling through the §4.4 fill
   order (pull-forward / extra new facts).
-- **Streak = consecutive days with ≥ 1 *completed* session** — rewards showing
-  up, *not* perfectly clearing the queue (non-punitive, per the design ethos).
+- **Streak = consecutive days with ≥ 1 _completed_ session** — rewards showing
+  up, _not_ perfectly clearing the queue (non-punitive, per the design ethos).
   Hitting "all caught up" is a same-day celebration, never a streak gate.
 
 ---
@@ -439,6 +442,7 @@ GET  /api/profiles/:id/progress  -> fact grid + trends for the dashboard
 ## 9. Roadmap
 
 **v1 (MVP)**
+
 - Adult auth + kid profiles + timezone
 - **All four operations**, full-grid seed catalog (§3.3)
 - Two-tier scheduling engine + adaptive threshold + session planner
@@ -447,10 +451,12 @@ GET  /api/profiles/:id/progress  -> fact grid + trends for the dashboard
 - Fact grid progress view + daily streak + points
 
 **v1.1**
+
 - Adult dashboard with accuracy/speed trends
 - Unlockable avatars/themes
 
 **Later**
+
 - Calibrate engine constants (§4.5) from `Attempt` history
 - Offline play with sync
 - Lightweight classroom mode (many profiles, quick switch)
@@ -475,7 +481,7 @@ These were resolved to keep implementation unambiguous; revisit if needed:
 - **Session counting:** the study screen is a preface, not a counted card; the
   recall attempt is. Re-shows count toward a hard ceiling of **~30 total
   presentations** so a session stays ~3 min even with many misses.
-- **Abandoned session:** reopened the *same day* → resume from `workingState`;
+- **Abandoned session:** reopened the _same day_ → resume from `workingState`;
   otherwise discard and plan fresh. Streak/points credited only on `complete`.
 - **One active session per profile** at a time.
 - **Avatars:** a predefined picker (emoji/illustration set), no uploads.
@@ -503,14 +509,14 @@ These were resolved to keep implementation unambiguous; revisit if needed:
 ## 12. Addendum — Number Munchers interaction (supersedes §4.6 step 2, §4.7)
 
 The recall interaction pivoted from typed entry to a **Number Munchers–style
-grid game**, to make practice feel like play. This *replaces* the typed
+grid game**, to make practice feel like play. This _replaces_ the typed
 number-pad (§4.7) and step 2 of the study-first intro (§4.6); everything else
 in §4 is unchanged — crucially, the **spaced-repetition + fluency engine still
 chooses which facts appear and still owns all scheduling state.** Munching is a
-new *interaction layer* over the same brain.
+new _interaction layer_ over the same brain.
 
 - **A round:** the fact's expression (e.g. `3 × 4`) shows at the top with a
-  relation — *munch everything **equal to** / **less than** / **greater than***
+  relation — \*munch everything **equal to** / **less than** / **greater than\***
   it — over a 5×5 grid of numbers. The kid drives a muncher (arrows/WASD +
   Space, or tap) to eat the cells satisfying the relation vs the answer.
 - **Board generation** is a pure, seeded function (`engine/munch.ts`): correct

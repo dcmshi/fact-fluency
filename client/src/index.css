@@ -29,8 +29,8 @@
   --r-md: 18px;
   --r-sm: 12px;
 
-  --font-display: "Fredoka", system-ui, sans-serif;
-  --font-body: "Nunito", system-ui, sans-serif;
+  --font-display: 'Fredoka', system-ui, sans-serif;
+  --font-body: 'Nunito', system-ui, sans-serif;
 }
 
 * {
@@ -157,7 +157,7 @@ button {
   filter: brightness(1.04);
 }
 .btn:active,
-.btn[data-pressed="true"] {
+.btn[data-pressed='true'] {
   transform: translateY(var(--press));
   box-shadow: 0 0 0 var(--shadow);
 }
@@ -296,7 +296,7 @@ button {
    so the whole page (incl. the paper background) re-themes. Operation colors
    (--add/--sub/--mul/--div) stay fixed so each operation keeps its identity.
    =========================================================================== */
-body[data-theme="ocean"] {
+body[data-theme='ocean'] {
   --paper: #eaf6fb;
   --paper-2: #d6eef6;
   --sun: #16b5c9;
@@ -305,7 +305,7 @@ body[data-theme="ocean"] {
   --line: #cfe6ee;
   --card: #ffffff;
 }
-body[data-theme="candy"] {
+body[data-theme='candy'] {
   --paper: #fdeef7;
   --paper-2: #fbdcef;
   --sun: #ff5fa2;
@@ -314,7 +314,7 @@ body[data-theme="candy"] {
   --line: #f4d3e6;
   --card: #ffffff;
 }
-body[data-theme="forest"] {
+body[data-theme='forest'] {
   --paper: #edf6ea;
   --paper-2: #dcecd5;
   --sun: #3a9d54;
@@ -323,7 +323,7 @@ body[data-theme="forest"] {
   --line: #d3e6cd;
   --card: #ffffff;
 }
-body[data-theme="sunset"] {
+body[data-theme='sunset'] {
   --paper: #fff0e8;
   --paper-2: #ffe0d0;
   --sun: #ff7a3d;
@@ -332,7 +332,7 @@ body[data-theme="sunset"] {
   --line: #f6d9c8;
   --card: #fffdfb;
 }
-body[data-theme="midnight"] {
+body[data-theme='midnight'] {
   --paper: #191c2b;
   --paper-2: #222740;
   --sun: #7c9cff;
@@ -379,6 +379,10 @@ body[data-theme="midnight"] {
   border-radius: var(--r-sm);
 }
 @keyframes shimmer {
-  0% { background-position: 100% 0; }
-  100% { background-position: 0 0; }
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
 }

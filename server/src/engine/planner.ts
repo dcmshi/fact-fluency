@@ -48,7 +48,8 @@ function bucket(input: PlannerInput): Buckets {
   for (const fact of facts) {
     const p = progressByFactId.get(fact.id);
     if (!p) unseen.push(fact);
-    else if (p.box === 0 || p.dueAt <= now) due.push(fact); // box 0 = still learning, always due
+    else if (p.box === 0 || p.dueAt <= now)
+      due.push(fact); // box 0 = still learning, always due
     else if (p.box === 5) mastered.push(fact);
     else upcoming.push(fact);
   }
@@ -103,7 +104,10 @@ export function planSession(input: PlannerInput): Card[] {
   const target = Math.max(0, input.sessionCards);
   // Total new facts this session is capped so a quiet queue can't flood a
   // beginner with cold intros (§4.4). Never below the adult's newPerSession.
-  const maxNew = Math.max(input.newPerSession, input.maxNewPerSession ?? DEFAULT_MAX_NEW_PER_SESSION);
+  const maxNew = Math.max(
+    input.newPerSession,
+    input.maxNewPerSession ?? DEFAULT_MAX_NEW_PER_SESSION,
+  );
 
   // New facts: the normal small allotment, easiest-first.
   const newCount = Math.min(input.newPerSession, unseen.length, target);

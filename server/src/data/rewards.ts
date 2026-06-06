@@ -31,12 +31,54 @@ const PREMIUM_AVATARS: RewardItem[] = [
 ];
 
 const THEMES: RewardItem[] = [
-  { id: 'theme-classic', kind: 'theme', label: 'Classic', cost: 0, value: 'classic', swatches: ['#fff7ec', '#ffc83d', '#3b82f6'] },
-  { id: 'theme-ocean', kind: 'theme', label: 'Ocean', cost: 60, value: 'ocean', swatches: ['#eaf6fb', '#16b5c9', '#0e7490'] },
-  { id: 'theme-candy', kind: 'theme', label: 'Candy', cost: 80, value: 'candy', swatches: ['#fdeef7', '#ff5fa2', '#a855f7'] },
-  { id: 'theme-forest', kind: 'theme', label: 'Forest', cost: 80, value: 'forest', swatches: ['#edf6ea', '#3a9d54', '#7c5e3b'] },
-  { id: 'theme-sunset', kind: 'theme', label: 'Sunset', cost: 120, value: 'sunset', swatches: ['#fff0e8', '#ff7a3d', '#ff4d6d'] },
-  { id: 'theme-midnight', kind: 'theme', label: 'Midnight', cost: 150, value: 'midnight', swatches: ['#20233a', '#7c9cff', '#ffc83d'] },
+  {
+    id: 'theme-classic',
+    kind: 'theme',
+    label: 'Classic',
+    cost: 0,
+    value: 'classic',
+    swatches: ['#fff7ec', '#ffc83d', '#3b82f6'],
+  },
+  {
+    id: 'theme-ocean',
+    kind: 'theme',
+    label: 'Ocean',
+    cost: 60,
+    value: 'ocean',
+    swatches: ['#eaf6fb', '#16b5c9', '#0e7490'],
+  },
+  {
+    id: 'theme-candy',
+    kind: 'theme',
+    label: 'Candy',
+    cost: 80,
+    value: 'candy',
+    swatches: ['#fdeef7', '#ff5fa2', '#a855f7'],
+  },
+  {
+    id: 'theme-forest',
+    kind: 'theme',
+    label: 'Forest',
+    cost: 80,
+    value: 'forest',
+    swatches: ['#edf6ea', '#3a9d54', '#7c5e3b'],
+  },
+  {
+    id: 'theme-sunset',
+    kind: 'theme',
+    label: 'Sunset',
+    cost: 120,
+    value: 'sunset',
+    swatches: ['#fff0e8', '#ff7a3d', '#ff4d6d'],
+  },
+  {
+    id: 'theme-midnight',
+    kind: 'theme',
+    label: 'Midnight',
+    cost: 150,
+    value: 'midnight',
+    swatches: ['#20233a', '#7c9cff', '#ffc83d'],
+  },
 ];
 
 // Muncher characters (the animal on the play board). `value` is the animal key

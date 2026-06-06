@@ -16,6 +16,8 @@ jobs:
           node-version-file: .node-version # pinned 24.13.1, matches prod
           cache: npm
       - run: npm ci
+      - run: npm run lint
+      - run: npm run format
       - run: npm run typecheck
       - run: npm test
       - run: npm run build

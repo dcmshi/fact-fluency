@@ -44,8 +44,20 @@ describe('auth', () => {
   });
 
   it('validates signup input', async () => {
-    expect((await request(app).post('/api/auth/signup').send({ ...CREDS, email: 'nope' })).status).toBe(400);
-    expect((await request(app).post('/api/auth/signup').send({ ...CREDS, password: 'short' })).status).toBe(400);
+    expect(
+      (
+        await request(app)
+          .post('/api/auth/signup')
+          .send({ ...CREDS, email: 'nope' })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await request(app)
+          .post('/api/auth/signup')
+          .send({ ...CREDS, password: 'short' })
+      ).status,
+    ).toBe(400);
   });
 
   it('rejects a duplicate email', async () => {
@@ -55,8 +67,13 @@ describe('auth', () => {
 
   it('logs in with correct creds and rejects wrong ones', async () => {
     await request(app).post('/api/auth/signup').send(CREDS);
-    expect((await request(app).post('/api/auth/login').send({ email: CREDS.email, password: 'wrong' })).status).toBe(401);
-    const ok = await request(app).post('/api/auth/login').send({ email: CREDS.email, password: CREDS.password });
+    expect(
+      (await request(app).post('/api/auth/login').send({ email: CREDS.email, password: 'wrong' }))
+        .status,
+    ).toBe(401);
+    const ok = await request(app)
+      .post('/api/auth/login')
+      .send({ email: CREDS.email, password: CREDS.password });
     expect(ok.status).toBe(200);
   });
 
@@ -107,21 +124,27 @@ describe('profiles', () => {
 
   it('enables a grade band’s sets at creation, falling back to default', async () => {
     const agent = await authed();
-    const g3 = await agent.post('/api/profiles').send({ displayName: 'Kid', avatar: '🦊', gradeBand: 'grade-3' });
-    expect((await agent.get(`/api/profiles/${g3.body.profile.id}/factsets`)).body.enabledIds.sort()).toEqual(
-      ['div-0-10', 'mul-0-10'],
-    );
+    const g3 = await agent
+      .post('/api/profiles')
+      .send({ displayName: 'Kid', avatar: '🦊', gradeBand: 'grade-3' });
+    expect(
+      (await agent.get(`/api/profiles/${g3.body.profile.id}/factsets`)).body.enabledIds.sort(),
+    ).toEqual(['div-0-10', 'mul-0-10']);
 
     // Unknown band → starter default.
-    const bad = await agent.post('/api/profiles').send({ displayName: 'Kid2', avatar: '🐼', gradeBand: 'nope' });
-    expect((await agent.get(`/api/profiles/${bad.body.profile.id}/factsets`)).body.enabledIds.sort()).toEqual(
-      ['add-0-10', 'mul-0-5'],
-    );
+    const bad = await agent
+      .post('/api/profiles')
+      .send({ displayName: 'Kid2', avatar: '🐼', gradeBand: 'nope' });
+    expect(
+      (await agent.get(`/api/profiles/${bad.body.profile.id}/factsets`)).body.enabledIds.sort(),
+    ).toEqual(['add-0-10', 'mul-0-5']);
   });
 
   it('validates profile creation input', async () => {
     const agent = await authed();
-    expect((await agent.post('/api/profiles').send({ displayName: '  ', avatar: '🦊' })).status).toBe(400);
+    expect(
+      (await agent.post('/api/profiles').send({ displayName: '  ', avatar: '🦊' })).status,
+    ).toBe(400);
     expect((await agent.post('/api/profiles').send({ displayName: 'Kid' })).status).toBe(400);
   });
 
@@ -134,7 +157,9 @@ describe('profiles', () => {
     expect(ok.status).toBe(200);
     expect((await agent.get(`/api/profiles/${id}/factsets`)).body.enabledIds).toEqual(['mul-0-12']);
 
-    expect((await agent.put(`/api/profiles/${id}/factsets`).send({ enabledIds: ['nope'] })).status).toBe(400);
+    expect(
+      (await agent.put(`/api/profiles/${id}/factsets`).send({ enabledIds: ['nope'] })).status,
+    ).toBe(400);
   });
 
   it('patches session settings (partial merge) and rejects bad values', async () => {
@@ -143,7 +168,9 @@ describe('profiles', () => {
     const id = body.profile.id;
 
     // Partial PATCH: only sessionCards changes; the others keep their defaults.
-    const patched = await agent.patch(`/api/profiles/${id}`).send({ settings: { sessionCards: 12 } });
+    const patched = await agent
+      .patch(`/api/profiles/${id}`)
+      .send({ settings: { sessionCards: 12 } });
     expect(patched.status).toBe(200);
     expect(patched.body.profile.settings).toEqual({
       sessionCards: 12,
@@ -152,7 +179,9 @@ describe('profiles', () => {
     });
 
     // newPerSession: 0 is valid (review-only) — not treated as "unset".
-    const zeroNew = await agent.patch(`/api/profiles/${id}`).send({ settings: { newPerSession: 0 } });
+    const zeroNew = await agent
+      .patch(`/api/profiles/${id}`)
+      .send({ settings: { newPerSession: 0 } });
     expect(zeroNew.body.profile.settings.newPerSession).toBe(0);
 
     // Persisted across reads.
@@ -164,9 +193,15 @@ describe('profiles', () => {
     });
 
     // Out-of-range and non-integer values are rejected.
-    expect((await agent.patch(`/api/profiles/${id}`).send({ settings: { sessionCards: 1 } })).status).toBe(400);
-    expect((await agent.patch(`/api/profiles/${id}`).send({ settings: { newPerSession: 11 } })).status).toBe(400);
-    expect((await agent.patch(`/api/profiles/${id}`).send({ settings: { sessionCards: 12.5 } })).status).toBe(400);
+    expect(
+      (await agent.patch(`/api/profiles/${id}`).send({ settings: { sessionCards: 1 } })).status,
+    ).toBe(400);
+    expect(
+      (await agent.patch(`/api/profiles/${id}`).send({ settings: { newPerSession: 11 } })).status,
+    ).toBe(400);
+    expect(
+      (await agent.patch(`/api/profiles/${id}`).send({ settings: { sessionCards: 12.5 } })).status,
+    ).toBe(400);
     expect((await agent.patch(`/api/profiles/${id}`).send({ settings: 'nope' })).status).toBe(400);
   });
 
@@ -177,7 +212,8 @@ describe('profiles', () => {
     const b = request.agent(app);
     await b.post('/api/auth/signup').send({ ...CREDS, email: 'other2@home.test' });
     expect(
-      (await b.patch(`/api/profiles/${body.profile.id}`).send({ settings: { sessionCards: 10 } })).status,
+      (await b.patch(`/api/profiles/${body.profile.id}`).send({ settings: { sessionCards: 10 } }))
+        .status,
     ).toBe(404);
   });
 

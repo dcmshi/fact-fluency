@@ -125,7 +125,9 @@ describe('session loop', () => {
     const [c0, c1, c2] = deck;
 
     const send = (factId: string, correct: boolean) =>
-      agent.post(`/api/sessions/${first.sessionId}/answer`).send({ factId, correct, responseMs: 1500 });
+      agent
+        .post(`/api/sessions/${first.sessionId}/answer`)
+        .send({ factId, correct, responseMs: 1500 });
 
     // Graduate c0 (two correct → box 1), partially learn c1 (one correct → box 0).
     await send(c0.fact.id, true);
@@ -260,7 +262,9 @@ describe('rewards', () => {
       .send({ itemId: 'avatar-butterfly' });
     expect(equip.body.equippedAvatar).toBe('🦋');
     const profiles = await agent.get('/api/profiles');
-    const me = (profiles.body.profiles as { id: string; avatar: string }[]).find((p) => p.id === profileId);
+    const me = (profiles.body.profiles as { id: string; avatar: string }[]).find(
+      (p) => p.id === profileId,
+    );
     expect(me?.avatar).toBe('🦋');
 
     // Overspend: alien costs 150, only 60 left.
@@ -272,19 +276,31 @@ describe('rewards', () => {
 
     // Equip something not owned → 403.
     expect(
-      (await agent.post(`/api/profiles/${profileId}/rewards/equip`).send({ itemId: 'avatar-alien' })).status,
+      (
+        await agent
+          .post(`/api/profiles/${profileId}/rewards/equip`)
+          .send({ itemId: 'avatar-alien' })
+      ).status,
     ).toBe(403);
 
     // Free items: equip OK, but "unlocking" a free item is rejected.
     expect(
-      (await agent.post(`/api/profiles/${profileId}/rewards/equip`).send({ itemId: 'theme-classic' })).body
-        .equippedTheme,
+      (
+        await agent
+          .post(`/api/profiles/${profileId}/rewards/equip`)
+          .send({ itemId: 'theme-classic' })
+      ).body.equippedTheme,
     ).toBe('classic');
     expect(
-      (await agent.post(`/api/profiles/${profileId}/rewards/unlock`).send({ itemId: 'theme-classic' })).status,
+      (
+        await agent
+          .post(`/api/profiles/${profileId}/rewards/unlock`)
+          .send({ itemId: 'theme-classic' })
+      ).status,
     ).toBe(400);
     expect(
-      (await agent.post(`/api/profiles/${profileId}/rewards/unlock`).send({ itemId: 'nope' })).status,
+      (await agent.post(`/api/profiles/${profileId}/rewards/unlock`).send({ itemId: 'nope' }))
+        .status,
     ).toBe(400);
   });
 
@@ -325,6 +341,33 @@ describe('session errors', () => {
     const other = request.agent(app);
     await other.post('/api/auth/signup').send({ ...CREDS, email: 'other@home.test' });
     expect((await other.post(`/api/profiles/${profileId}/session`)).status).toBe(404);
+  });
+
+  it('400 on a negative or non-finite responseMs (would skew the fast threshold)', async () => {
+    const { agent, profileId } = await setup();
+    const { body } = await agent.post(`/api/profiles/${profileId}/session`);
+    const { fact } = body.deck[0];
+    for (const responseMs of [-1, Number.POSITIVE_INFINITY, Number.NaN]) {
+      const res = await agent
+        .post(`/api/sessions/${body.sessionId}/answer`)
+        .send({ factId: fact.id, correct: true, responseMs });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('invalid_answer');
+    }
+  });
+
+  it('clamps an absurdly large responseMs instead of recording it raw', async () => {
+    const { agent, profileId } = await setup();
+    const { body } = await agent.post(`/api/profiles/${profileId}/session`);
+    const { fact } = body.deck[0];
+    const res = await agent
+      .post(`/api/sessions/${body.sessionId}/answer`)
+      .send({ factId: fact.id, correct: true, responseMs: 10 * 60 * 1000 });
+    // Accepted (not a 4xx) — the server clamps rather than rejecting a slow-but-
+    // plausible answer; a clean clear is still correct, just not fast.
+    expect(res.status).toBe(200);
+    expect(res.body.correct).toBe(true);
+    expect(res.body.fast).toBe(false);
   });
 });
 

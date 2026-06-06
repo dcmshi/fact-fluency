@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeCalibration, MIN_CALIBRATION_SAMPLES, percentile, type AttemptLike } from './calibration';
+import {
+  analyzeCalibration,
+  MIN_CALIBRATION_SAMPLES,
+  percentile,
+  type AttemptLike,
+} from './calibration';
 
 describe('percentile', () => {
   it('handles empty, single, and interpolated cases', () => {

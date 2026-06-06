@@ -41,7 +41,14 @@ describe('buildBoard', () => {
     b.cells.filter((v) => satisfies(b.relation, b.target, v)).length;
 
   it('fills a size*size grid with a bounded number of correct cells', () => {
-    const b = buildBoard({ target: 12, relation: '=', rng: makeRng(7), size: 5, minCorrect: 3, maxCorrect: 8 });
+    const b = buildBoard({
+      target: 12,
+      relation: '=',
+      rng: makeRng(7),
+      size: 5,
+      minCorrect: 3,
+      maxCorrect: 8,
+    });
     expect(b.cells).toHaveLength(25);
     const correct = countCorrect(b);
     expect(correct).toBeGreaterThanOrEqual(3);

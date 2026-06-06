@@ -16,8 +16,14 @@
 }
 
 @keyframes burst-fly {
-  0% { transform: translate(0, 0) scale(0.3); opacity: 1; }
-  100% { transform: translate(var(--dx), var(--dy)) scale(1); opacity: 0; }
+  0% {
+    transform: translate(0, 0) scale(0.3);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) scale(1);
+    opacity: 0;
+  }
 }
 
 /* Confetti — little candy rectangles that tumble and fall. */
@@ -27,14 +33,30 @@
   border-radius: 2px;
   animation-name: burst-confetti;
 }
-.burst-confetti .burst-bit:nth-child(5n + 1) { background: var(--sun); }
-.burst-confetti .burst-bit:nth-child(5n + 2) { background: var(--add); }
-.burst-confetti .burst-bit:nth-child(5n + 3) { background: var(--mul); }
-.burst-confetti .burst-bit:nth-child(5n + 4) { background: var(--sub); }
-.burst-confetti .burst-bit:nth-child(5n + 5) { background: var(--div); }
+.burst-confetti .burst-bit:nth-child(5n + 1) {
+  background: var(--sun);
+}
+.burst-confetti .burst-bit:nth-child(5n + 2) {
+  background: var(--add);
+}
+.burst-confetti .burst-bit:nth-child(5n + 3) {
+  background: var(--mul);
+}
+.burst-confetti .burst-bit:nth-child(5n + 4) {
+  background: var(--sub);
+}
+.burst-confetti .burst-bit:nth-child(5n + 5) {
+  background: var(--div);
+}
 @keyframes burst-confetti {
-  0% { transform: translate(0, 0) rotate(0); opacity: 1; }
-  100% { transform: translate(var(--dx), calc(var(--dy) + 26px)) rotate(var(--spin)); opacity: 0; }
+  0% {
+    transform: translate(0, 0) rotate(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), calc(var(--dy) + 26px)) rotate(var(--spin));
+    opacity: 0;
+  }
 }
 
 /* Sparkles — twinkling four-point stars. */
@@ -45,9 +67,17 @@
   animation-name: burst-sparkle;
 }
 @keyframes burst-sparkle {
-  0% { transform: translate(0, 0) scale(0.2) rotate(0); opacity: 0; }
-  40% { opacity: 1; }
-  100% { transform: translate(var(--dx), var(--dy)) scale(1.1) rotate(var(--spin)); opacity: 0; }
+  0% {
+    transform: translate(0, 0) scale(0.2) rotate(0);
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) scale(1.1) rotate(var(--spin));
+    opacity: 0;
+  }
 }
 
 /* Shooting stars — arc outward with a little tail of motion. */
@@ -57,9 +87,17 @@
   animation-name: burst-star;
 }
 @keyframes burst-star {
-  0% { transform: translate(0, 0) scale(0.4); opacity: 1; }
-  70% { opacity: 1; }
-  100% { transform: translate(var(--dx), calc(var(--dy) - 14px)) scale(0.9); opacity: 0; }
+  0% {
+    transform: translate(0, 0) scale(0.4);
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), calc(var(--dy) - 14px)) scale(0.9);
+    opacity: 0;
+  }
 }
 
 /* Fireworks — a bright radial pop of dots. */
@@ -72,10 +110,24 @@
   color: var(--sun);
   animation-name: burst-firework;
 }
-.burst-fireworks .burst-bit:nth-child(3n + 1) { background: var(--sub); color: var(--sub); }
-.burst-fireworks .burst-bit:nth-child(3n + 2) { background: var(--mul); color: var(--mul); }
+.burst-fireworks .burst-bit:nth-child(3n + 1) {
+  background: var(--sub);
+  color: var(--sub);
+}
+.burst-fireworks .burst-bit:nth-child(3n + 2) {
+  background: var(--mul);
+  color: var(--mul);
+}
 @keyframes burst-firework {
-  0% { transform: translate(0, 0) scale(1.4); opacity: 1; }
-  70% { opacity: 1; }
-  100% { transform: translate(var(--dx), var(--dy)) scale(0.4); opacity: 0; }
+  0% {
+    transform: translate(0, 0) scale(1.4);
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) scale(0.4);
+    opacity: 0;
+  }
 }

@@ -44,7 +44,11 @@ export const api = {
   // auth
   me: () => req<{ accountId: string }>('GET', '/auth/me'),
   signup: (email: string, password: string, timezone: string) =>
-    req<{ accountId: string; email: string }>('POST', '/auth/signup', { email, password, timezone }),
+    req<{ accountId: string; email: string }>('POST', '/auth/signup', {
+      email,
+      password,
+      timezone,
+    }),
   login: (email: string, password: string) =>
     req<{ accountId: string; email: string }>('POST', '/auth/login', { email, password }),
   logout: () => req<void>('POST', '/auth/logout'),
@@ -68,8 +72,7 @@ export const api = {
     req<SessionResponse>('POST', `/profiles/${profileId}/session`),
   answer: (sessionId: string, body: AnswerRequest) =>
     req<AnswerResponse>('POST', `/sessions/${sessionId}/answer`, body),
-  complete: (sessionId: string) =>
-    req<SessionSummary>('POST', `/sessions/${sessionId}/complete`),
+  complete: (sessionId: string) => req<SessionSummary>('POST', `/sessions/${sessionId}/complete`),
 
   // progress
   progress: (profileId: string) => req<ProgressView>('GET', `/profiles/${profileId}/progress`),
@@ -78,7 +81,9 @@ export const api = {
   // rewards
   rewards: (profileId: string) => req<RewardsView>('GET', `/profiles/${profileId}/rewards`),
   unlockReward: (profileId: string, itemId: string) =>
-    req<{ coins: number; owned: string[] }>('POST', `/profiles/${profileId}/rewards/unlock`, { itemId }),
+    req<{ coins: number; owned: string[] }>('POST', `/profiles/${profileId}/rewards/unlock`, {
+      itemId,
+    }),
   equipReward: (profileId: string, itemId: string) =>
     req<{
       equippedAvatar: string;

@@ -29,6 +29,10 @@ const OPERATIONS: Operation[] = ['add', 'sub', 'mul', 'div'];
  *  rehearsal, DESIGN.md §4.4). */
 const REHEARSAL_GAP = 3;
 
+/** Upper bound on a single reported response time (ms). Anything slower is
+ *  capped before it feeds stats — see `answer()`. */
+const MAX_RESPONSE_MS = 60_000;
+
 /** Opaque per-session working state persisted as JSON (DESIGN.md §4.9). */
 interface WorkingState {
   deck: Card[];
@@ -80,7 +84,12 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * Update the day streak on session completion (DESIGN.md §4.10): same day → no
  * change; yesterday → +1; otherwise → reset to 1. Idempotent for the same day.
  */
-async function bumpStreak(db: Db, profileId: string, timezone: string, now: number): Promise<number> {
+async function bumpStreak(
+  db: Db,
+  profileId: string,
+  timezone: string,
+  now: number,
+): Promise<number> {
   const today = dayInTz(timezone, now);
   const { streak, lastPlayedDay } = await db.getProfileStreak(profileId);
   if (lastPlayedDay === today) return streak;
@@ -220,10 +229,16 @@ export async function answer(
   if (
     typeof body?.factId !== 'string' ||
     typeof body?.correct !== 'boolean' ||
-    typeof body?.responseMs !== 'number'
+    typeof body?.responseMs !== 'number' ||
+    !Number.isFinite(body.responseMs) ||
+    body.responseMs < 0
   ) {
     throw new SessionError(400, 'invalid_answer');
   }
+  // Clamp the client-reported latency before it feeds the per-op median EWMA
+  // (DESIGN.md §4.5). A buggy/hostile client sending a huge value shouldn't be
+  // able to skew the fluency threshold; the server is the source of truth.
+  const responseMs = Math.min(body.responseMs, MAX_RESPONSE_MS);
 
   const session = await db.getSession(sessionId);
   if (!session) throw new SessionError(404, 'session_not_found');
@@ -244,7 +259,7 @@ export async function answer(
   const result = gradeAnswer({
     fact,
     correct: body.correct,
-    responseMs: body.responseMs,
+    responseMs,
     now,
     progress,
     stat,
@@ -264,7 +279,7 @@ export async function answer(
     given: typeof body.wrongMunches === 'number' ? body.wrongMunches : 0,
     correct: result.correct,
     fast: result.fast,
-    responseMs: body.responseMs,
+    responseMs,
     answeredAt: now,
   });
 
@@ -310,11 +325,15 @@ export async function complete(
   if (firstCompletion && pointsEarned > 0) await db.addCoins(session.profileId, pointsEarned);
   const { coins } = await db.getProfileReward(session.profileId);
 
-  // Facts that reached box 5 (mastered) this session.
+  // Facts that reached box 5 (mastered) this session. Load all progress once
+  // and look up in-memory rather than querying per fact (avoids an N+1 over the
+  // ~20 facts in a session).
+  const progressByFact = new Map(
+    (await db.getProgress(session.profileId)).map((p) => [p.factId, p]),
+  );
   let mastered = 0;
   for (const factId of new Set(attempts.map((a) => a.factId))) {
-    const p = await db.getProgressForFact(session.profileId, factId);
-    if (p?.box === 5) mastered++;
+    if (progressByFact.get(factId)?.box === 5) mastered++;
   }
 
   return {

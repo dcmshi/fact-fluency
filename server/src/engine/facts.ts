@@ -112,9 +112,19 @@ export function generateFactsForSets(sets: FactSet[]): Fact[] {
 export function familyHint(fact: Fact): FactHint | null {
   switch (fact.operation) {
     case 'sub':
-      return { operandA: fact.answer, operandB: fact.operandB, operation: 'add', answer: fact.operandA };
+      return {
+        operandA: fact.answer,
+        operandB: fact.operandB,
+        operation: 'add',
+        answer: fact.operandA,
+      };
     case 'div':
-      return { operandA: fact.answer, operandB: fact.operandB, operation: 'mul', answer: fact.operandA };
+      return {
+        operandA: fact.answer,
+        operandB: fact.operandB,
+        operation: 'mul',
+        answer: fact.operandA,
+      };
     default:
       return null;
   }

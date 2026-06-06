@@ -23,9 +23,19 @@ interface AnimalSpec {
   noFaceEyes?: boolean;
 }
 
-const stroke = { stroke: INK, strokeWidth: 3.5, strokeLinejoin: 'round' as const, strokeLinecap: 'round' as const };
+const stroke = {
+  stroke: INK,
+  strokeWidth: 3.5,
+  strokeLinejoin: 'round' as const,
+  strokeLinecap: 'round' as const,
+};
 const heartNose = (fill: string) => (
-  <path d="M45 56 Q50 52 50 57 Q50 52 55 56 Q55 61 50 63 Q45 61 45 56 Z" fill={fill} {...stroke} strokeWidth={1.6} />
+  <path
+    d="M45 56 Q50 52 50 57 Q50 52 55 56 Q55 61 50 63 Q45 61 45 56 Z"
+    fill={fill}
+    {...stroke}
+    strokeWidth={1.6}
+  />
 );
 
 const ANIMALS: Record<string, AnimalSpec> = {
@@ -57,8 +67,24 @@ const ANIMALS: Record<string, AnimalSpec> = {
     muzzle: '#f6e6c8',
     back: (
       <>
-        <ellipse cx="13" cy="50" rx="12" ry="23" fill="#c4914d" {...stroke} transform="rotate(-16 13 50)" />
-        <ellipse cx="87" cy="50" rx="12" ry="23" fill="#c4914d" {...stroke} transform="rotate(16 87 50)" />
+        <ellipse
+          cx="13"
+          cy="50"
+          rx="12"
+          ry="23"
+          fill="#c4914d"
+          {...stroke}
+          transform="rotate(-16 13 50)"
+        />
+        <ellipse
+          cx="87"
+          cy="50"
+          rx="12"
+          ry="23"
+          fill="#c4914d"
+          {...stroke}
+          transform="rotate(16 87 50)"
+        />
       </>
     ),
     front: <ellipse cx="65" cy="41" rx="13" ry="11" fill="#c4914d" opacity="0.6" />,
@@ -112,8 +138,24 @@ const ANIMALS: Record<string, AnimalSpec> = {
     muzzle: '#fff7fb',
     back: (
       <>
-        <ellipse cx="37" cy="11" rx="7.5" ry="24" fill="#f6eef6" {...stroke} transform="rotate(-8 37 11)" />
-        <ellipse cx="63" cy="11" rx="7.5" ry="24" fill="#f6eef6" {...stroke} transform="rotate(8 63 11)" />
+        <ellipse
+          cx="37"
+          cy="11"
+          rx="7.5"
+          ry="24"
+          fill="#f6eef6"
+          {...stroke}
+          transform="rotate(-8 37 11)"
+        />
+        <ellipse
+          cx="63"
+          cy="11"
+          rx="7.5"
+          ry="24"
+          fill="#f6eef6"
+          {...stroke}
+          transform="rotate(8 63 11)"
+        />
         <ellipse cx="37" cy="12" rx="3.4" ry="17" fill="#ffc2d6" transform="rotate(-8 37 12)" />
         <ellipse cx="63" cy="12" rx="3.4" ry="17" fill="#ffc2d6" transform="rotate(8 63 12)" />
       </>

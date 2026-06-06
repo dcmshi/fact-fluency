@@ -57,7 +57,9 @@ export function ProgressPage() {
                 <span
                   key={i}
                   className="legend-swatch"
-                  style={{ background: cellColor('mul', b as Box | null, b === null ? 'unseen' : 'review') }}
+                  style={{
+                    background: cellColor('mul', b as Box | null, b === null ? 'unseen' : 'review'),
+                  }}
                 />
               ))}
             </div>
@@ -213,7 +215,12 @@ function TrendChart({
 
       {/* Speed sparkline — median answer time on active days (lower is faster). */}
       {active > 0 && (
-        <svg className="trend-spark" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true">
+        <svg
+          className="trend-spark"
+          viewBox="0 0 100 28"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
           <polyline
             points={trends
               .map((t, i) =>
@@ -231,7 +238,9 @@ function TrendChart({
           />
         </svg>
       )}
-      {active > 0 && <div className="trend-axis trend-axis-spark">Answer speed (lower is faster)</div>}
+      {active > 0 && (
+        <div className="trend-axis trend-axis-spark">Answer speed (lower is faster)</div>
+      )}
     </div>
   );
 }

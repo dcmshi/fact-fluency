@@ -10,7 +10,12 @@ const RELATION_PHRASE: Record<MunchRelation, string> = {
   '<': 'less than',
   '>': 'greater than',
 };
-const OP_WORD: Record<string, string> = { add: 'plus', sub: 'minus', mul: 'times', div: 'divided by' };
+const OP_WORD: Record<string, string> = {
+  add: 'plus',
+  sub: 'minus',
+  mul: 'times',
+  div: 'divided by',
+};
 
 function satisfies(relation: MunchRelation, target: number, value: number): boolean {
   return relation === '=' ? value === target : relation === '<' ? value < target : value > target;
@@ -114,9 +119,15 @@ export function MunchBoard({
 
         if ([...correctIdx].every((i) => next.has(i)) && !doneRef.current) {
           doneRef.current = true;
-          const responseMs = firstCorrectRef.current ?? Math.round(performance.now() - startRef.current);
+          const responseMs =
+            firstCorrectRef.current ?? Math.round(performance.now() - startRef.current);
           window.setTimeout(
-            () => onComplete({ correct: wrongRef.current === 0, responseMs, wrongMunches: wrongRef.current }),
+            () =>
+              onComplete({
+                correct: wrongRef.current === 0,
+                responseMs,
+                wrongMunches: wrongRef.current,
+              }),
             260,
           );
         }
@@ -184,7 +195,8 @@ export function MunchBoard({
       <div className="munch-prompt">
         <span className="munch-instruction">Munch everything {RELATION_PHRASE[relation]}</span>
         <span className="munch-expr">
-          {fact.operandA} <span className="munch-op">{OP_SYMBOL[fact.operation]}</span> {fact.operandB}
+          {fact.operandA} <span className="munch-op">{OP_SYMBOL[fact.operation]}</span>{' '}
+          {fact.operandB}
         </span>
         <span className="munch-remaining">{remaining} left</span>
       </div>
@@ -222,7 +234,9 @@ export function MunchBoard({
         })}
       </div>
 
-      <div className="munch-hint muted">Arrow keys / WASD to move · Space to munch · or tap a number</div>
+      <div className="munch-hint muted">
+        Arrow keys / WASD to move · Space to munch · or tap a number
+      </div>
     </div>
   );
 }

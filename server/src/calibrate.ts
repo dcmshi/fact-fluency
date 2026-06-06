@@ -32,7 +32,9 @@ async function main() {
     `Current constants: K=${report.currentConstants.K}, floor=${report.currentConstants.floorMs}ms, ` +
       `cold-start=${report.currentConstants.coldStartSamples} samples\n`,
   );
-  log(`op    attempts  acc   p25    p50    p75    p90   ceiling  <ceil   suggest-K  suggest-ceiling`);
+  log(
+    `op    attempts  acc   p25    p50    p75    p90   ceiling  <ceil   suggest-K  suggest-ceiling`,
+  );
   log(`${'-'.repeat(92)}`);
   for (const o of report.perOperation) {
     log(

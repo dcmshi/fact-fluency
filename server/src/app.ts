@@ -36,7 +36,8 @@ export function createApp(db: Db, isProd: boolean): Application {
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     // Client errors raised by middleware (e.g. body-parser on malformed JSON,
     // which sets status 400) shouldn't be reported as a server fault.
-    const status = (err as { status?: number; statusCode?: number })?.status ??
+    const status =
+      (err as { status?: number; statusCode?: number })?.status ??
       (err as { statusCode?: number })?.statusCode;
     if (typeof status === 'number' && status >= 400 && status < 500) {
       res.status(status).json({ error: 'invalid_request' });

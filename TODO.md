@@ -2,9 +2,65 @@
 
 Where things stand and what's left. v1 (DESIGN.md §9) is complete: auth, all four
 operations, the scheduling/fluency engine, the session player, the fact grid,
-daily streaks, and Render deploy (SQLite + Postgres). 84 tests passing.
+daily streaks, and Render deploy (SQLite + Postgres). 149 tests passing.
 
 This is a backlog, not a commitment — pick from it as needed.
+
+## Audit follow-ups (2026-06-06)
+
+A repo-wide audit landed a first batch of high-value fixes (see below) and
+surfaced these tracked items. Confidence flags: most are confirmed in source;
+the client-closure items are plausible and want a close read before changes.
+
+**Done in the audit pass:**
+
+- [x] **N+1 in session `complete()`** — the mastered-count loop queried progress
+      per fact (~20 queries/session). Now loads all progress once and looks up
+      in-memory (`session/service.ts`).
+- [x] **`responseMs` validation + clamp** — `answer()` now rejects negative /
+      non-finite latencies (400) and clamps to a 60s ceiling before it feeds the
+      per-op median EWMA, so a buggy/hostile client can't skew the fast threshold
+      (DESIGN.md §4.5). HTTP-tested.
+- [x] **ESLint + Prettier** — flat `eslint.config.mjs` (typescript-eslint +
+      react-hooks, formatting delegated to Prettier via `eslint-config-prettier`),
+      `.prettierrc.json`. New root scripts `lint` / `format` / `format:write`,
+      wired into CI and the pre-commit hook. Repo formatted to baseline.
+- [x] **`COOKIE_SECRET` prod guard** — `index.ts` now refuses to boot in
+      production if the secret is unset or the dev placeholder, instead of
+      silently signing cookies with a public key.
+
+**Backlog (not yet done):**
+
+- [ ] **Adopt React Query (or amend the design doc).** DESIGN.md §5.1 specifies
+      React Query for client server-state; the client actually uses manual
+      `useState` + `.then()` with no dedup/invalidation, and several `.then()`
+      chains lack `.catch()` (`ProfilesPage` profiles/catalog/factsets loads) so a
+      failed request leaves the UI stuck on a skeleton. Either adopt it (read
+      queries + mutations that invalidate) or update the doc to match reality.
+- [ ] **Postgres adapter atomicity.** `setEnabledSetIds` does delete-then-loop
+      -insert without a transaction on the PG path (SQLite wraps it); the coin
+      award in `complete()` is two separate awaits (`completeSession` then
+      `addCoins`) with no transaction. Add a PG transaction helper and wrap both.
+- [ ] **Enforce "one active session" at the DB.** Add a partial unique index
+      `UNIQUE(profile_id) WHERE completed_at IS NULL` so concurrent starts can't
+      create two open sessions. Low real-world risk (one kid/device) but cheap.
+- [ ] **Thin out the repeated ownership pattern.** `requireOwnedProfile` /
+      `owns()` (the latter loads _all_ profiles then `.some()`) recurs across
+      service/dashboard/progress/profiles routes — fold into one middleware that
+      attaches the profile to `req`.
+- [ ] **Memoize the static fact universe.** `generateFactsForSets()` runs over
+      the static catalog on every dashboard/progress load — compute once.
+- [ ] **Client tests.** `client/` has zero test setup. Highest-risk untested
+      logic: `syncQueue.ts` (offline replay ordering + coin/streak credit on
+      reconnect) and the `PlayPage` session loop.
+- [ ] **Verify the client session-loop closures (🔍).** Audit flagged possible
+      stale-closure / unguarded double-`flushAll()` races (`PlayPage.tsx`,
+      `App.tsx` online handler) → duplicate answer reports. Server reconciles from
+      the append-only `Attempt` log so state can't corrupt, but worth a guard.
+      Confirm with a close read before touching.
+- [ ] **Server-module unit tests.** `dashboard.ts`, `progress.ts`, `rewards.ts`
+      are only exercised through the HTTP layer — add isolated tests.
+- [ ] **Rate-limit profile creation.** Only `/auth/*` is limited today.
 
 ## Features
 
@@ -25,7 +81,7 @@ This is a backlog, not a commitment — pick from it as needed.
       `workingState` + the `Attempt` log (handled facts dropped, still-learning
       facts kept without re-study, unanswered facts keep study-first). A
       prior-day open session is discarded and a fresh one planned (one active
-      session per profile). Note: client-side in-session re-show *injects* aren't
+      session per profile). Note: client-side in-session re-show _injects_ aren't
       reconstructed on resume — the persistent box schedule resurfaces those.
 - [x] **Adult dashboard** (roadmap v1.1) — `GET /profiles/:id/dashboard` returns
       14-day accuracy/speed trends (bucketed by account-tz day from the `Attempt`
@@ -56,8 +112,8 @@ This is a backlog, not a commitment — pick from it as needed.
       div→mul, null for base ops), attached to new cards at deck-build time and
       rendered on the study screen. Presentation-only — no scheduling transfer
       (mastery seeding the sibling's box) yet; that's the deeper follow-up.
-- [x] **Offline play + sync** (DESIGN.md §9 "Later") — *bounded scope (PWA +
-      resilient sync)*. A service worker (`client/public/sw.js`) caches the app
+- [x] **Offline play + sync** (DESIGN.md §9 "Later") — _bounded scope (PWA +
+      resilient sync)_. A service worker (`client/public/sw.js`) caches the app
       shell so it launches offline + is installable (manifest + icon). Failed
       answer reports queue in localStorage (`syncQueue.ts`) and replay in order on
       reconnect; a session finished offline is credited (coins/streak) when
@@ -86,10 +142,10 @@ This is a backlog, not a commitment — pick from it as needed.
 ## Engine tuning (needs real usage data — DESIGN.md §4.5, §11)
 
 - [~] Calibrate fluency constants: `K` (1.3), floor (1200ms), per-op ceilings,
-      cold-start sample count (20). **Tooling built** — `npm run calibrate -w server`
-      reads the attempt log and prints per-op response-time percentiles + advisory
-      `K`/ceiling suggestions (pure `engine/calibration.ts`, tested). The actual
-      re-tuning still waits on real usage data to run it against.
+  cold-start sample count (20). **Tooling built** — `npm run calibrate -w server`
+  reads the attempt log and prints per-op response-time percentiles + advisory
+  `K`/ceiling suggestions (pure `engine/calibration.ts`, tested). The actual
+  re-tuning still waits on real usage data to run it against.
 - [x] Fixed the "extra new facts" flood — a brand-new profile's first session is
       now capped at `DEFAULT_MAX_NEW_PER_SESSION` (6) new cards instead of ~20, so
       beginners get a short gentle start (§4.4 "trickle in, never flood"). The cap
@@ -125,6 +181,6 @@ This is a backlog, not a commitment — pick from it as needed.
 
 - `caughtUp` is computed per profile (due-review + learning counts), not scoped
   to the day's planned intros — fine for now, revisit with the dashboard.
-- No automated test against a *live* Postgres (pg-mem covers the SQL). A manual
+- No automated test against a _live_ Postgres (pg-mem covers the SQL). A manual
   end-to-end smoke flow was run against the live Render Postgres on first deploy
   and passed; consider scripting it as a post-deploy check if deploys get frequent.

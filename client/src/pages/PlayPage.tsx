@@ -11,7 +11,12 @@ import { useTheme } from '../useTheme';
 import './PlayPage.css';
 
 /** Spoken form of an operation, for screen-reader announcements. */
-const OP_WORD: Record<string, string> = { add: 'plus', sub: 'minus', mul: 'times', div: 'divided by' };
+const OP_WORD: Record<string, string> = {
+  add: 'plus',
+  sub: 'minus',
+  mul: 'times',
+  div: 'divided by',
+};
 const eqText = (a: number, op: string, b: number, answer: number) =>
   `${a} ${OP_WORD[op] ?? op} ${b} equals ${answer}`;
 
@@ -70,7 +75,9 @@ export function PlayPage() {
       setQueue(nextQueue);
       if (nextQueue[0].isNew) {
         const f = nextQueue[0].fact;
-        setAnnounce(`New fact. ${eqText(f.operandA, f.operation, f.operandB, nextQueue[0].answer)}.`);
+        setAnnounce(
+          `New fact. ${eqText(f.operandA, f.operation, f.operandB, nextQueue[0].answer)}.`,
+        );
         setStudyReady(false);
         setPhase('study');
       } else {
@@ -140,7 +147,11 @@ export function PlayPage() {
         enqueueAnswer(s.sessionId, body);
       }
       setAnnounce(
-        r.correct ? (fast ? 'All munched, super fast!' : 'All munched!') : 'Some were wrong — keep going!',
+        r.correct
+          ? fast
+            ? 'All munched, super fast!'
+            : 'All munched!'
+          : 'Some were wrong — keep going!',
       );
       if (caught) setCaughtUp(true);
 
@@ -203,7 +214,9 @@ export function PlayPage() {
       {phase === 'error' && (
         <div className="play-center stack" style={{ textAlign: 'center' }}>
           <div className="big-emoji">📚</div>
-          <h2>{errorCode === 'no_enabled_sets' ? 'No facts picked yet' : 'Something went wrong'}</h2>
+          <h2>
+            {errorCode === 'no_enabled_sets' ? 'No facts picked yet' : 'Something went wrong'}
+          </h2>
           <p className="muted">
             {errorCode === 'no_enabled_sets'
               ? 'Ask a grown-up to choose some fact sets first.'
@@ -262,8 +275,8 @@ export function PlayPage() {
           <div className="big-emoji">📡</div>
           <h1>Great practicing!</h1>
           <p className="muted">
-            You’re offline right now — your work is saved. Your coins and streak will update as
-            soon as you’re back online.
+            You’re offline right now — your work is saved. Your coins and streak will update as soon
+            as you’re back online.
           </p>
           <button className="btn sun full" onClick={() => navigate('/')}>
             Done
@@ -276,7 +289,9 @@ export function PlayPage() {
           {caughtUp && <Confetti />}
           <div className="big-emoji">{caughtUp ? '🎉' : '🌟'}</div>
           <h1>{caughtUp ? 'All caught up!' : 'Nice work!'}</h1>
-          {summary.streak > 1 && <div className="streak-ribbon">🔥 {summary.streak}-day streak!</div>}
+          {summary.streak > 1 && (
+            <div className="streak-ribbon">🔥 {summary.streak}-day streak!</div>
+          )}
           <div className="summary-stats">
             <Stat label="Played" value={summary.cardsPlayed} />
             <Stat label="Correct" value={summary.correct} />

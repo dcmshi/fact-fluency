@@ -104,16 +104,27 @@ describe('learning (box 0) graduation', () => {
 
 describe('stat & progress bookkeeping', () => {
   it('updates the operation stat only on a correct answer', () => {
-    const correct = grade({ responseMs: 2500, progress: reviewProgress({}), stat: stat({ medianMsEwma: 3000, correctSamples: 5 }) });
+    const correct = grade({
+      responseMs: 2500,
+      progress: reviewProgress({}),
+      stat: stat({ medianMsEwma: 3000, correctSamples: 5 }),
+    });
     expect(correct.stat.correctSamples).toBe(6);
 
-    const wrong = grade({ correct: false, progress: reviewProgress({}), stat: stat({ medianMsEwma: 3000, correctSamples: 5 }) });
+    const wrong = grade({
+      correct: false,
+      progress: reviewProgress({}),
+      stat: stat({ medianMsEwma: 3000, correctSamples: 5 }),
+    });
     expect(wrong.stat.correctSamples).toBe(5);
     expect(wrong.stat.medianMsEwma).toBe(3000);
   });
 
   it('increments reps and tracks fast-correct streak', () => {
-    const r = grade({ responseMs: 1500, progress: reviewProgress({ reps: 4, fastCorrect: 2, correctStreak: 1 }) });
+    const r = grade({
+      responseMs: 1500,
+      progress: reviewProgress({ reps: 4, fastCorrect: 2, correctStreak: 1 }),
+    });
     expect(r.progress.reps).toBe(5);
     expect(r.progress.fastCorrect).toBe(3);
     expect(r.progress.correctStreak).toBe(2);
