@@ -7,7 +7,7 @@ import type { Operation, ProgressCell, ProgressView } from '@shared';
 import { SEED_CATALOG } from './data/catalog';
 import type { Db } from './db';
 import { generateFactsForSets } from './engine/facts';
-import { SessionError } from './session/service';
+import { requireOwnedProfile } from './session/service';
 
 const OPERATIONS: Operation[] = ['add', 'sub', 'mul', 'div'];
 
@@ -16,10 +16,7 @@ export async function getProgressView(
   accountId: string,
   profileId: string,
 ): Promise<ProgressView> {
-  const profile = await db.getProfile(profileId);
-  if (!profile || profile.accountId !== accountId) {
-    throw new SessionError(404, 'profile_not_found');
-  }
+  await requireOwnedProfile(db, accountId, profileId);
 
   const enabled = new Set(await db.listEnabledSetIds(profileId));
   const sets = SEED_CATALOG.filter((s) => enabled.has(s.id));

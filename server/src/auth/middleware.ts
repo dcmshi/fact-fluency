@@ -32,3 +32,25 @@ export const requireAuth: RequestHandler = (req, res, next) => {
   }
   next();
 };
+
+/**
+ * Loads the `:id` profile, 404s unless it belongs to the authenticated account,
+ * and attaches it as `req.profile`. Use after `requireAuth` on profile-scoped
+ * routes so handlers can skip the repeated own-this-profile check (and the
+ * load-all-profiles lookup it used to do).
+ */
+export function loadOwnedProfile(db: Db): RequestHandler {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await db.getProfile(req.params.id);
+      if (!profile || profile.accountId !== req.accountId) {
+        res.status(404).json({ error: 'profile_not_found' });
+        return;
+      }
+      req.profile = profile;
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+}

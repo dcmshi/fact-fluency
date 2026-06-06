@@ -6,7 +6,7 @@
 import { Router } from 'express';
 import type { ProfileSettings } from '@shared';
 import type { Db } from '../db';
-import { requireAuth } from '../auth/middleware';
+import { loadOwnedProfile, requireAuth } from '../auth/middleware';
 import { DEFAULT_ENABLED_SET_IDS, gradeBandById, SEED_CATALOG } from '../data/catalog';
 import { rateLimit } from '../rateLimit';
 
@@ -44,11 +44,7 @@ function invalidSetting(s: ProfileSettings): keyof ProfileSettings | null {
 export function createProfileRouter(db: Db): Router {
   const router = Router();
   router.use(requireAuth);
-
-  async function owns(accountId: string, profileId: string): Promise<boolean> {
-    const profiles = await db.listProfiles(accountId);
-    return profiles.some((p) => p.id === profileId);
-  }
+  const owned = loadOwnedProfile(db);
 
   router.get('/', async (req, res, next) => {
     try {
@@ -92,12 +88,9 @@ export function createProfileRouter(db: Db): Router {
   // Edit per-profile session settings (DESIGN.md §8). Partial PATCH: provided
   // fields override, the rest keep their current value; the merged result is
   // validated as a whole.
-  router.patch('/:id', async (req, res, next) => {
+  router.patch('/:id', owned, async (req, res, next) => {
     try {
-      const profile = await db.getProfile(req.params.id);
-      if (!profile || profile.accountId !== req.accountId!) {
-        return res.status(404).json({ error: 'profile_not_found' });
-      }
+      const profile = req.profile!;
       const incoming = (req.body ?? {}).settings;
       if (typeof incoming !== 'object' || incoming === null) {
         return res.status(400).json({ error: 'invalid_settings' });
@@ -117,11 +110,8 @@ export function createProfileRouter(db: Db): Router {
     }
   });
 
-  router.get('/:id/factsets', async (req, res, next) => {
+  router.get('/:id/factsets', owned, async (req, res, next) => {
     try {
-      if (!(await owns(req.accountId!, req.params.id))) {
-        return res.status(404).json({ error: 'profile_not_found' });
-      }
       const enabledIds = await db.listEnabledSetIds(req.params.id);
       return res.json({ catalog: SEED_CATALOG, enabledIds });
     } catch (err) {
@@ -129,11 +119,8 @@ export function createProfileRouter(db: Db): Router {
     }
   });
 
-  router.put('/:id/factsets', async (req, res, next) => {
+  router.put('/:id/factsets', owned, async (req, res, next) => {
     try {
-      if (!(await owns(req.accountId!, req.params.id))) {
-        return res.status(404).json({ error: 'profile_not_found' });
-      }
       const { enabledIds } = req.body ?? {};
       if (!Array.isArray(enabledIds) || enabledIds.some((id) => !CATALOG_IDS.has(id))) {
         return res.status(400).json({ error: 'invalid_set_ids' });

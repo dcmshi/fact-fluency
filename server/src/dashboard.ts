@@ -8,7 +8,7 @@ import { SEED_CATALOG } from './data/catalog';
 import type { Db } from './db';
 import { buildTrends, suggestNextSet, type SetMastery } from './engine/dashboard';
 import { generateFactsForSets } from './engine/facts';
-import { dayInTz, SessionError } from './session/service';
+import { dayInTz, requireOwnedProfile } from './session/service';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WINDOW_DAYS = 14;
@@ -29,10 +29,7 @@ export async function getDashboardView(
   profileId: string,
   now: number,
 ): Promise<DashboardView> {
-  const profile = await db.getProfile(profileId);
-  if (!profile || profile.accountId !== accountId) {
-    throw new SessionError(404, 'profile_not_found');
-  }
+  const profile = await requireOwnedProfile(db, accountId, profileId);
   const timezone = (await db.getAccountTimezone(accountId)) ?? 'UTC';
 
   const enabledIds = new Set(await db.listEnabledSetIds(profileId));
