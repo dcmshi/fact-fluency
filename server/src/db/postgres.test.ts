@@ -158,11 +158,12 @@ describe('PostgresDb (pg-mem)', () => {
       workingState: '{}',
     });
     await db.createSession(row('s1', 1));
-    await db.createSession(row('s2', 5));
-    expect((await db.getOpenSession(profile.id))?.id).toBe('s2');
-    await db.completeSession('s2', 9);
     expect((await db.getOpenSession(profile.id))?.id).toBe('s1');
+    // At most one open session per profile (partial unique index).
+    await expect(db.createSession(row('s2', 5))).rejects.toThrow();
     await db.completeSession('s1', 9);
     expect(await db.getOpenSession(profile.id)).toBeNull();
+    await db.createSession(row('s2', 5));
+    expect((await db.getOpenSession(profile.id))?.id).toBe('s2');
   });
 });

@@ -9,11 +9,22 @@ import type { FactProgress, Operation, OperationStat, Profile, ProfileSettings }
 import type { AttemptRecord, Db, SessionRecord } from './index';
 import { SCHEMA_PG } from './schema.pg';
 
+/** A single checked-out connection — what `pool.connect()` returns. Needed for
+ *  multi-statement transactions (a bare pool may route each query to a
+ *  different backend connection). */
+export interface PgClient {
+  query(text: string, params?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
+  release(): void;
+}
+
 /** Minimal pool shape — satisfied by both `pg`'s Pool and pg-mem's adapter. */
 export interface PgPool {
   query(text: string, params?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
+  connect(): Promise<PgClient>;
   end(): Promise<void>;
 }
+
+type PgQuery = (text: string, params?: unknown[]) => Promise<{ rows: Record<string, unknown>[] }>;
 
 export class PostgresDb implements Db {
   constructor(private readonly pool: PgPool) {}
@@ -46,6 +57,27 @@ export class PostgresDb implements Db {
     params: unknown[] = [],
   ): Promise<T | null> {
     return (await this.rows<T>(text, params))[0] ?? null;
+  }
+
+  /** Run `fn` inside a BEGIN/COMMIT on a single checked-out connection, rolling
+   *  back on any error. The callback gets a bound `query` for that connection. */
+  private async withTransaction<T>(fn: (q: PgQuery) => Promise<T>): Promise<T> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await fn((text, params) => client.query(text, params));
+      await client.query('COMMIT');
+      return result;
+    } catch (err) {
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        // Surface the original error, not a rollback failure.
+      }
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   // --- accounts & auth ---
@@ -271,13 +303,16 @@ export class PostgresDb implements Db {
   }
 
   async setEnabledSetIds(profileId: string, setIds: string[]): Promise<void> {
-    await this.pool.query('DELETE FROM profile_fact_set WHERE profile_id = $1', [profileId]);
-    for (const id of setIds) {
-      await this.pool.query(
-        'INSERT INTO profile_fact_set (profile_id, fact_set_id, enabled) VALUES ($1,$2,1)',
-        [profileId, id],
-      );
-    }
+    // Replace the set atomically so a failure can't leave a half-applied list.
+    await this.withTransaction(async (q) => {
+      await q('DELETE FROM profile_fact_set WHERE profile_id = $1', [profileId]);
+      for (const id of setIds) {
+        await q(
+          'INSERT INTO profile_fact_set (profile_id, fact_set_id, enabled) VALUES ($1,$2,1)',
+          [profileId, id],
+        );
+      }
+    });
   }
 
   // --- progress & stats ---
@@ -394,6 +429,24 @@ export class PostgresDb implements Db {
 
   async completeSession(id: string, completedAt: number): Promise<void> {
     await this.pool.query('UPDATE session SET completed_at = $1 WHERE id = $2', [completedAt, id]);
+  }
+
+  async completeSessionAndAward(
+    sessionId: string,
+    completedAt: number,
+    profileId: string,
+    coinDelta: number,
+  ): Promise<void> {
+    await this.withTransaction(async (q) => {
+      await q('UPDATE session SET completed_at = $1 WHERE id = $2', [completedAt, sessionId]);
+      if (coinDelta > 0) {
+        await q(
+          `INSERT INTO profile_reward (profile_id, coins) VALUES ($1,$2)
+           ON CONFLICT (profile_id) DO UPDATE SET coins = profile_reward.coins + EXCLUDED.coins`,
+          [profileId, coinDelta],
+        );
+      }
+    });
   }
 
   async appendAttempt(a: AttemptRecord): Promise<void> {

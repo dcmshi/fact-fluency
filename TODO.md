@@ -29,6 +29,25 @@ the client-closure items are plausible and want a close read before changes.
       production if the secret is unset or the dev placeholder, instead of
       silently signing cookies with a public key.
 
+**Done in the second pass:**
+
+- [x] **DB adapter atomicity.** Added a `withTransaction` helper to the Postgres
+      adapter (checks out one connection, BEGIN/COMMIT/ROLLBACK). `setEnabledSetIds`
+      now replaces the set in a transaction on both adapters. New atomic
+      `completeSessionAndAward` marks a session complete and credits its coins in
+      one transaction, so a crash can't finish a session without awarding coins
+      (replaces the two-await `completeSession`+`addCoins` in `complete()`).
+- [x] **Enforce "one active session" at the DB.** Partial unique index
+      `idx_session_one_open ON session(profile_id) WHERE completed_at IS NULL` on
+      both schemas. Note: migrate() will throw on a live DB that already holds two
+      open sessions for one profile — app logic has always kept it to one, so the
+      Render data should be clean, but worth a glance before the next deploy.
+- [x] **Memoize the static fact universe.** `generateFactsForSets()` caches
+      per-set generation keyed by (operation, range); the dashboard's per-set loop
+      and every session/progress build now reuse it.
+- [x] **Rate-limit profile creation.** Per-IP fixed window (20/hr) on
+      `POST /api/profiles`, mirroring the auth limiters. HTTP-tested.
+
 **Backlog (not yet done):**
 
 - [ ] **Adopt React Query (or amend the design doc).** DESIGN.md §5.1 specifies
@@ -37,19 +56,10 @@ the client-closure items are plausible and want a close read before changes.
       chains lack `.catch()` (`ProfilesPage` profiles/catalog/factsets loads) so a
       failed request leaves the UI stuck on a skeleton. Either adopt it (read
       queries + mutations that invalidate) or update the doc to match reality.
-- [ ] **Postgres adapter atomicity.** `setEnabledSetIds` does delete-then-loop
-      -insert without a transaction on the PG path (SQLite wraps it); the coin
-      award in `complete()` is two separate awaits (`completeSession` then
-      `addCoins`) with no transaction. Add a PG transaction helper and wrap both.
-- [ ] **Enforce "one active session" at the DB.** Add a partial unique index
-      `UNIQUE(profile_id) WHERE completed_at IS NULL` so concurrent starts can't
-      create two open sessions. Low real-world risk (one kid/device) but cheap.
 - [ ] **Thin out the repeated ownership pattern.** `requireOwnedProfile` /
       `owns()` (the latter loads _all_ profiles then `.some()`) recurs across
       service/dashboard/progress/profiles routes — fold into one middleware that
       attaches the profile to `req`.
-- [ ] **Memoize the static fact universe.** `generateFactsForSets()` runs over
-      the static catalog on every dashboard/progress load — compute once.
 - [ ] **Client tests.** `client/` has zero test setup. Highest-risk untested
       logic: `syncQueue.ts` (offline replay ordering + coin/streak credit on
       reconnect) and the `PlayPage` session loop.
@@ -60,7 +70,6 @@ the client-closure items are plausible and want a close read before changes.
       Confirm with a close read before touching.
 - [ ] **Server-module unit tests.** `dashboard.ts`, `progress.ts`, `rewards.ts`
       are only exercised through the HTTP layer — add isolated tests.
-- [ ] **Rate-limit profile creation.** Only `/auth/*` is limited today.
 
 ## Features
 

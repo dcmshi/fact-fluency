@@ -441,6 +441,28 @@ export class SqliteDb implements Db {
     this.db.prepare('UPDATE session SET completed_at = ? WHERE id = ?').run(completedAt, id);
   }
 
+  async completeSessionAndAward(
+    sessionId: string,
+    completedAt: number,
+    profileId: string,
+    coinDelta: number,
+  ): Promise<void> {
+    const tx = this.db.transaction(() => {
+      this.db
+        .prepare('UPDATE session SET completed_at = ? WHERE id = ?')
+        .run(completedAt, sessionId);
+      if (coinDelta > 0) {
+        this.db
+          .prepare(
+            `INSERT INTO profile_reward (profile_id, coins) VALUES (?, ?)
+             ON CONFLICT(profile_id) DO UPDATE SET coins = coins + excluded.coins`,
+          )
+          .run(profileId, coinDelta);
+      }
+    });
+    tx();
+  }
+
   async appendAttempt(a: AttemptRecord): Promise<void> {
     this.db
       .prepare(

@@ -93,6 +93,16 @@ export interface Db {
   getOpenSession(profileId: string): Promise<SessionRecord | null>;
   updateSessionWorkingState(id: string, workingState: string): Promise<void>;
   completeSession(id: string, completedAt: number): Promise<void>;
+  /** Mark a session completed and credit `coinDelta` coins in one transaction,
+   *  so a crash can't finish the session without awarding its coins (DESIGN.md
+   *  §10, coins credited exactly once on completion). `coinDelta` ≤ 0 just
+   *  completes. */
+  completeSessionAndAward(
+    sessionId: string,
+    completedAt: number,
+    profileId: string,
+    coinDelta: number,
+  ): Promise<void>;
   appendAttempt(a: AttemptRecord): Promise<void>;
   listSessionAttempts(sessionId: string): Promise<AttemptRecord[]>;
   /** All of a profile's attempts at/after `since` (epoch ms), oldest first —

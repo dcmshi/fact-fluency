@@ -132,17 +132,41 @@ describe('sessions', () => {
     workingState: '{}',
   });
 
-  it('getOpenSession returns the most recent incomplete session, null once closed', async () => {
+  it('getOpenSession returns the open session, null once closed', async () => {
     const { profile } = await makeAccountAndProfile();
     await db.createSession(make('s1', profile.id, 1));
-    await db.createSession(make('s2', profile.id, 5));
-    expect((await db.getOpenSession(profile.id))?.id).toBe('s2'); // latest open
+    expect((await db.getOpenSession(profile.id))?.id).toBe('s1');
 
-    await db.completeSession('s2', 9);
-    expect((await db.getOpenSession(profile.id))?.id).toBe('s1'); // falls back to the older open one
-
+    // At most one open session per profile (partial unique index): the prior
+    // one must be completed before another opens.
     await db.completeSession('s1', 9);
     expect(await db.getOpenSession(profile.id)).toBeNull();
+
+    await db.createSession(make('s2', profile.id, 5));
+    expect((await db.getOpenSession(profile.id))?.id).toBe('s2');
+  });
+
+  it('rejects a second open session for the same profile', async () => {
+    const { profile } = await makeAccountAndProfile();
+    await db.createSession(make('s1', profile.id, 1));
+    await expect(db.createSession(make('s2', profile.id, 5))).rejects.toThrow();
+  });
+
+  it('completeSessionAndAward completes and credits coins together', async () => {
+    const { profile } = await makeAccountAndProfile();
+    await db.createSession(make('s1', profile.id, 1));
+    await db.completeSessionAndAward('s1', 9, profile.id, 7);
+    expect((await db.getSession('s1'))?.completedAt).toBe(9);
+    expect((await db.getProfileReward(profile.id)).coins).toBe(7);
+    expect(await db.getOpenSession(profile.id)).toBeNull();
+  });
+
+  it('completeSessionAndAward with a zero delta just completes', async () => {
+    const { profile } = await makeAccountAndProfile();
+    await db.createSession(make('s1', profile.id, 1));
+    await db.completeSessionAndAward('s1', 9, profile.id, 0);
+    expect((await db.getSession('s1'))?.completedAt).toBe(9);
+    expect((await db.getProfileReward(profile.id)).coins).toBe(0);
   });
 
   it('listProfileAttempts filters by since and orders oldest-first', async () => {

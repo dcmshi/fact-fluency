@@ -107,6 +107,17 @@ describe('profiles', () => {
     expect((await request(app).get('/api/profiles')).status).toBe(401);
   });
 
+  it('rate-limits profile creation per IP', async () => {
+    const agent = await authed();
+    const create = () => agent.post('/api/profiles').send({ displayName: 'Kid', avatar: '🦊' });
+    // The window allows 20; the 21st is rejected with 429 + Retry-After.
+    for (let i = 0; i < 20; i++) expect((await create()).status).toBe(201);
+    const blocked = await create();
+    expect(blocked.status).toBe(429);
+    expect(blocked.body.error).toBe('rate_limited');
+    expect(Number(blocked.headers['retry-after'])).toBeGreaterThan(0);
+  });
+
   it('creates a profile with default enabled sets, then lists it', async () => {
     const agent = await authed();
     const created = await agent.post('/api/profiles').send({ displayName: 'Kid', avatar: '🦊' });

@@ -91,14 +91,34 @@ function byDifficulty(x: Fact, y: Fact): number {
 }
 
 /**
+ * Per-set generation cache. The catalog is static, so the same (operation,
+ * range) is generated over and over across requests (every dashboard load
+ * regenerates all ~24 sets — DESIGN.md §7). Keyed by the generating inputs, not
+ * set id, so it stays correct even for ad-hoc sets. Cached arrays are treated as
+ * immutable — `generateFactsForSets` only ever reads them.
+ */
+const setFactsCache = new Map<string, Fact[]>();
+function factsForSet(set: FactSet): Fact[] {
+  const r = set.rangeSpec;
+  const key = `${set.operation}:${r.aMin}-${r.aMax}:${r.bMin}-${r.bMax}`;
+  let facts = setFactsCache.get(key);
+  if (!facts) {
+    facts = generateFacts(set.operation, r);
+    setFactsCache.set(key, facts);
+  }
+  return facts;
+}
+
+/**
  * The de-duplicated candidate fact universe across several enabled sets,
  * globally ordered easiest-first. Overlapping sets (e.g. add 0–5 ⊂ add 0–10)
- * contribute each fact once.
+ * contribute each fact once. Returns a fresh array each call (callers may
+ * reorder/slice it); the Fact objects within are shared, immutable value types.
  */
 export function generateFactsForSets(sets: FactSet[]): Fact[] {
   const byId = new Map<string, Fact>();
   for (const set of sets) {
-    for (const fact of generateFacts(set.operation, set.rangeSpec)) byId.set(fact.id, fact);
+    for (const fact of factsForSet(set)) byId.set(fact.id, fact);
   }
   return [...byId.values()].sort(byDifficulty);
 }

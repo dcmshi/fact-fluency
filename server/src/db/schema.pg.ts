@@ -71,6 +71,10 @@ CREATE TABLE IF NOT EXISTS session (
   planned_count INTEGER NOT NULL,
   working_state TEXT NOT NULL
 );
+-- At most one open (uncompleted) session per profile (DESIGN.md §10) — see the
+-- SQLite schema for rationale.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_session_one_open
+  ON session(profile_id) WHERE completed_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS attempt (
   id          TEXT PRIMARY KEY,

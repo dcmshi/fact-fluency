@@ -75,6 +75,11 @@ CREATE TABLE IF NOT EXISTS session (
   planned_count INTEGER NOT NULL,
   working_state TEXT NOT NULL            -- JSON: in-session queue + box-0 counters
 );
+-- At most one open (uncompleted) session per profile (DESIGN.md §10). Enforced
+-- at the DB so two concurrent starts can't both create one; the app already
+-- closes a stale open session before planning a fresh one.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_session_one_open
+  ON session(profile_id) WHERE completed_at IS NULL;
 
 -- Append-only attempt log (DESIGN.md §6).
 CREATE TABLE IF NOT EXISTS attempt (

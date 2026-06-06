@@ -8,6 +8,13 @@ import type { ProfileSettings } from '@shared';
 import type { Db } from '../db';
 import { requireAuth } from '../auth/middleware';
 import { DEFAULT_ENABLED_SET_IDS, gradeBandById, SEED_CATALOG } from '../data/catalog';
+import { rateLimit } from '../rateLimit';
+
+/** Profile creation is a rare adult action; cap it so a logged-in client can't
+ *  spam rows. Generous enough that a parent setting up several kids never hits
+ *  it (per-IP fixed window, like the auth limiters). */
+const CREATE_PROFILE_WINDOW_MS = 60 * 60 * 1000;
+const CREATE_PROFILE_MAX = 20;
 
 const DEFAULT_SETTINGS: ProfileSettings = {
   sessionCards: 20,
@@ -51,7 +58,13 @@ export function createProfileRouter(db: Db): Router {
     }
   });
 
-  router.post('/', async (req, res, next) => {
+  const createLimit = rateLimit({
+    windowMs: CREATE_PROFILE_WINDOW_MS,
+    max: CREATE_PROFILE_MAX,
+    keyPrefix: 'profile-create:',
+  });
+
+  router.post('/', createLimit, async (req, res, next) => {
     try {
       const { displayName, avatar, gradeBand } = req.body ?? {};
       if (typeof displayName !== 'string' || !displayName.trim()) {

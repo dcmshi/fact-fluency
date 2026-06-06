@@ -310,19 +310,26 @@ export async function complete(
   if (!session) throw new SessionError(404, 'session_not_found');
   await requireOwnedProfile(db, accountId, session.profileId);
   const firstCompletion = !session.completedAt;
-  if (firstCompletion) await db.completeSession(sessionId, now);
+
+  const attempts = await db.listSessionAttempts(sessionId);
+  let correct = 0;
+  let fastCorrect = 0;
+  for (const a of attempts) {
+    if (a.correct) correct++;
+    if (a.fast) fastCorrect++;
+  }
+  const pointsEarned = correct + fastCorrect; // +1 correct, +1 fast bonus (§10)
+
+  // Mark complete and credit coins in one transaction, so a crash can't finish
+  // the session without awarding its coins. Credited exactly once, on the
+  // transition to completed — reopening the summary (or a double POST) can't
+  // farm coins (§10).
+  if (firstCompletion) {
+    await db.completeSessionAndAward(sessionId, now, session.profileId, pointsEarned);
+  }
 
   const timezone = (await db.getAccountTimezone(accountId)) ?? 'UTC';
   const streak = await bumpStreak(db, session.profileId, timezone, now);
-
-  const attempts = await db.listSessionAttempts(sessionId);
-  const correct = attempts.filter((a) => a.correct).length;
-  const fastCorrect = attempts.filter((a) => a.fast).length;
-  const pointsEarned = correct + fastCorrect; // +1 correct, +1 fast bonus (§10)
-
-  // Credit coins exactly once, on the transition to completed — so reopening
-  // the summary (or a double POST) can't farm coins.
-  if (firstCompletion && pointsEarned > 0) await db.addCoins(session.profileId, pointsEarned);
   const { coins } = await db.getProfileReward(session.profileId);
 
   // Facts that reached box 5 (mastered) this session. Load all progress once
