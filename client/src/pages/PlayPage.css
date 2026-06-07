@@ -247,3 +247,24 @@
   padding-left: 0.6rem;
   padding-right: 0.6rem;
 }
+
+/* Draw the eye to the study button the moment it becomes tappable. */
+@keyframes ready-pop {
+  0% {
+    transform: scale(0.96);
+  }
+  60% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.ready-pulse {
+  animation: ready-pop 0.32s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ready-pulse {
+    animation: none;
+  }
+}

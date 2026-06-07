@@ -256,8 +256,12 @@ export function PlayPage() {
               <span className="op">=</span>
               <span className="answer-reveal">{current.answer}</span>
             </div>
-            <button className="btn sun full" disabled={!studyReady} onClick={startRound}>
-              {studyReady ? 'Got it!' : '…'}
+            <button
+              className={`btn sun full ${studyReady ? 'ready-pulse' : ''}`}
+              disabled={!studyReady}
+              onClick={startRound}
+            >
+              {studyReady ? 'Got it! ▶' : 'Look at it…'}
             </button>
           </div>
         </div>
