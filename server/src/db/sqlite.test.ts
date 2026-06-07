@@ -59,6 +59,16 @@ describe('accounts & auth', () => {
     expect(await db.findAccountIdByToken('dead')).toBeNull();
   });
 
+  it('upgrades a guest in place, flipping the guest flag (idempotently)', async () => {
+    const id = await db.createGuestAccount('UTC');
+    expect(await db.isGuestAccount(id)).toBe(true);
+    expect(await db.upgradeGuestAccount(id, 'real@home.test', 'hash')).toBe(true);
+    expect(await db.isGuestAccount(id)).toBe(false);
+    expect(await db.findAccountByEmail('real@home.test')).toEqual({ id, passwordHash: 'hash' });
+    // A second upgrade is a no-op — it's no longer a guest.
+    expect(await db.upgradeGuestAccount(id, 'other@home.test', 'h2')).toBe(false);
+  });
+
   it('prunes a stranded guest but keeps one with a live session', async () => {
     const stranded = await db.createGuestAccount('UTC'); // no session → unreachable
     const active = await db.createGuestAccount('UTC');

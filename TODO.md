@@ -101,6 +101,13 @@ network-first and Vite content-hashes assets). What remains, verified:
       reclaims any guest with no unexpired session (cookie cleared → stranded →
       pruned on boot + 12h). Router now always wraps so the auth page can navigate
       post-mint. Verified in-browser (Play for fun → study card → munch grid).
+- [x] **Guest → account upgrade path** — _done._ `POST /api/auth/upgrade`
+      (auth'd + rate-limited) attaches real credentials to the current guest in
+      place (`upgradeGuestAccount` sets email/password, clears `is_guest`) — same
+      account id + session, so all progress/coins carry over; rejects a taken
+      email (409) or a non-guest (409 `not_a_guest`). `/auth/me` now returns a
+      `guest` flag; the profile hub shows a "Save my progress" banner + modal for
+      guests that disappears once upgraded. Verified in-browser.
 - [ ] **Fact-family scheduling transfer** (DESIGN.md §9 "Later"). When a sub/div
       fact reaches mastery, nudge its inverse sibling (`familyHint`) forward —
       e.g. seed/boost the sibling's box or shorten its `dueAt`, one direction only

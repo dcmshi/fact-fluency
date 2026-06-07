@@ -5,6 +5,7 @@ import { Router } from 'express';
 import type { Db } from '../db';
 import { DEFAULT_ENABLED_SET_IDS } from '../data/catalog';
 import { rateLimit } from '../rateLimit';
+import { requireAuth } from './middleware';
 import { hashPassword, verifyPassword } from './password';
 import {
   SESSION_TTL_MS,
@@ -40,6 +41,7 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
     keyPrefix: 'signup:',
   });
   const guestLimit = rateLimit({ windowMs: GUEST_WINDOW_MS, max: GUEST_MAX, keyPrefix: 'guest:' });
+  const upgradeLimit = rateLimit({ windowMs: SIGNUP_WINDOW_MS, max: 10, keyPrefix: 'upgrade:' });
 
   // A throwaway hash to verify against when the email is unknown, so a missing
   // account costs the same argon2 time as a wrong password (no timing oracle).
@@ -96,6 +98,32 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
     }
   });
 
+  // Upgrade a guest in place: attach real credentials so their existing profile
+  // and progress carry over (same account id + session — nothing is migrated).
+  router.post('/upgrade', requireAuth, upgradeLimit, async (req, res, next) => {
+    try {
+      const { email, password } = req.body ?? {};
+      if (typeof email !== 'string' || !EMAIL_RE.test(email)) {
+        return res.status(400).json({ error: 'invalid_email' });
+      }
+      if (typeof password !== 'string' || password.length < MIN_PASSWORD) {
+        return res.status(400).json({ error: 'weak_password' });
+      }
+      if (await db.findAccountByEmail(email)) {
+        return res.status(409).json({ error: 'email_taken' });
+      }
+      const upgraded = await db.upgradeGuestAccount(
+        req.accountId!,
+        email,
+        await hashPassword(password),
+      );
+      if (!upgraded) return res.status(409).json({ error: 'not_a_guest' });
+      return res.json({ accountId: req.accountId, email });
+    } catch (err) {
+      return next(err);
+    }
+  });
+
   router.post('/login', loginLimit, async (req, res, next) => {
     try {
       const { email, password } = req.body ?? {};
@@ -127,9 +155,15 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
     }
   });
 
-  router.get('/me', (req, res) => {
-    if (!req.accountId) return res.status(401).json({ error: 'unauthenticated' });
-    return res.json({ accountId: req.accountId });
+  router.get('/me', requireAuth, async (req, res, next) => {
+    try {
+      return res.json({
+        accountId: req.accountId,
+        guest: await db.isGuestAccount(req.accountId!),
+      });
+    } catch (err) {
+      return next(err);
+    }
   });
 
   return router;

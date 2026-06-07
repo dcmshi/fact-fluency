@@ -61,6 +61,53 @@ describe('auth', () => {
     expect(session.body.deck.length).toBeGreaterThan(0);
   });
 
+  it('upgrades a guest into a real account in place, keeping the session', async () => {
+    const agent = request.agent(app);
+    const guest = await agent.post('/api/auth/guest').send({});
+    expect((await agent.get('/api/auth/me')).body.guest).toBe(true);
+
+    const up = await agent
+      .post('/api/auth/upgrade')
+      .send({ email: 'saved@home.test', password: 'correcthorse' });
+    expect(up.status).toBe(200);
+    expect(up.body.accountId).toBe(guest.body.accountId); // same account, same id
+    expect((await agent.get('/api/auth/me')).body.guest).toBe(false); // no longer a guest
+
+    // The new credentials work from a fresh client, resolving the same account.
+    const fresh = request.agent(app);
+    const login = await fresh
+      .post('/api/auth/login')
+      .send({ email: 'saved@home.test', password: 'correcthorse' });
+    expect(login.status).toBe(200);
+    expect(login.body.accountId).toBe(guest.body.accountId);
+  });
+
+  it('rejects upgrade when unauthenticated, non-guest, or email taken', async () => {
+    expect(
+      (
+        await request(app)
+          .post('/api/auth/upgrade')
+          .send({ email: 'x@y.co', password: 'correcthorse' })
+      ).status,
+    ).toBe(401);
+
+    const real = request.agent(app);
+    await real.post('/api/auth/signup').send(CREDS);
+    const notGuest = await real
+      .post('/api/auth/upgrade')
+      .send({ email: 'new@home.test', password: 'correcthorse' });
+    expect(notGuest.status).toBe(409);
+    expect(notGuest.body.error).toBe('not_a_guest');
+
+    const g = request.agent(app);
+    await g.post('/api/auth/guest').send({});
+    const taken = await g
+      .post('/api/auth/upgrade')
+      .send({ email: CREDS.email, password: 'correcthorse' });
+    expect(taken.status).toBe(409);
+    expect(taken.body.error).toBe('email_taken');
+  });
+
   it('validates signup input', async () => {
     expect(
       (

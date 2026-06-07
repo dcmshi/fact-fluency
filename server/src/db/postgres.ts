@@ -101,6 +101,25 @@ export class PostgresDb implements Db {
     return id;
   }
 
+  async isGuestAccount(accountId: string): Promise<boolean> {
+    const row = await this.one<{ is_guest: number }>('SELECT is_guest FROM account WHERE id = $1', [
+      accountId,
+    ]);
+    return !!row?.is_guest;
+  }
+
+  async upgradeGuestAccount(
+    accountId: string,
+    email: string,
+    passwordHash: string,
+  ): Promise<boolean> {
+    const { rows } = await this.pool.query(
+      'UPDATE account SET email = $1, password_hash = $2, is_guest = 0 WHERE id = $3 AND is_guest = 1 RETURNING id',
+      [email, passwordHash, accountId],
+    );
+    return rows.length > 0;
+  }
+
   async findAccountByEmail(email: string): Promise<{ id: string; passwordHash: string } | null> {
     const row = await this.one<{ id: string; password_hash: string }>(
       'SELECT id, password_hash FROM account WHERE email = $1',

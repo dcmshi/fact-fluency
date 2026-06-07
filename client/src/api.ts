@@ -42,7 +42,7 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
 
 export const api = {
   // auth
-  me: () => req<{ accountId: string }>('GET', '/auth/me'),
+  me: () => req<{ accountId: string; guest: boolean }>('GET', '/auth/me'),
   signup: (email: string, password: string, timezone: string) =>
     req<{ accountId: string; email: string }>('POST', '/auth/signup', {
       email,
@@ -53,6 +53,8 @@ export const api = {
     req<{ accountId: string; email: string }>('POST', '/auth/login', { email, password }),
   guest: (timezone: string) =>
     req<{ accountId: string; profileId: string; guest: true }>('POST', '/auth/guest', { timezone }),
+  upgrade: (email: string, password: string) =>
+    req<{ accountId: string; email: string }>('POST', '/auth/upgrade', { email, password }),
   logout: () => req<void>('POST', '/auth/logout'),
 
   // catalog (public)

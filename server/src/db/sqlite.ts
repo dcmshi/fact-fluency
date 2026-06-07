@@ -139,6 +139,26 @@ export class SqliteDb implements Db {
     return id;
   }
 
+  async isGuestAccount(accountId: string): Promise<boolean> {
+    const row = this.db.prepare('SELECT is_guest FROM account WHERE id = ?').get(accountId) as
+      | { is_guest: number }
+      | undefined;
+    return !!row?.is_guest;
+  }
+
+  async upgradeGuestAccount(
+    accountId: string,
+    email: string,
+    passwordHash: string,
+  ): Promise<boolean> {
+    const info = this.db
+      .prepare(
+        'UPDATE account SET email = ?, password_hash = ?, is_guest = 0 WHERE id = ? AND is_guest = 1',
+      )
+      .run(email, passwordHash, accountId);
+    return info.changes > 0;
+  }
+
   async findAccountByEmail(email: string): Promise<{ id: string; passwordHash: string } | null> {
     const row = this.db
       .prepare('SELECT id, password_hash FROM account WHERE email = ?')

@@ -38,6 +38,12 @@ export interface Db {
   /** Create an anonymous "play for fun" account (no real email/password);
    *  returns its id. The caller creates a default profile + session. */
   createGuestAccount(timezone: string): Promise<string>;
+  /** Whether an account is still an anonymous guest. */
+  isGuestAccount(accountId: string): Promise<boolean>;
+  /** Attach real credentials to a guest account (sets email/password, clears
+   *  the guest flag), keeping its id + data. Returns false if the account isn't
+   *  a guest (already upgraded / a real account). */
+  upgradeGuestAccount(accountId: string, email: string, passwordHash: string): Promise<boolean>;
   findAccountByEmail(email: string): Promise<{ id: string; passwordHash: string } | null>;
   createAuthSession(accountId: string, token: string, expiresAt: number): Promise<void>;
   findAccountIdByToken(token: string): Promise<string | null>;

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import type { FactSet, Profile, ProfileSettings, RewardItem } from '@shared';
-import { api, qk } from '../api';
+import { api, ApiError, qk } from '../api';
 import { useAuth } from '../auth';
 import { Muncher } from '../components/Muncher';
 import { AVATARS, OP_LABEL, OP_SYMBOL } from '../ops';
@@ -18,12 +18,13 @@ const EFFECT_ICON: Record<string, string> = {
 };
 
 export function ProfilesPage() {
-  const { logout } = useAuth();
+  const { logout, guest } = useAuth();
   const navigate = useNavigate();
   const [adding, setAdding] = useState(false);
   const [managing, setManaging] = useState<Profile | null>(null);
   const [settingsFor, setSettingsFor] = useState<Profile | null>(null);
   const [rewardsFor, setRewardsFor] = useState<Profile | null>(null);
+  const [upgrading, setUpgrading] = useState(false);
 
   const {
     data: profiles,
@@ -41,7 +42,7 @@ export function ProfilesPage() {
           <span className="glyph">✦</span> Fact Fluency
         </div>
         <button className="btn ghost" onClick={logout}>
-          Sign out
+          {guest ? 'Exit' : 'Sign out'}
         </button>
       </header>
 
@@ -49,6 +50,20 @@ export function ProfilesPage() {
         <h1 className="rise" style={{ fontSize: 'clamp(1.6rem, 5vw, 2.2rem)' }}>
           Who’s practicing?
         </h1>
+
+        {guest && (
+          <div className="card guest-banner rise">
+            <div>
+              <strong>Playing as a guest.</strong>{' '}
+              <span className="muted">
+                Progress is saved on this device only — create an account to keep it.
+              </span>
+            </div>
+            <button className="btn sun" onClick={() => setUpgrading(true)}>
+              Save my progress
+            </button>
+          </div>
+        )}
 
         {isError && (
           <div className="card" role="alert" style={{ textAlign: 'center' }}>
@@ -120,6 +135,9 @@ export function ProfilesPage() {
         />
       )}
       {rewardsFor && <RewardsModal profile={rewardsFor} onClose={() => setRewardsFor(null)} />}
+      {upgrading && (
+        <UpgradeModal onClose={() => setUpgrading(false)} onDone={() => setUpgrading(false)} />
+      )}
     </div>
   );
 }
@@ -504,6 +522,73 @@ function FactSetsModal({ profile, onClose }: { profile: Profile; onClose: () => 
       <button className="btn sun full" disabled={busy} onClick={save}>
         {busy ? 'Saving…' : 'Save'}
       </button>
+    </Modal>
+  );
+}
+
+const UPGRADE_MESSAGES: Record<string, string> = {
+  invalid_email: 'That email doesn’t look right.',
+  weak_password: 'Password needs at least 8 characters.',
+  email_taken: 'That email already has an account — try a different one.',
+  not_a_guest: 'This account is already saved.',
+};
+
+/** Turn a guest into a real account in place (keeps their progress). */
+function UpgradeModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const { upgradeGuest } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      await upgradeGuest(email, password);
+      onDone();
+    } catch (err) {
+      const code = err instanceof ApiError ? err.code : 'unknown';
+      setError(UPGRADE_MESSAGES[code] ?? 'Could not save. Try again.');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title="Save your progress" onClose={onClose}>
+      <p className="muted" style={{ marginTop: '-0.3rem' }}>
+        Create an account to keep your coins and progress — and play on other devices.
+      </p>
+      <form className="stack" onSubmit={save} style={{ gap: '0.9rem' }}>
+        {error && <div className="error-banner">{error}</div>}
+        <div className="field">
+          <label htmlFor="up-email">Email</label>
+          <input
+            id="up-email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoFocus
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="up-password">Password</label>
+          <input
+            id="up-password"
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+        <button className="btn sun full" type="submit" disabled={busy}>
+          {busy ? 'Saving…' : 'Create account'}
+        </button>
+      </form>
     </Modal>
   );
 }
