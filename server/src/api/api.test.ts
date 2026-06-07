@@ -159,6 +159,26 @@ describe('auth', () => {
     expect((await agent.post('/api/auth/logout')).status).toBe(204);
     expect((await agent.get('/api/auth/me')).status).toBe(401);
   });
+
+  it('deletes the account + all data (cascade) and ends the session', async () => {
+    const agent = request.agent(app);
+    await agent.post('/api/auth/signup').send(CREDS);
+    await agent.post('/api/profiles').send({ displayName: 'Kid', avatar: '🦊' });
+
+    expect((await agent.delete('/api/auth/account')).status).toBe(204);
+    // Session is gone (cookie cleared + auth_session cascaded).
+    expect((await agent.get('/api/auth/me')).status).toBe(401);
+    // The email is free again — the account row (and its profiles) are gone.
+    const fresh = await request(app).post('/api/auth/signup').send(CREDS);
+    expect(fresh.status).toBe(201);
+    const relog = request.agent(app);
+    await relog.post('/api/auth/login').send({ email: CREDS.email, password: CREDS.password });
+    expect((await relog.get('/api/profiles')).body.profiles).toHaveLength(0);
+  });
+
+  it('rejects account deletion without auth', async () => {
+    expect((await request(app).delete('/api/auth/account')).status).toBe(401);
+  });
 });
 
 describe('profiles', () => {

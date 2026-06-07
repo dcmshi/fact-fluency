@@ -25,6 +25,7 @@ export function ProfilesPage() {
   const [settingsFor, setSettingsFor] = useState<Profile | null>(null);
   const [rewardsFor, setRewardsFor] = useState<Profile | null>(null);
   const [upgrading, setUpgrading] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   const {
     data: profiles,
@@ -41,9 +42,16 @@ export function ProfilesPage() {
         <div className="brand">
           <span className="glyph">✦</span> Fact Fluency
         </div>
-        <button className="btn ghost" onClick={logout}>
-          {guest ? 'Exit' : 'Sign out'}
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {!guest && (
+            <button className="btn ghost" onClick={() => setAccountOpen(true)}>
+              Account
+            </button>
+          )}
+          <button className="btn ghost" onClick={logout}>
+            {guest ? 'Exit' : 'Sign out'}
+          </button>
+        </div>
       </header>
 
       <div className="stack" style={{ maxWidth: 720 }}>
@@ -138,7 +146,53 @@ export function ProfilesPage() {
       {upgrading && (
         <UpgradeModal onClose={() => setUpgrading(false)} onDone={() => setUpgrading(false)} />
       )}
+      {accountOpen && <AccountModal onClose={() => setAccountOpen(false)} />}
     </div>
+  );
+}
+
+/** Parent account management. For now: delete the whole account + all data. */
+function AccountModal({ onClose }: { onClose: () => void }) {
+  const { deleteAccount } = useAuth();
+  const [confirming, setConfirming] = useState(false);
+  const deleteMut = useMutation({ mutationFn: () => deleteAccount() });
+  // On success the auth state flips to logged-out and this whole page unmounts.
+
+  return (
+    <Modal onClose={onClose} title="Your account">
+      <p className="muted">
+        Deleting your account permanently removes it and <strong>all</strong> your kids’ profiles
+        and progress. This can’t be undone.
+      </p>
+      <div className="danger-zone">
+        {deleteMut.isError && <div className="error-banner">Couldn’t delete — try again.</div>}
+        {!confirming ? (
+          <button className="btn danger-link" onClick={() => setConfirming(true)}>
+            Delete my account
+          </button>
+        ) : (
+          <div className="confirm-delete">
+            <p className="muted">Really delete everything?</p>
+            <div className="confirm-actions">
+              <button
+                className="btn ghost"
+                disabled={deleteMut.isPending}
+                onClick={() => setConfirming(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn danger"
+                disabled={deleteMut.isPending}
+                onClick={() => deleteMut.mutate()}
+              >
+                {deleteMut.isPending ? 'Deleting…' : 'Delete everything'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }
 

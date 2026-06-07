@@ -144,6 +144,18 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
     }
   });
 
+  // Right-to-erasure: delete the account and all kids' data (cascades), then
+  // clear the cookie. The session row is gone with the account.
+  router.delete('/account', requireAuth, async (req, res, next) => {
+    try {
+      await db.deleteAccount(req.accountId!);
+      clearSessionCookie(res, isProd);
+      return res.status(204).end();
+    } catch (err) {
+      return next(err);
+    }
+  });
+
   router.post('/logout', async (req, res, next) => {
     try {
       const token = req.cookies?.[COOKIE_NAME] as string | undefined;

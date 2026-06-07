@@ -178,6 +178,11 @@ export class PostgresDb implements Db {
     return row?.timezone ?? null;
   }
 
+  async deleteAccount(accountId: string): Promise<void> {
+    // Profiles + their data and auth sessions cascade via ON DELETE CASCADE.
+    await this.pool.query('DELETE FROM account WHERE id = $1', [accountId]);
+  }
+
   // --- profiles ---
 
   async listProfiles(accountId: string): Promise<Profile[]> {

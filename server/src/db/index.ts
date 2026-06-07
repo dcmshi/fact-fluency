@@ -56,6 +56,9 @@ export interface Db {
   deleteExpiredGuests(now: number): Promise<number>;
 
   getAccountTimezone(accountId: string): Promise<string | null>;
+  /** Delete an account and (via ON DELETE CASCADE) every profile, session,
+   *  attempt, reward, and auth session under it. Right-to-erasure. */
+  deleteAccount(accountId: string): Promise<void>;
 
   // --- profiles ---
   listProfiles(accountId: string): Promise<Profile[]>;

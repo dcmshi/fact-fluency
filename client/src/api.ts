@@ -55,6 +55,7 @@ export const api = {
     req<{ accountId: string; profileId: string; guest: true }>('POST', '/auth/guest', { timezone }),
   upgrade: (email: string, password: string) =>
     req<{ accountId: string; email: string }>('POST', '/auth/upgrade', { email, password }),
+  deleteAccount: () => req<void>('DELETE', '/auth/account'),
   logout: () => req<void>('POST', '/auth/logout'),
 
   // catalog (public)

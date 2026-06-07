@@ -216,6 +216,12 @@ export class SqliteDb implements Db {
     return row?.timezone ?? null;
   }
 
+  async deleteAccount(accountId: string): Promise<void> {
+    // Everything under the account cascades (profiles → progress/sessions/...,
+    // plus auth_session) via ON DELETE CASCADE.
+    this.db.prepare('DELETE FROM account WHERE id = ?').run(accountId);
+  }
+
   // --- profiles ---
 
   async listProfiles(accountId: string): Promise<Profile[]> {
