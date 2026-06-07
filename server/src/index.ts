@@ -25,7 +25,11 @@ async function main() {
   const db = createDb(DATABASE_URL);
   await db.migrate();
 
-  const prune = () => db.deleteExpiredAuthSessions(Date.now()).catch(() => 0);
+  const prune = () =>
+    db
+      .deleteExpiredAuthSessions(Date.now())
+      .then(() => db.deleteExpiredGuests(Date.now()))
+      .catch(() => 0);
   void prune(); // once on boot
   const pruneTimer = setInterval(() => void prune(), PRUNE_INTERVAL_MS);
   pruneTimer.unref?.(); // don't keep the process alive for the timer

@@ -58,6 +58,22 @@ describe('accounts & auth', () => {
     expect(await db.findAccountIdByToken('live')).toBe(accountId);
     expect(await db.findAccountIdByToken('dead')).toBeNull();
   });
+
+  it('prunes a stranded guest but keeps one with a live session', async () => {
+    const stranded = await db.createGuestAccount('UTC'); // no session → unreachable
+    const active = await db.createGuestAccount('UTC');
+    await db.createAuthSession(active, 'live', Date.now() + 60_000);
+
+    expect(await db.deleteExpiredGuests(Date.now())).toBe(1);
+    expect(await db.findAccountByEmail(`guest-${stranded}`)).toBeNull(); // gone
+    expect(await db.findAccountByEmail(`guest-${active}`)).not.toBeNull(); // kept
+    expect(await db.findAccountIdByToken('live')).toBe(active);
+
+    // A real (non-guest) account with no session is never touched.
+    const real = await db.createAccount('keep@home.test', 'h', 'UTC');
+    expect(await db.deleteExpiredGuests(Date.now())).toBe(0);
+    expect(await db.getAccountTimezone(real)).toBe('UTC');
+  });
 });
 
 describe('profiles', () => {

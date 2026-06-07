@@ -127,6 +127,18 @@ export class SqliteDb implements Db {
     return id;
   }
 
+  async createGuestAccount(timezone: string): Promise<string> {
+    const id = randomUUID();
+    // Synthetic unique email + empty hash: the row satisfies the schema but can
+    // never be logged into. is_guest=1 marks it for pruning.
+    this.db
+      .prepare(
+        'INSERT INTO account (id, email, password_hash, timezone, created_at, is_guest) VALUES (?, ?, ?, ?, ?, 1)',
+      )
+      .run(id, `guest-${id}`, '', timezone, Date.now());
+    return id;
+  }
+
   async findAccountByEmail(email: string): Promise<{ id: string; passwordHash: string } | null> {
     const row = this.db
       .prepare('SELECT id, password_hash FROM account WHERE email = ?')
@@ -153,6 +165,16 @@ export class SqliteDb implements Db {
 
   async deleteExpiredAuthSessions(now: number): Promise<number> {
     return this.db.prepare('DELETE FROM auth_session WHERE expires_at <= ?').run(now).changes;
+  }
+
+  async deleteExpiredGuests(now: number): Promise<number> {
+    return this.db
+      .prepare(
+        `DELETE FROM account
+          WHERE is_guest = 1
+            AND id NOT IN (SELECT account_id FROM auth_session WHERE expires_at > ?)`,
+      )
+      .run(now).changes;
   }
 
   async getAccountTimezone(accountId: string): Promise<string | null> {

@@ -8,6 +8,8 @@ interface AuthState {
   loading: boolean;
   signup: (email: string, password: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  /** Start an anonymous "play for fun" session; resolves to the guest profile id. */
+  playAsGuest: () => Promise<string>;
   logout: () => Promise<void>;
 }
 
@@ -49,6 +51,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: (r) => queryClient.setQueryData(ME_KEY, r.accountId),
   });
 
+  const guestMut = useMutation({
+    mutationFn: () => {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      return api.guest(tz);
+    },
+    onSuccess: (r) => queryClient.setQueryData(ME_KEY, r.accountId),
+  });
+
   const logoutMut = useMutation({
     mutationFn: () => api.logout(),
     onSuccess: () => {
@@ -69,11 +79,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login: async (email, password) => {
         await loginMut.mutateAsync({ email, password });
       },
+      playAsGuest: async () => {
+        const r = await guestMut.mutateAsync();
+        return r.profileId;
+      },
       logout: async () => {
         await logoutMut.mutateAsync();
       },
     }),
-    [accountId, isLoading, signupMut, loginMut, logoutMut],
+    [accountId, isLoading, signupMut, loginMut, guestMut, logoutMut],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

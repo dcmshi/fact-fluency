@@ -91,6 +91,16 @@ export class PostgresDb implements Db {
     return id;
   }
 
+  async createGuestAccount(timezone: string): Promise<string> {
+    const id = randomUUID();
+    // Synthetic unique email + empty hash: satisfies the schema, never logins.
+    await this.pool.query(
+      'INSERT INTO account (id, email, password_hash, timezone, created_at, is_guest) VALUES ($1,$2,$3,$4,$5,1)',
+      [id, `guest-${id}`, '', timezone, Date.now()],
+    );
+    return id;
+  }
+
   async findAccountByEmail(email: string): Promise<{ id: string; passwordHash: string } | null> {
     const row = await this.one<{ id: string; password_hash: string }>(
       'SELECT id, password_hash FROM account WHERE email = $1',
@@ -122,6 +132,17 @@ export class PostgresDb implements Db {
     // RETURNING so the count comes back via the {rows} pool interface.
     const { rows } = await this.pool.query(
       'DELETE FROM auth_session WHERE expires_at <= $1 RETURNING token',
+      [now],
+    );
+    return rows.length;
+  }
+
+  async deleteExpiredGuests(now: number): Promise<number> {
+    const { rows } = await this.pool.query(
+      `DELETE FROM account
+        WHERE is_guest = 1
+          AND id NOT IN (SELECT account_id FROM auth_session WHERE expires_at > $1)
+       RETURNING id`,
       [now],
     );
     return rows.length;

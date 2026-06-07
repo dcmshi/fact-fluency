@@ -3,6 +3,7 @@
  */
 import { Router } from 'express';
 import type { Db } from '../db';
+import { DEFAULT_ENABLED_SET_IDS } from '../data/catalog';
 import { rateLimit } from '../rateLimit';
 import { hashPassword, verifyPassword } from './password';
 import {
@@ -23,6 +24,11 @@ const LOGIN_WINDOW_MS = 15 * MINUTE;
 const LOGIN_MAX = 10;
 const SIGNUP_WINDOW_MS = 60 * MINUTE;
 const SIGNUP_MAX = 6;
+const GUEST_WINDOW_MS = 60 * MINUTE;
+const GUEST_MAX = 30; // each mints an anonymous account row; cap the spam surface
+
+/** Default per-profile session settings (mirrors the profiles router). */
+const DEFAULT_SETTINGS = { sessionCards: 20, sessionSeconds: 180, newPerSession: 3 };
 
 export function createAuthRouter(db: Db, isProd: boolean): Router {
   const router = Router();
@@ -33,6 +39,7 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
     max: SIGNUP_MAX,
     keyPrefix: 'signup:',
   });
+  const guestLimit = rateLimit({ windowMs: GUEST_WINDOW_MS, max: GUEST_MAX, keyPrefix: 'guest:' });
 
   // A throwaway hash to verify against when the email is unknown, so a missing
   // account costs the same argon2 time as a wrong password (no timing oracle).
@@ -61,6 +68,29 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
       const accountId = await db.createAccount(email, await hashPassword(password), tz);
       await startSession(accountId, res);
       return res.status(201).json({ accountId, email });
+    } catch (err) {
+      return next(err);
+    }
+  });
+
+  // "Play for fun" — no signup. Mints an anonymous account + one default
+  // profile and drops a session cookie, so the kid can play immediately. The
+  // account is disposable: clearing the cookie strands it, and the guest prune
+  // (index.ts) reclaims stranded guests.
+  router.post('/guest', guestLimit, async (req, res, next) => {
+    try {
+      const { timezone } = req.body ?? {};
+      const tz = typeof timezone === 'string' && timezone ? timezone : 'UTC';
+      const accountId = await db.createGuestAccount(tz);
+      const profile = await db.createProfile({
+        accountId,
+        displayName: 'Guest',
+        avatar: '🦊',
+        settings: DEFAULT_SETTINGS,
+      });
+      await db.setEnabledSetIds(profile.id, DEFAULT_ENABLED_SET_IDS);
+      await startSession(accountId, res);
+      return res.status(201).json({ accountId, profileId: profile.id, guest: true });
     } catch (err) {
       return next(err);
     }

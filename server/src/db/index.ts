@@ -35,12 +35,19 @@ export interface Db {
 
   // --- accounts & auth ---
   createAccount(email: string, passwordHash: string, timezone: string): Promise<string>;
+  /** Create an anonymous "play for fun" account (no real email/password);
+   *  returns its id. The caller creates a default profile + session. */
+  createGuestAccount(timezone: string): Promise<string>;
   findAccountByEmail(email: string): Promise<{ id: string; passwordHash: string } | null>;
   createAuthSession(accountId: string, token: string, expiresAt: number): Promise<void>;
   findAccountIdByToken(token: string): Promise<string | null>;
   deleteAuthSession(token: string): Promise<void>;
   /** Delete auth sessions that expired at/before `now`; returns the count. */
   deleteExpiredAuthSessions(now: number): Promise<number>;
+  /** Delete guest accounts with no unexpired auth session — their cookie is
+   *  gone, so they're unreachable. Cascades to their profiles/progress.
+   *  Returns the count. */
+  deleteExpiredGuests(now: number): Promise<number>;
 
   getAccountTimezone(accountId: string): Promise<string | null>;
 

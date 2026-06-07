@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ApiError } from '../api';
 import { useAuth } from '../auth';
 
@@ -10,12 +11,14 @@ const MESSAGES: Record<string, string> = {
 };
 
 export function AuthPage() {
-  const { signup, login } = useAuth();
+  const { signup, login, playAsGuest } = useAuth();
+  const navigate = useNavigate();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [guestBusy, setGuestBusy] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -32,6 +35,18 @@ export function AuthPage() {
     }
   }
 
+  async function playGuest() {
+    setError(null);
+    setGuestBusy(true);
+    try {
+      const profileId = await playAsGuest();
+      navigate(`/play/${profileId}`);
+    } catch {
+      setError('Could not start a guest game. Try again.');
+      setGuestBusy(false);
+    }
+  }
+
   return (
     <div className="screen center-y">
       <div className="stack rise">
@@ -39,8 +54,28 @@ export function AuthPage() {
           <span className="glyph">✦</span> Fact Fluency
         </div>
         <p className="muted" style={{ textAlign: 'center', marginTop: '-0.4rem' }}>
-          Grown-up sign in — kids play from your account.
+          Practice math facts the fun way.
         </p>
+
+        <button
+          type="button"
+          className="btn sun full"
+          onClick={playGuest}
+          disabled={guestBusy}
+          style={{ fontSize: '1.05rem' }}
+        >
+          {guestBusy ? 'Starting…' : '▶ Play for fun'}
+        </button>
+        <p
+          className="muted"
+          style={{ textAlign: 'center', fontSize: '0.8rem', marginTop: '-0.6rem' }}
+        >
+          No account needed — progress stays on this device.
+        </p>
+
+        <div className="muted" style={{ textAlign: 'center', fontSize: '0.85rem' }}>
+          or sign in to save progress
+        </div>
 
         <form className="card stack" onSubmit={submit} style={{ gap: '1rem' }}>
           <h2>{mode === 'signup' ? 'Create your account' : 'Welcome back'}</h2>

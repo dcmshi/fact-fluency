@@ -7,10 +7,11 @@
 export const SCHEMA_PG = /* sql */ `
 CREATE TABLE IF NOT EXISTS account (
   id            TEXT PRIMARY KEY,
-  email         TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
+  email         TEXT NOT NULL UNIQUE,    -- guests get a synthetic 'guest-<id>'
+  password_hash TEXT NOT NULL,           -- empty for guests (never verifiable)
   timezone      TEXT NOT NULL,
-  created_at    BIGINT NOT NULL
+  created_at    BIGINT NOT NULL,
+  is_guest      SMALLINT NOT NULL DEFAULT 0  -- anonymous "play for fun" account
 );
 
 CREATE TABLE IF NOT EXISTS auth_session (

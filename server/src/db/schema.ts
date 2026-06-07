@@ -9,10 +9,11 @@
 export const SCHEMA = /* sql */ `
 CREATE TABLE IF NOT EXISTS account (
   id            TEXT PRIMARY KEY,
-  email         TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
+  email         TEXT NOT NULL UNIQUE,    -- guests get a synthetic 'guest-<id>'
+  password_hash TEXT NOT NULL,           -- empty for guests (never verifiable)
   timezone      TEXT NOT NULL,
-  created_at    INTEGER NOT NULL
+  created_at    INTEGER NOT NULL,
+  is_guest      INTEGER NOT NULL DEFAULT 0  -- anonymous "play for fun" account
 );
 
 CREATE TABLE IF NOT EXISTS auth_session (

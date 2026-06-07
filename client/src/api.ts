@@ -51,6 +51,8 @@ export const api = {
     }),
   login: (email: string, password: string) =>
     req<{ accountId: string; email: string }>('POST', '/auth/login', { email, password }),
+  guest: (timezone: string) =>
+    req<{ accountId: string; profileId: string; guest: true }>('POST', '/auth/guest', { timezone }),
   logout: () => req<void>('POST', '/auth/logout'),
 
   // catalog (public)

@@ -43,6 +43,24 @@ describe('auth', () => {
     expect((await request(app).get('/api/auth/me')).status).toBe(401);
   });
 
+  it('mints an anonymous guest session that can play without signup', async () => {
+    const agent = request.agent(app);
+    const guest = await agent.post('/api/auth/guest').send({ timezone: 'UTC' });
+    expect(guest.status).toBe(201);
+    expect(guest.body.guest).toBe(true);
+    expect(guest.body.profileId).toBeTruthy();
+    expect(guest.headers['set-cookie'][0]).toMatch(/ff_session=/);
+
+    // The guest is authenticated...
+    const me = await agent.get('/api/auth/me');
+    expect(me.body.accountId).toBe(guest.body.accountId);
+
+    // ...and can immediately start a real session on the auto-created profile.
+    const session = await agent.post(`/api/profiles/${guest.body.profileId}/session`);
+    expect(session.status).toBe(201);
+    expect(session.body.deck.length).toBeGreaterThan(0);
+  });
+
   it('validates signup input', async () => {
     expect(
       (

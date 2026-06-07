@@ -92,15 +92,15 @@ network-first and Vite content-hashes assets). What remains, verified:
 
 ### Features
 
-- [ ] **Guest / "Play for fun" mode (no signup)** — _recommended next; user-requested._
-      Remove the signup gate: a "Play for fun" button mints an anonymous,
-      cookie-backed session (no email/password) with one default profile, reusing
-      the entire existing engine/scheduling/rewards stack. Progress lives
-      server-side keyed to the guest cookie, so it's "dropped" once the cookie/
-      session is cleared (and stale guest accounts get pruned like expired auth
-      sessions). Needs: `POST /api/auth/guest`, an `is_guest` account flag
-      (additive column; prod was just reset so a fresh schema is clean), a client
-      entry button, and a guest-prune job. ~M. See discussion below the TODO.
+- [x] **Guest / "Play for fun" mode (no signup)** — _done._ A "Play for fun"
+      button (`AuthPage`) mints an anonymous account via `POST /api/auth/guest`
+      (rate-limited 30/hr), auto-creates one default profile, drops the session
+      cookie, and routes straight into a session — reusing the whole existing
+      engine/scheduling/rewards stack. Guest accounts carry an `is_guest` flag and
+      a synthetic `guest-<id>` email (never loginable); `deleteExpiredGuests`
+      reclaims any guest with no unexpired session (cookie cleared → stranded →
+      pruned on boot + 12h). Router now always wraps so the auth page can navigate
+      post-mint. Verified in-browser (Play for fun → study card → munch grid).
 - [ ] **Fact-family scheduling transfer** (DESIGN.md §9 "Later"). When a sub/div
       fact reaches mastery, nudge its inverse sibling (`familyHint`) forward —
       e.g. seed/boost the sibling's box or shorten its `dueAt`, one direction only
@@ -121,7 +121,7 @@ network-first and Vite content-hashes assets). What remains, verified:
 ### Speed / robustness
 
 - [ ] **Index the due-count hot path.** `idx_progress_due` is `(profile_id,
-    due_at)` but `countDueReview` filters `box >= 1 AND due_at <= now` and
+due_at)` but `countDueReview` filters `box >= 1 AND due_at <= now` and
       `countLearning` filters `box = 0` — both run on **every answer** (caughtUp).
       Add `(profile_id, box, due_at)` (or a partial index). ~S.
 - [ ] **Parallelize independent reads in `answer()`.** It does ~5 sequential

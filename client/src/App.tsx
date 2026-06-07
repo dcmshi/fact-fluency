@@ -33,7 +33,7 @@ function NetworkStatus() {
   );
 }
 
-export function App() {
+function AppRoutes() {
   const { accountId, loading } = useAuth();
 
   if (loading) {
@@ -44,23 +44,32 @@ export function App() {
     );
   }
 
-  if (!accountId)
+  // Logged out (incl. before a guest session is minted): the auth page handles
+  // every path. It can navigate to /play/:id after "Play for fun" — once the
+  // guest account lands, accountId flips and the routes below take over.
+  if (!accountId) {
     return (
-      <>
-        <NetworkStatus />
-        <AuthPage />
-      </>
+      <Routes>
+        <Route path="*" element={<AuthPage />} />
+      </Routes>
     );
+  }
 
+  return (
+    <Routes>
+      <Route path="/" element={<ProfilesPage />} />
+      <Route path="/play/:profileId" element={<PlayPage />} />
+      <Route path="/progress/:profileId" element={<ProgressPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+export function App() {
   return (
     <BrowserRouter>
       <NetworkStatus />
-      <Routes>
-        <Route path="/" element={<ProfilesPage />} />
-        <Route path="/play/:profileId" element={<PlayPage />} />
-        <Route path="/progress/:profileId" element={<ProgressPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <AppRoutes />
     </BrowserRouter>
   );
 }
