@@ -117,14 +117,19 @@ network-first and Vite content-hashes assets). What remains, verified:
       already on its own track (unseen-only). Wired into `answer()` (reads the
       sibling + upserts only when newly mastered); 6 engine tests. Future
       refinement: also _raise_ an in-progress sibling, not just seed unseen ones.
-- [ ] **Cross-operation "next" suggestion.** `suggestNextSet` only advances within
-      an operation; once a kid's add sets are ≥80% mastered, suggest the easiest
-      set of the next operation. ~S.
-- [ ] **"All caught up" celebration.** `caughtUp` is computed + passed to the
-      client but only flips a flag; give it a distinct celebratory end screen with
-      an "ask a grown-up to add more" CTA. ~S.
-- [ ] **Data export (CSV/JSON).** `GET /profiles/:id/export` — attempts + progress
-      snapshot, for a tutor/parent. ~S.
+- [x] **Cross-operation "next" suggestion** — _done._ `suggestNextSet` now falls
+      back to introducing the next untouched operation in curriculum order
+      (add→sub→mul→div) at its easiest set once the kid has nearly mastered some
+      operation's largest enabled set and has nothing left to advance to there.
+      Within-operation advancement still takes priority. Engine-tested.
+- [x] **"All caught up" / "mastered it all" end screen** — _done._ Added an
+      `allMastered` flag to the session summary (every enabled fact is box 5,
+      computed in `complete()`); the done screen now has three tiers — mastered-all
+      (🏆 + "ask a grown-up to add more" CTA, bonus round secondary), daily caught-up
+      (🎉 + confetti), and normal — instead of just flipping the heading.
+- [x] **Data export (CSV/JSON)** — _done._ `GET /profiles/:id/export?format=csv|json`
+      (`export.ts`): JSON = profile + full progress + attempt log; CSV = the
+      attempt log (RFC-4180 escaped). Download links on the Progress page. HTTP-tested.
 - [ ] **Classroom mode** (DESIGN.md §9 "Later") — many profiles, quick switch, a
       teacher aggregate view. ~L. **Parent email/progress reports** — ~M. Both
       are larger and lower-priority than the above.

@@ -113,19 +113,52 @@ describe('suggestNextSet', () => {
     expect(r?.setId).toBe('mul-0-10'); // mul fully mastered beats add at 80%
   });
 
-  it('does not suggest enabling a brand-new operation (v1 scope)', () => {
+  it('introduces the next untouched operation once the current ladder is done', () => {
     const r = suggestNextSet([
       set({
         setId: 'add-0-10',
         operation: 'add',
+        label: 'Addition 0–10',
         aMax: 10,
         enabled: true,
         total: 10,
         mastered: 10,
       }),
+      set({
+        setId: 'sub-0-10',
+        operation: 'sub',
+        label: 'Subtraction 0–10',
+        aMax: 10,
+        enabled: false,
+      }),
+      set({
+        setId: 'sub-0-20',
+        operation: 'sub',
+        label: 'Subtraction 0–20',
+        aMax: 20,
+        enabled: false,
+      }),
+    ]);
+    // add has no larger set to advance to → cross over to the easiest sub set.
+    expect(r?.setId).toBe('sub-0-10');
+    expect(r?.operation).toBe('sub');
+    expect(r?.reason).toContain('subtraction');
+  });
+
+  it('prefers finishing the current operation over crossing to a new one', () => {
+    const r = suggestNextSet([
+      set({ setId: 'add-0-10', operation: 'add', aMax: 10, enabled: true, total: 10, mastered: 9 }),
+      set({ setId: 'add-0-12', operation: 'add', aMax: 12, enabled: false }),
       set({ setId: 'sub-0-10', operation: 'sub', aMax: 10, enabled: false }),
     ]);
-    // add has no larger set; sub is not enabled so it's not advanced into.
-    expect(r).toBeNull();
+    expect(r?.setId).toBe('add-0-12'); // within-op wins
+  });
+
+  it('does not cross to a new operation until the kid is ready', () => {
+    const r = suggestNextSet([
+      set({ setId: 'add-0-10', operation: 'add', aMax: 10, enabled: true, total: 10, mastered: 4 }),
+      set({ setId: 'sub-0-10', operation: 'sub', aMax: 10, enabled: false }),
+    ]);
+    expect(r).toBeNull(); // add only 40% mastered — not ready
   });
 });

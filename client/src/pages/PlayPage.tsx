@@ -294,9 +294,20 @@ export function PlayPage() {
 
       {phase === 'done' && summary && (
         <div className="play-center stack done-card rise" style={{ textAlign: 'center' }}>
-          {caughtUp && <Confetti />}
-          <div className="big-emoji">{caughtUp ? '🎉' : '🌟'}</div>
-          <h1>{caughtUp ? 'All caught up!' : 'Nice work!'}</h1>
+          {(caughtUp || summary.allMastered) && <Confetti />}
+          <div className="big-emoji">{summary.allMastered ? '🏆' : caughtUp ? '🎉' : '🌟'}</div>
+          <h1>
+            {summary.allMastered
+              ? 'You mastered it all!'
+              : caughtUp
+                ? 'All caught up!'
+                : 'Nice work!'}
+          </h1>
+          {summary.allMastered && (
+            <p className="muted">
+              You’ve mastered every fact here. Ask a grown-up to add more so you can keep going!
+            </p>
+          )}
           {summary.streak > 1 && (
             <div className="streak-ribbon">🔥 {summary.streak}-day streak!</div>
           )}
@@ -307,12 +318,25 @@ export function PlayPage() {
             <Stat label="Coins +" value={summary.pointsEarned} accent />
           </div>
           <div className="coin-total">⭐ {summary.coins} coins to spend in Rewards</div>
-          <button className="btn sun full" onClick={start}>
-            Play again
-          </button>
-          <button className="btn ghost" onClick={() => navigate('/')}>
-            Done for now
-          </button>
+          {summary.allMastered ? (
+            <>
+              <button className="btn sun full" onClick={() => navigate('/')}>
+                Done
+              </button>
+              <button className="btn ghost" onClick={start}>
+                Play a bonus round
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="btn sun full" onClick={start}>
+                Play again
+              </button>
+              <button className="btn ghost" onClick={() => navigate('/')}>
+                Done for now
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

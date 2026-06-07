@@ -447,3 +447,34 @@ describe('progress view', () => {
     expect(learning.length).toBe(1);
   });
 });
+
+describe('data export', () => {
+  it('exports JSON (progress + attempts) and CSV (the attempt log)', async () => {
+    const { agent, profileId } = await setup();
+    const { body } = await agent.post(`/api/profiles/${profileId}/session`);
+    await agent
+      .post(`/api/sessions/${body.sessionId}/answer`)
+      .send({ factId: body.deck[0].fact.id, correct: true, responseMs: 1200 });
+
+    const json = await agent.get(`/api/profiles/${profileId}/export?format=json`);
+    expect(json.status).toBe(200);
+    expect(json.headers['content-disposition']).toContain('.json');
+    expect(json.body.profile.id).toBe(profileId);
+    expect(json.body.attempts.length).toBeGreaterThan(0);
+    expect(Array.isArray(json.body.progress)).toBe(true);
+
+    const csv = await agent.get(`/api/profiles/${profileId}/export?format=csv`);
+    expect(csv.status).toBe(200);
+    expect(csv.headers['content-type']).toContain('text/csv');
+    const lines = csv.text.split('\r\n');
+    expect(lines[0]).toBe('answeredAt,factId,correct,fast,responseMs,wrongMunches');
+    expect(lines.length).toBeGreaterThan(1);
+  });
+
+  it('404s export for another account', async () => {
+    const { profileId } = await setup();
+    const other = request.agent(app);
+    await other.post('/api/auth/signup').send({ ...CREDS, email: 'x@home.test' });
+    expect((await other.get(`/api/profiles/${profileId}/export`)).status).toBe(404);
+  });
+});

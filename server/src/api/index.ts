@@ -8,6 +8,7 @@ import { createAuthRouter } from '../auth/routes';
 import { GRADE_BANDS, SEED_CATALOG } from '../data/catalog';
 import type { Db } from '../db';
 import { getDashboardView } from '../dashboard';
+import { attemptsToCsv, buildExport } from '../export';
 import { getProgressView } from '../progress';
 import { equipReward, getRewards, unlockReward } from '../rewards';
 import * as sessions from '../session/service';
@@ -78,6 +79,27 @@ export function createApiRouter(db: Db, isProd: boolean): Router {
     requireAuth,
     handle(async (req, res) => {
       res.json(await getDashboardView(db, req.accountId!, req.params.id, Date.now()));
+    }),
+  );
+
+  // Data export (DESIGN.md §9): ?format=csv (attempt log) or json (everything).
+  router.get(
+    '/profiles/:id/export',
+    requireAuth,
+    handle(async (req, res) => {
+      const data = await buildExport(db, req.accountId!, req.params.id, Date.now());
+      const slug = data.profile.displayName.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'profile';
+      const stamp = new Date().toISOString().slice(0, 10);
+      const base = `fact-fluency-${slug}-${stamp}`;
+      if (req.query.format === 'csv') {
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${base}.csv"`);
+        res.send(attemptsToCsv(data.attempts));
+      } else {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${base}.json"`);
+        res.send(JSON.stringify(data, null, 2));
+      }
     }),
   );
 

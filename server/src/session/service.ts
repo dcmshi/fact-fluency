@@ -382,6 +382,13 @@ export async function complete(
     if (progressByFact.get(factId)?.box === 5) mastered++;
   }
 
+  // "Nothing left here" — every fact across the kid's enabled sets is mastered
+  // (DESIGN.md §4.4). Drives the "ask a grown-up to add more" end screen.
+  const enabledSetIds = new Set(await db.listEnabledSetIds(session.profileId));
+  const enabledFacts = generateFactsForSets(SEED_CATALOG.filter((s) => enabledSetIds.has(s.id)));
+  const allMastered =
+    enabledFacts.length > 0 && enabledFacts.every((f) => progressByFact.get(f.id)?.box === 5);
+
   return {
     cardsPlayed: attempts.length,
     correct,
@@ -390,5 +397,6 @@ export async function complete(
     pointsEarned,
     streak,
     coins,
+    allMastered,
   };
 }

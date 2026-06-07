@@ -220,6 +220,9 @@ export interface SessionSummary {
   streak: number;
   /** Spendable coin balance after this session (credited once on completion). */
   coins: number;
+  /** Every fact in the kid's enabled sets is mastered — there's nothing left to
+   *  practice here until a grown-up enables more (DESIGN.md §4.4). */
+  allMastered: boolean;
 }
 
 // ---------------------------------------------------------------------------

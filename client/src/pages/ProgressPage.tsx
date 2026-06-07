@@ -67,6 +67,16 @@ export function ProgressPage() {
             <span className="legend-label">Mastered</span>
           </div>
         )}
+
+        <div className="export-row">
+          <span className="muted">Export this profile’s data:</span>
+          <a className="btn ghost" href={`/api/profiles/${profileId}/export?format=csv`} download>
+            CSV
+          </a>
+          <a className="btn ghost" href={`/api/profiles/${profileId}/export?format=json`} download>
+            JSON
+          </a>
+        </div>
       </div>
     </div>
   );
