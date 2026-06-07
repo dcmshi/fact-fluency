@@ -1,10 +1,12 @@
+import { memo } from 'react';
 import type { CSSProperties } from 'react';
 import './CelebrationBurst.css';
 
 /** A short, self-removing particle burst fired at a correct munch. The variant
  *  is the kid's equipped celebration effect. Render with a unique `key` so each
- *  burst animates fresh; the parent drops it after ~900ms. */
-export function CelebrationBurst({ variant }: { variant: string }) {
+ *  burst animates fresh; the parent drops it after ~900ms. Memoized so unrelated
+ *  parent re-renders don't rebuild the particle tree. */
+export const CelebrationBurst = memo(function CelebrationBurst({ variant }: { variant: string }) {
   const count = variant === 'fireworks' ? 20 : 14;
   const glyph = variant === 'sparkles' ? '✦' : variant === 'stars' ? '★' : '';
 
@@ -29,4 +31,4 @@ export function CelebrationBurst({ variant }: { variant: string }) {
       {bits}
     </div>
   );
-}
+});

@@ -1,10 +1,12 @@
+import { memo } from 'react';
 import './Confetti.css';
 
 const COLORS = ['#ffc83d', '#2fb87a', '#ff6b5c', '#3b82f6', '#f59e0b'];
 const PIECES = 28;
 
-/** Pure-CSS confetti burst. Deterministic positions (no layout deps). */
-export function Confetti() {
+/** Pure-CSS confetti burst. Deterministic positions (no layout deps). Memoized:
+ *  it takes no props, so it never needs to re-render once mounted. */
+export const Confetti = memo(function Confetti() {
   return (
     <div className="confetti" aria-hidden="true">
       {Array.from({ length: PIECES }, (_, i) => {
@@ -29,4 +31,4 @@ export function Confetti() {
       })}
     </div>
   );
-}
+});

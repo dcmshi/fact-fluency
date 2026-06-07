@@ -178,6 +178,7 @@ export function PlayPage() {
   useEffect(() => {
     if (phase !== 'study') return;
     function onKey(e: KeyboardEvent) {
+      if (e.repeat) return; // a held key shouldn't fire multiple round starts
       if (studyReady && (e.key === 'Enter' || e.key === ' ')) {
         e.preventDefault();
         startRound();

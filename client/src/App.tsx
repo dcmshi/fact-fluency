@@ -1,11 +1,26 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
 import { useAuth } from './auth';
 import { AuthPage } from './pages/AuthPage';
-import { PlayPage } from './pages/PlayPage';
-import { ProfilesPage } from './pages/ProfilesPage';
-import { ProgressPage } from './pages/ProgressPage';
 import { flushAll } from './syncQueue';
+
+// Code-split the post-login pages so the logged-out entry (auth) ships a small
+// bundle; the heavier play/progress/profile screens load on demand.
+const ProfilesPage = lazy(() =>
+  import('./pages/ProfilesPage').then((m) => ({ default: m.ProfilesPage })),
+);
+const PlayPage = lazy(() => import('./pages/PlayPage').then((m) => ({ default: m.PlayPage })));
+const ProgressPage = lazy(() =>
+  import('./pages/ProgressPage').then((m) => ({ default: m.ProgressPage })),
+);
+
+function LoadingScreen() {
+  return (
+    <div className="screen center-y">
+      <p className="muted">Loading…</p>
+    </div>
+  );
+}
 
 /** Offline banner + flush of any queued reports when connectivity returns. */
 function NetworkStatus() {
@@ -36,13 +51,7 @@ function NetworkStatus() {
 function AppRoutes() {
   const { accountId, loading } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="screen center-y">
-        <p className="muted">Loading…</p>
-      </div>
-    );
-  }
+  if (loading) return <LoadingScreen />;
 
   // Logged out (incl. before a guest session is minted): the auth page handles
   // every path. It can navigate to /play/:id after "Play for fun" — once the
@@ -56,12 +65,14 @@ function AppRoutes() {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<ProfilesPage />} />
-      <Route path="/play/:profileId" element={<PlayPage />} />
-      <Route path="/progress/:profileId" element={<ProgressPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <Suspense fallback={<LoadingScreen />}>
+      <Routes>
+        <Route path="/" element={<ProfilesPage />} />
+        <Route path="/play/:profileId" element={<PlayPage />} />
+        <Route path="/progress/:profileId" element={<ProgressPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 }
 

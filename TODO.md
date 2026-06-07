@@ -148,14 +148,16 @@ network-first and Vite content-hashes assets). What remains, verified:
       (finite, 0–999, truncated) before it's logged, mirroring `responseMs`;
       `avatar` bounded (above).
 
-### Client polish
+### Client polish — done (audit pass 4)
 
-- [ ] **Lazy-load routes.** `App.tsx` eagerly imports all four pages into one
-      ~245 KB bundle; `React.lazy` + `Suspense` would trim first paint. ~S.
-- [ ] **Minor render/input hygiene.** `React.memo` the pure animation components
-      (`Confetti`, `CelebrationBurst`, `Muncher`); add `e.repeat` guards to the
-      key handlers; clean up the flash/burst `setTimeout`s on unmount (harmless in
-      React 18 but tidy). ~S, low value.
+- [x] **Lazy-load routes.** `ProfilesPage` / `PlayPage` / `ProgressPage` are now
+      `React.lazy` chunks behind a `Suspense` fallback (auth page stays eager for
+      an instant logged-out entry). Main bundle 245 → 214 KB; each page ships its
+      own JS+CSS chunk. Verified in-browser (Suspense loads play/profile cleanly).
+- [x] **Minor render/input hygiene.** `React.memo` on `Confetti`,
+      `CelebrationBurst`, `Muncher`; `e.repeat` guards on the munch + study key
+      handlers (discrete presses, no auto-repeat); flash/burst/complete timeouts
+      tracked and cleared on round unmount.
 
 ### Engine (minor)
 

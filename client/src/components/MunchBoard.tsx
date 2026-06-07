@@ -71,7 +71,16 @@ export function MunchBoard({
   const burstId = useRef(0);
   // Drive the muncher: chomp → (happy | bleh) → idle, cleaned up on unmount.
   const stateTimers = useRef<number[]>([]);
-  useEffect(() => () => stateTimers.current.forEach((t) => clearTimeout(t)), []);
+  // Flash/burst/complete timeouts — tracked so they're cleared if the round
+  // unmounts (remount per round via `key`) before they fire.
+  const timers = useRef<number[]>([]);
+  useEffect(
+    () => () => {
+      stateTimers.current.forEach((t) => clearTimeout(t));
+      timers.current.forEach((t) => clearTimeout(t));
+    },
+    [],
+  );
   const reactMuncher = useCallback((correct: boolean) => {
     stateTimers.current.forEach((t) => clearTimeout(t));
     setMuncherState('chomp');
@@ -110,25 +119,31 @@ export function MunchBoard({
         onMunch(isCorrect);
         reactMuncher(isCorrect);
         setFlash({ idx, ok: isCorrect });
-        window.setTimeout(() => setFlash((f) => (f && f.idx === idx ? null : f)), 350);
+        timers.current.push(
+          window.setTimeout(() => setFlash((f) => (f && f.idx === idx ? null : f)), 350),
+        );
         if (isCorrect) {
           const id = ++burstId.current;
           setBursts((b) => [...b, { id, idx }]);
-          window.setTimeout(() => setBursts((b) => b.filter((x) => x.id !== id)), 900);
+          timers.current.push(
+            window.setTimeout(() => setBursts((b) => b.filter((x) => x.id !== id)), 900),
+          );
         }
 
         if ([...correctIdx].every((i) => next.has(i)) && !doneRef.current) {
           doneRef.current = true;
           const responseMs =
             firstCorrectRef.current ?? Math.round(performance.now() - startRef.current);
-          window.setTimeout(
-            () =>
-              onComplete({
-                correct: wrongRef.current === 0,
-                responseMs,
-                wrongMunches: wrongRef.current,
-              }),
-            260,
+          timers.current.push(
+            window.setTimeout(
+              () =>
+                onComplete({
+                  correct: wrongRef.current === 0,
+                  responseMs,
+                  wrongMunches: wrongRef.current,
+                }),
+              260,
+            ),
           );
         }
         return next;
@@ -152,6 +167,7 @@ export function MunchBoard({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if (e.repeat) return; // discrete presses only — no auto-repeat zooming
       switch (e.key) {
         case 'ArrowUp':
         case 'w':

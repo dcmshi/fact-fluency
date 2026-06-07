@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import './Muncher.css';
 
 /** Animation state for a muncher character. */
@@ -227,7 +228,7 @@ const Eye = ({ cx }: { cx: number }) => (
  * cat for unknown keys. A wide, rounded "Hello Kitty"–style head with big
  * sparkly eyes, rosy cheeks, a soft top shine, a tiny smile and little feet.
  */
-export function Muncher({
+export const Muncher = memo(function Muncher({
   animal,
   state = 'idle',
   size = 120,
@@ -286,4 +287,4 @@ export function Muncher({
       </g>
     </svg>
   );
-}
+});
