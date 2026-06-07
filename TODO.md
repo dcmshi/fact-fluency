@@ -228,11 +228,11 @@ of scope). One agent finding was **discarded as a false positive**:
       to the kid's Rewards modal via `/?rewards=<id>`.
 - [x] **Relation variety** — `pickRelation` is now an even =/</> mix (was ~50%+
       `=`); each relation still reinforces knowing the answer.
-- [ ] **Comparison-operator comprehension (`<`/`>`)** — _open, needs a decision._
-      Pre-readers may not own `<`/`>` semantics. Options: friendlier copy
-      ("smaller/bigger than" vs "less/greater than"), a visual/number-line hint,
-      or gating `<`/`>` to more advanced sets. ~M; validate with real kids before
-      committing to an approach.
+- [x] **Comparison-operator comprehension (`<`/`>`)** — _done (friendlier copy)._
+      The munch prompt + SR announcement now say "smaller than" / "bigger than" /
+      "the same as" instead of "less/greater than/equal to" — easier for young or
+      pre-reading kids. (A number-line hint or difficulty-gating `<`/`>` remain
+      possible later if real-kid use shows it's still confusing.)
 
 ### Code health — done (from the regression sweep)
 

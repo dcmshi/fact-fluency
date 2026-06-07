@@ -5,10 +5,13 @@ import { CelebrationBurst } from './CelebrationBurst';
 import { Muncher, type MuncherState } from './Muncher';
 import './MunchBoard.css';
 
+// Kid-friendly wording (drives both the on-screen prompt and the SR announce):
+// "smaller/bigger" reads more easily for young/pre-reading kids than the formal
+// "less/greater than".
 const RELATION_PHRASE: Record<MunchRelation, string> = {
-  '=': 'equal to',
-  '<': 'less than',
-  '>': 'greater than',
+  '=': 'the same as',
+  '<': 'smaller than',
+  '>': 'bigger than',
 };
 const OP_WORD: Record<string, string> = {
   add: 'plus',
