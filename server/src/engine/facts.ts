@@ -7,7 +7,8 @@
  * addition (never negative); division the inverse of multiplication (whole
  * quotients, never ÷0).
  */
-import type { Fact, FactHint, FactSet, Operation, RangeSpec } from '@shared';
+import type { Box, Fact, FactHint, FactProgress, FactSet, Operation, RangeSpec } from '@shared';
+import { dueAtForBox, stateForBox } from './scheduling';
 
 /** Canonical, stable id for a fact. Commutative ops are written with a ≤ b. */
 export function factId(operation: Operation, a: number, b: number): string {
@@ -148,4 +149,57 @@ export function familyHint(fact: Fact): FactHint | null {
     default:
       return null;
   }
+}
+
+/** The canonical id of a fact's inverse sibling, or null for the base ops. */
+export function siblingFactId(fact: Fact): string | null {
+  const hint = familyHint(fact);
+  return hint ? factId(hint.operation, hint.operandA, hint.operandB) : null;
+}
+
+/** Box a freshly-mastered fact lends its unseen inverse sibling — a review head
+ *  start, never auto-mastery (box 5 must still be earned directly, §4.3). */
+export const FAMILY_TRANSFER_BOX: Box = 3;
+
+/**
+ * Fact-family scheduling transfer (DESIGN.md §9). A sub/div fact is the inverse
+ * of an add/mul one (§3.1), so mastering it is strong evidence the kid knows the
+ * sibling too. When such a fact is *freshly* mastered, seed its sibling into
+ * review at `FAMILY_TRANSFER_BOX` so it's met as review rather than cold — but
+ * only if the sibling is still unseen (never demote/disturb a sibling already on
+ * its own track, and never grant mastery the kid hasn't earned directly).
+ *
+ * Pure: the caller supplies the sibling's current progress and gets back the row
+ * to upsert, or null when no transfer applies. One direction only (sub→add,
+ * div→mul) — `familyHint` returns null for the base ops.
+ */
+export function familyTransfer(args: {
+  fact: Fact;
+  prevBox: number;
+  newBox: number;
+  profileId: string;
+  /** The sibling's current progress, or null if unseen. */
+  siblingProgress: FactProgress | null;
+  now: number;
+  tzOffsetMin?: number;
+}): FactProgress | null {
+  const siblingId = siblingFactId(args.fact);
+  if (!siblingId) return null; // base op — nothing to seed
+  if (!(args.newBox === 5 && args.prevBox < 5)) return null; // only on entering mastery
+  if (args.siblingProgress) return null; // only seed an unseen sibling
+
+  const box = FAMILY_TRANSFER_BOX;
+  return {
+    profileId: args.profileId,
+    factId: siblingId,
+    box,
+    state: stateForBox(box),
+    dueAt: dueAtForBox(box, args.now, args.tzOffsetMin ?? 0, 1),
+    lastSeenAt: args.now,
+    reps: 0,
+    fastCorrect: 0,
+    correctStreak: 0,
+    accuracyEwma: 0,
+    medianMsEwma: 0,
+  };
 }

@@ -17,7 +17,7 @@ import type {
 } from '@shared';
 import { SEED_CATALOG } from '../data/catalog';
 import type { Db, SessionRecord } from '../db';
-import { familyHint, generateFactsForSets } from '../engine/facts';
+import { familyHint, familyTransfer, generateFactsForSets, siblingFactId } from '../engine/facts';
 import { gradeAnswer } from '../engine/grade';
 import { buildBoard, makeRng, pickRelation, seedFrom } from '../engine/munch';
 import { planSession } from '../engine/planner';
@@ -283,6 +283,23 @@ export async function answer(
 
   await db.upsertProgress(result.progress);
   if (result.correct) await db.upsertOperationStat(result.stat);
+
+  // Fact-family scheduling transfer (DESIGN.md §9): when a sub/div fact is
+  // freshly mastered, give its unseen inverse sibling a review head start.
+  const newlyMastered = result.progress.box === 5 && (progress?.box ?? 0) < 5;
+  if (newlyMastered && siblingFactId(fact)) {
+    const siblingProgress = await db.getProgressForFact(profileId, siblingFactId(fact)!);
+    const seeded = familyTransfer({
+      fact,
+      prevBox: progress?.box ?? 0,
+      newBox: result.progress.box,
+      profileId,
+      siblingProgress,
+      now,
+      tzOffsetMin: tzOffsetMinutes(timezone, now),
+    });
+    if (seeded) await db.upsertProgress(seeded);
+  }
   await db.appendAttempt({
     id: randomUUID(),
     sessionId,

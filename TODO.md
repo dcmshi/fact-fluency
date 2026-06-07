@@ -108,11 +108,15 @@ network-first and Vite content-hashes assets). What remains, verified:
       email (409) or a non-guest (409 `not_a_guest`). `/auth/me` now returns a
       `guest` flag; the profile hub shows a "Save my progress" banner + modal for
       guests that disappears once upgraded. Verified in-browser.
-- [ ] **Fact-family scheduling transfer** (DESIGN.md §9 "Later"). When a sub/div
-      fact reaches mastery, nudge its inverse sibling (`familyHint`) forward —
-      e.g. seed/boost the sibling's box or shorten its `dueAt`, one direction only
-      (sub→add, div→mul). Presentation-only framing already ships; this is the
-      scheduling half. ~M, high value.
+- [x] **Fact-family scheduling transfer** (DESIGN.md §9 "Later") — _done._ Pure
+      `familyTransfer` (`engine/facts.ts`): when a sub/div fact is _freshly_
+      mastered, its unseen inverse sibling (sub→add, div→mul) is seeded into review
+      at box `FAMILY_TRANSFER_BOX` (3) so the kid meets it as review, not cold.
+      Conservative guards: only on the transition into mastery, one direction,
+      never auto-grants mastery (capped below box 5), and never disturbs a sibling
+      already on its own track (unseen-only). Wired into `answer()` (reads the
+      sibling + upserts only when newly mastered); 6 engine tests. Future
+      refinement: also _raise_ an in-progress sibling, not just seed unseen ones.
 - [ ] **Cross-operation "next" suggestion.** `suggestNextSet` only advances within
       an operation; once a kid's add sets are ≥80% mastered, suggest the easiest
       set of the next operation. ~S.

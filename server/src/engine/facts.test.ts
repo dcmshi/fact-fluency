@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { factId, familyHint, generateFacts } from './facts';
+import type { Fact, FactProgress } from '@shared';
+import { FAMILY_TRANSFER_BOX, factId, familyHint, familyTransfer, generateFacts } from './facts';
 
 describe('familyHint', () => {
   const fact = (
@@ -96,5 +97,62 @@ describe('generateFacts: div', () => {
     expect(facts.every((f) => Number.isInteger(f.answer))).toBe(true);
     expect(facts.every((f) => f.operandA === f.answer * f.operandB)).toBe(true);
     expect(facts.find((f) => f.id === 'div:56/7')?.answer).toBe(8);
+  });
+});
+
+describe('familyTransfer', () => {
+  const mkFact = (
+    operation: Fact['operation'],
+    operandA: number,
+    operandB: number,
+    answer: number,
+  ): Fact => ({ id: factId(operation, operandA, operandB), operation, operandA, operandB, answer });
+
+  const sub = mkFact('sub', 15, 7, 8); // 15 − 7 = 8 → sibling add:7+8
+  const div = mkFact('div', 56, 7, 8); // 56 ÷ 7 = 8 → sibling mul:7x8
+  const base = { profileId: 'p1', prevBox: 4, newBox: 5, siblingProgress: null, now: 1_000_000 };
+
+  it('seeds an unseen add sibling when a sub fact is freshly mastered', () => {
+    const seeded = familyTransfer({ ...base, fact: sub });
+    expect(seeded).not.toBeNull();
+    expect(seeded!.factId).toBe('add:7+8');
+    expect(seeded!.box).toBe(FAMILY_TRANSFER_BOX);
+    expect(seeded!.state).toBe('review');
+    expect(seeded!.dueAt).toBeGreaterThan(base.now); // scheduled forward
+  });
+
+  it('seeds an unseen mul sibling when a div fact is freshly mastered', () => {
+    expect(familyTransfer({ ...base, fact: div })!.factId).toBe('mul:7x8');
+  });
+
+  it('never auto-grants mastery — the head start is below box 5', () => {
+    expect(familyTransfer({ ...base, fact: sub })!.box).toBeLessThan(5);
+  });
+
+  it('does nothing for base operations (add/mul have no sibling)', () => {
+    expect(familyTransfer({ ...base, fact: mkFact('add', 7, 8, 15) })).toBeNull();
+    expect(familyTransfer({ ...base, fact: mkFact('mul', 7, 8, 56) })).toBeNull();
+  });
+
+  it('only fires on the transition into mastery', () => {
+    expect(familyTransfer({ ...base, fact: sub, prevBox: 5, newBox: 5 })).toBeNull(); // already mastered
+    expect(familyTransfer({ ...base, fact: sub, prevBox: 3, newBox: 4 })).toBeNull(); // not mastered yet
+  });
+
+  it('never disturbs a sibling already on its own track', () => {
+    const siblingProgress = {
+      profileId: 'p1',
+      factId: 'add:7+8',
+      box: 1,
+      state: 'review',
+      dueAt: 0,
+      lastSeenAt: 0,
+      reps: 2,
+      fastCorrect: 0,
+      correctStreak: 0,
+      accuracyEwma: 0.5,
+      medianMsEwma: 3000,
+    } satisfies FactProgress;
+    expect(familyTransfer({ ...base, fact: sub, siblingProgress })).toBeNull();
   });
 });
