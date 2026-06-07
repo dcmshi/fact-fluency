@@ -198,7 +198,9 @@ function AccountModal({ onClose }: { onClose: () => void }) {
     },
     onError: (e) => {
       setSaved(false);
-      setError(ACCOUNT_MESSAGES[e instanceof ApiError ? e.code : ''] ?? 'Couldn’t save — try again.');
+      setError(
+        ACCOUNT_MESSAGES[e instanceof ApiError ? e.code : ''] ?? 'Couldn’t save — try again.',
+      );
     },
   });
   const deleteMut = useMutation({ mutationFn: () => deleteAccount() });

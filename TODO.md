@@ -201,7 +201,7 @@ of scope). One agent finding was **discarded as a false positive**:
       cascades everything + clears the cookie; an "Account" button → confirm UI.
       Verified in-browser (delete → routed to sign-in; email freed).
 - [x] **Edit account: email / password / timezone** — `GET`/`PATCH
-    /auth/account` (rate-limited; email-taken + weak-password guards). The
+/auth/account` (rate-limited; email-taken + weak-password guards). The
       Account modal prefills email + timezone (IANA `<select>`), password
       optional. Fixes the silent wrong-timezone scheduling trap. Verified.
 

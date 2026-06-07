@@ -228,7 +228,9 @@ export class SqliteDb implements Db {
   }
 
   async updateAccountPassword(accountId: string, passwordHash: string): Promise<void> {
-    this.db.prepare('UPDATE account SET password_hash = ? WHERE id = ?').run(passwordHash, accountId);
+    this.db
+      .prepare('UPDATE account SET password_hash = ? WHERE id = ?')
+      .run(passwordHash, accountId);
   }
 
   async updateAccountTimezone(accountId: string, timezone: string): Promise<void> {

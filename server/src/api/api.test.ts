@@ -200,8 +200,11 @@ describe('auth', () => {
       .send({ email: 'new@home.test', password: 'newpassword1' });
     expect(ok.status).toBe(200);
     expect(
-      (await request(app).post('/api/auth/login').send({ email: CREDS.email, password: CREDS.password }))
-        .status,
+      (
+        await request(app)
+          .post('/api/auth/login')
+          .send({ email: CREDS.email, password: CREDS.password })
+      ).status,
     ).toBe(401);
   });
 
