@@ -158,7 +158,7 @@ export function PlayPage() {
           ? fast
             ? 'All munched, super fast!'
             : 'All munched!'
-          : 'Some were wrong — keep going!',
+          : 'All done — nice effort! Keep going.',
       );
       if (caught) setCaughtUp(true);
 
