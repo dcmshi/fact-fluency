@@ -66,7 +66,9 @@ export function createProfileRouter(db: Db): Router {
       if (typeof displayName !== 'string' || !displayName.trim()) {
         return res.status(400).json({ error: 'invalid_display_name' });
       }
-      if (typeof avatar !== 'string' || !avatar) {
+      // A single emoji/glyph from the picker — a few code units at most. Cap the
+      // length so a profile row can't be bloated with a huge string.
+      if (typeof avatar !== 'string' || !avatar || avatar.length > 16) {
         return res.status(400).json({ error: 'invalid_avatar' });
       }
       const profile = await db.createProfile({
@@ -122,7 +124,11 @@ export function createProfileRouter(db: Db): Router {
   router.put('/:id/factsets', owned, async (req, res, next) => {
     try {
       const { enabledIds } = req.body ?? {};
-      if (!Array.isArray(enabledIds) || enabledIds.some((id) => !CATALOG_IDS.has(id))) {
+      if (
+        !Array.isArray(enabledIds) ||
+        enabledIds.length > CATALOG_IDS.size || // can't enable more than the whole catalog
+        enabledIds.some((id) => !CATALOG_IDS.has(id))
+      ) {
         return res.status(400).json({ error: 'invalid_set_ids' });
       }
       await db.setEnabledSetIds(req.params.id, enabledIds);

@@ -149,6 +149,7 @@ export async function startSession(
   accountId: string,
   profileId: string,
   now: number,
+  retried = false,
 ): Promise<SessionResponse> {
   const profile = await requireOwnedProfile(db, accountId, profileId);
 
@@ -199,14 +200,22 @@ export async function startSession(
   });
 
   const workingState: WorkingState = { deck, learning: {} };
-  await db.createSession({
-    id: sessionId,
-    profileId,
-    startedAt: now,
-    completedAt: null,
-    plannedCount: deck.length,
-    workingState: JSON.stringify(workingState),
-  });
+  try {
+    await db.createSession({
+      id: sessionId,
+      profileId,
+      startedAt: now,
+      completedAt: null,
+      plannedCount: deck.length,
+      workingState: JSON.stringify(workingState),
+    });
+  } catch (err) {
+    // A concurrent start (double-tap / two tabs) won the race and created the
+    // one allowed open session (idx_session_one_open). Re-enter once to resume
+    // *that* session instead of surfacing a raw 500. The guard prevents loops.
+    if (!retried) return startSession(db, accountId, profileId, now, true);
+    throw err;
+  }
 
   return {
     sessionId,
@@ -251,10 +260,15 @@ export async function answer(
 
   const { fact } = card;
   const { profileId } = session;
-  const progress = await db.getProgressForFact(profileId, body.factId);
-  const stat =
-    (await db.getOperationStat(profileId, fact.operation)) ?? zeroStat(profileId, fact.operation);
-  const timezone = (await db.getAccountTimezone(accountId)) ?? 'UTC';
+  // These three reads are independent — fetch them concurrently to cut the
+  // per-answer round-trip latency (this is the hot path of a session).
+  const [progress, statRow, accountTz] = await Promise.all([
+    db.getProgressForFact(profileId, body.factId),
+    db.getOperationStat(profileId, fact.operation),
+    db.getAccountTimezone(accountId),
+  ]);
+  const stat = statRow ?? zeroStat(profileId, fact.operation);
+  const timezone = accountTz ?? 'UTC';
 
   const result = gradeAnswer({
     fact,
@@ -275,8 +289,12 @@ export async function answer(
     profileId,
     factId: body.factId,
     // `given` repurposed for munch: count of wrong munches this round (signal
-    // for future tuning; not used in grading or aggregation).
-    given: typeof body.wrongMunches === 'number' ? body.wrongMunches : 0,
+    // for future tuning; not used in grading or aggregation). Clamp the
+    // client-reported value the same way as responseMs.
+    given:
+      typeof body.wrongMunches === 'number' && Number.isFinite(body.wrongMunches)
+        ? Math.min(Math.max(0, Math.trunc(body.wrongMunches)), 999)
+        : 0,
     correct: result.correct,
     fast: result.fast,
     responseMs,
@@ -288,15 +306,19 @@ export async function answer(
   else delete ws.learning[body.factId];
   await db.updateSessionWorkingState(sessionId, JSON.stringify(ws));
 
+  // Caught up = today's work done: nothing due to review AND nothing still
+  // being learned (DESIGN.md §4.10). Independent counts → fetch concurrently.
+  const [dueReview, learning] = await Promise.all([
+    db.countDueReview(profileId, now),
+    db.countLearning(profileId),
+  ]);
+
   return {
     correct: result.correct,
     fast: result.fast,
     updatedProgress: result.progress,
     injects: result.requeue ? [{ factId: body.factId, afterOffset: REHEARSAL_GAP }] : undefined,
-    // Caught up = today's work done: nothing due to review AND nothing still
-    // being learned (DESIGN.md §4.10).
-    caughtUp:
-      (await db.countDueReview(profileId, now)) === 0 && (await db.countLearning(profileId)) === 0,
+    caughtUp: dueReview === 0 && learning === 0,
   };
 }
 

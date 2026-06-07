@@ -125,28 +125,24 @@ network-first and Vite content-hashes assets). What remains, verified:
       teacher aggregate view. ~L. **Parent email/progress reports** — ~M. Both
       are larger and lower-priority than the above.
 
-### Speed / robustness
+### Speed / robustness — done (audit pass 4)
 
-- [ ] **Index the due-count hot path.** `idx_progress_due` is `(profile_id,
-due_at)` but `countDueReview` filters `box >= 1 AND due_at <= now` and
-      `countLearning` filters `box = 0` — both run on **every answer** (caughtUp).
-      Add `(profile_id, box, due_at)` (or a partial index). ~S.
-- [ ] **Parallelize independent reads in `answer()`.** It does ~5 sequential
-      awaits (getSession → requireOwnedProfile → getProgressForFact →
-      getOperationStat → getAccountTimezone) that don't depend on each other —
-      `Promise.all` would cut per-answer latency. ~S.
-- [ ] **Cap request body + array lengths.** `express.json()` has no `limit`, and
-      `setFactSets` validates element membership but not `enabledIds.length`
-      before the delete+insert transaction. Add `express.json({ limit })` and a
-      length bound. ~S, robustness.
-- [ ] **Handle concurrent session-start gracefully.** Two racing `startSession`
-      calls now both pass the open-session check and the 2nd hits the
-      `idx_session_one_open` unique constraint → an uncaught 500. Catch it and
-      resume the existing session (or return 409). ~M. (New consequence of the
-      one-open-session index.)
-- [ ] **Tighten remaining client-trusted inputs.** Bound/whitelist the `avatar`
-      string on profile create; clamp/validate `wrongMunches` like we did
-      `responseMs`. ~S, low value.
+- [x] **Index the due-count hot path.** Added `idx_progress_box_due` on
+      `(profile_id, box, due_at)` (both schemas) so the per-answer `countDueReview`
+      / `countLearning` no longer scan all of a profile's progress rows.
+- [x] **Parallelize independent reads in `answer()`.** `getProgressForFact` +
+      `getOperationStat` + `getAccountTimezone` now run in one `Promise.all`, as
+      do the two caught-up counts — fewer sequential round-trips on the hot path.
+- [x] **Cap request body + array lengths.** `express.json({ limit: '16kb' })`;
+      `setFactSets` rejects an `enabledIds` array longer than the catalog;
+      `avatar` length capped on create. HTTP-tested.
+- [x] **Handle concurrent session-start gracefully.** `startSession` catches a
+      lost create race (the `idx_session_one_open` unique violation) and re-enters
+      once to resume the winning session instead of 500ing. Tested via two
+      concurrent starts converging on one session id.
+- [x] **Tighten remaining client-trusted inputs.** `wrongMunches` is now clamped
+      (finite, 0–999, truncated) before it's logged, mirroring `responseMs`;
+      `avatar` bounded (above).
 
 ### Client polish
 

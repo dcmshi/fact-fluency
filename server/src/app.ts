@@ -17,7 +17,10 @@ export function createApp(db: Db, isProd: boolean): Application {
   // is the local socket.
   if (isProd) app.set('trust proxy', true);
   app.use(securityHeaders(isProd));
-  app.use(express.json());
+  // Cap request bodies — every endpoint takes small JSON (credentials, a setId
+  // list, one answer). 16kb is generous headroom; anything larger is malformed
+  // or hostile and is rejected before it's parsed into memory.
+  app.use(express.json({ limit: '16kb' }));
   app.use(cookieParser(process.env.COOKIE_SECRET ?? 'dev-only-change-me'));
   app.use(attachAccount(db));
 

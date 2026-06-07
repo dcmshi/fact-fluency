@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS fact_progress (
   PRIMARY KEY (profile_id, fact_id)
 );
 CREATE INDEX IF NOT EXISTS idx_progress_due ON fact_progress(profile_id, due_at);
+-- Backs the per-answer "caught up" counts (box >= 1 AND due_at <= now; box = 0).
+CREATE INDEX IF NOT EXISTS idx_progress_box_due ON fact_progress(profile_id, box, due_at);
 
 CREATE TABLE IF NOT EXISTS operation_stat (
   profile_id      TEXT NOT NULL REFERENCES profile(id) ON DELETE CASCADE,

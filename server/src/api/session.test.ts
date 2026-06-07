@@ -326,6 +326,18 @@ describe('session errors', () => {
     expect(res.body.error).toBe('no_enabled_sets');
   });
 
+  it('two concurrent starts converge on one session (no 500)', async () => {
+    const { agent, profileId } = await setup();
+    const [a, b] = await Promise.all([
+      agent.post(`/api/profiles/${profileId}/session`),
+      agent.post(`/api/profiles/${profileId}/session`),
+    ]);
+    expect(a.status).toBe(201);
+    expect(b.status).toBe(201);
+    // One creates it, the other resumes it — same session, never a duplicate.
+    expect(a.body.sessionId).toBe(b.body.sessionId);
+  });
+
   it('400 when answering a fact that is not in the session', async () => {
     const { agent, profileId } = await setup();
     const { body } = await agent.post(`/api/profiles/${profileId}/session`);

@@ -302,3 +302,39 @@ describe('profiles', () => {
     expect((await b.get(`/api/profiles/${body.profile.id}/factsets`)).status).toBe(404);
   });
 });
+
+describe('input limits', () => {
+  async function authed() {
+    const agent = request.agent(app);
+    await agent.post('/api/auth/signup').send(CREDS);
+    return agent;
+  }
+
+  it('rejects an oversized request body before parsing it', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ email: 'a@b.co', password: 'x'.repeat(20_000) }));
+    expect(res.status).toBe(413);
+  });
+
+  it('rejects an over-long avatar', async () => {
+    const agent = await authed();
+    const res = await agent
+      .post('/api/profiles')
+      .send({ displayName: 'Kid', avatar: 'x'.repeat(40) });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_avatar');
+  });
+
+  it('rejects more enabled sets than the catalog holds', async () => {
+    const agent = await authed();
+    const { body } = await agent.post('/api/profiles').send({ displayName: 'Kid', avatar: '🦊' });
+    const tooMany = Array.from({ length: 100 }, () => 'add-0-5'); // valid id, absurd count
+    const res = await agent
+      .put(`/api/profiles/${body.profile.id}/factsets`)
+      .send({ enabledIds: tooMany });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_set_ids');
+  });
+});
