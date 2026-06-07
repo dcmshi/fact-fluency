@@ -485,6 +485,12 @@ const SETTING_FIELDS: {
   },
 ];
 
+const EDIT_MESSAGES: Record<string, string> = {
+  invalid_display_name: 'Please enter a name.',
+  invalid_avatar: 'Pick a buddy.',
+  invalid_settings: 'Those settings are out of range.',
+};
+
 function SettingsModal({
   profile,
   onClose,
@@ -506,6 +512,7 @@ function SettingsModal({
   });
   const nameEmpty = !name.trim();
 
+  const [error, setError] = useState<string | null>(null);
   const saveMut = useMutation({
     mutationFn: () =>
       api.updateProfile(profile.id, { displayName: name.trim(), avatar, settings: values }),
@@ -513,6 +520,8 @@ function SettingsModal({
       void queryClient.invalidateQueries({ queryKey: qk.profiles });
       onSaved();
     },
+    onError: (e) =>
+      setError(EDIT_MESSAGES[e instanceof ApiError ? e.code : ''] ?? 'Couldn’t save — try again.'),
   });
   const deleteMut = useMutation({
     mutationFn: () => api.deleteProfile(profile.id),
@@ -524,12 +533,14 @@ function SettingsModal({
   const busy = saveMut.isPending || deleteMut.isPending;
 
   function save() {
+    setError(null);
     if (outOfRange || nameEmpty) return;
     saveMut.mutate();
   }
 
   return (
     <Modal onClose={onClose} title={`${profile.avatar} ${profile.displayName}'s settings`}>
+      {error && <div className="error-banner">{error}</div>}
       <div className="field">
         <label htmlFor="edit-name">Name</label>
         <input id="edit-name" value={name} onChange={(e) => setName(e.target.value)} />
