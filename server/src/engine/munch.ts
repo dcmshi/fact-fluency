@@ -42,13 +42,13 @@ export function seedFrom(str: string): number {
 }
 
 /**
- * Pick a feasible relation. `<` needs a target ≥ 2 (so there's a real pool of
- * smaller numbers); `=` is weighted a little higher since it most directly
- * reinforces the fact.
+ * Pick a feasible relation, evenly mixed for variety (a session of mostly `=`
+ * boards feels like a worksheet). Each relation still reinforces knowing the
+ * answer — `<`/`>` require judging numbers against it. `<` needs a target ≥ 2 so
+ * there's a real pool of smaller numbers.
  */
 export function pickRelation(target: number, rng: () => number): MunchRelation {
-  const pool: MunchRelation[] = ['=', '=', '>'];
-  if (target >= 2) pool.push('<');
+  const pool: MunchRelation[] = target >= 2 ? ['=', '<', '>'] : ['=', '>'];
   return pool[Math.floor(rng() * pool.length)];
 }
 
