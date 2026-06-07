@@ -56,24 +56,30 @@ the client-closure items are plausible and want a close read before changes.
       `qk` map in `api.ts`). Failed reads now render a retry affordance instead of
       a stuck skeleton. The imperative session-play loop in `PlayPage` stays as-is
       (stateful game flow, not cached server-state) but invalidates profiles/
-      progress/dashboard on completion. _Not yet verified in-browser._
+      progress/dashboard on completion. Verified in-browser (signup → profiles,
+      add-a-kid invalidation refreshes the list, progress/dashboard render).
 
-**Backlog (not yet done):**
+**Done in the third pass:**
 
-- [ ] **Thin out the repeated ownership pattern.** `requireOwnedProfile` /
-      `owns()` (the latter loads _all_ profiles then `.some()`) recurs across
-      service/dashboard/progress/profiles routes — fold into one middleware that
-      attaches the profile to `req`.
-- [ ] **Client tests.** `client/` has zero test setup. Highest-risk untested
-      logic: `syncQueue.ts` (offline replay ordering + coin/streak credit on
-      reconnect) and the `PlayPage` session loop.
-- [ ] **Verify the client session-loop closures (🔍).** Audit flagged possible
-      stale-closure / unguarded double-`flushAll()` races (`PlayPage.tsx`,
-      `App.tsx` online handler) → duplicate answer reports. Server reconciles from
-      the append-only `Attempt` log so state can't corrupt, but worth a guard.
-      Confirm with a close read before touching.
-- [ ] **Server-module unit tests.** `dashboard.ts`, `progress.ts`, `rewards.ts`
-      are only exercised through the HTTP layer — add isolated tests.
+- [x] **Unify the profile-ownership check.** New `loadOwnedProfile(db)` Express
+      middleware loads the `:id` profile, 404s on a foreign/missing one, and
+      attaches `req.profile`. `profiles.ts` uses it (dropping `owns()`, which
+      loaded _all_ profiles then `.some()`d, and the inline PATCH check);
+      `dashboard.ts`/`progress.ts` reuse the `requireOwnedProfile` service helper.
+- [x] **Server-module unit tests.** Isolated tests for `dashboard.ts` /
+      `progress.ts` / `rewards.ts` against an in-memory SqliteDb (ownership 404s,
+      grid overlay, mastery summary + trend bucketing, full reward economy).
+- [x] **Client test harness + sync-queue tests.** Vitest + jsdom in the client,
+      wired into root `npm test`; `syncQueue.test.ts` covers ordering, drain,
+      stop-at-first-failure, and `flushAll` completion gating.
+- [x] **Guard the `flushAll` double-flush race.** `flushAnswers` now serializes
+      through a promise chain, so a mount flush + an `online` event + the
+      end-of-session flush can't double-POST the same queued answers (which would
+      double-append to the server's attempt log). Regression test added. (The
+      `PlayPage` `sessionRef` "stale closure" the audit flagged is a non-issue —
+      reading `.current` from a ref is the correct stale-closure-free pattern.)
+
+All audit follow-ups are now resolved.
 
 ## Features
 

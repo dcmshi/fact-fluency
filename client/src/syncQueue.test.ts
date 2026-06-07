@@ -60,6 +60,19 @@ describe('queued answers', () => {
     expect(await flushAnswers()).toBe(true);
     expect(answerMock).not.toHaveBeenCalled();
   });
+
+  it('serializes concurrent flushes so each answer is sent exactly once', async () => {
+    answerMock.mockResolvedValue({});
+    enqueueAnswer('s1', body('a'));
+    enqueueAnswer('s1', body('b'));
+
+    // Two near-simultaneous triggers (e.g. mount flush + an `online` event).
+    // Without the lock both would read [a, b] and send 4 requests.
+    await Promise.all([flushAnswers(), flushAnswers()]);
+
+    expect(answerMock).toHaveBeenCalledTimes(2);
+    expect(pendingCount()).toBe(0);
+  });
 });
 
 describe('flushAll', () => {

@@ -54,8 +54,21 @@ export function pendingCount(): number {
  * Replay queued answers in order, stopping at the first that still fails (almost
  * always = still offline) so ordering is preserved. Returns true if the queue
  * fully drained.
+ *
+ * Serialized: a mount flush, an `online` event, and the end-of-session flush can
+ * all fire near-simultaneously. Without a lock each would read the same queue
+ * snapshot and re-POST the same answers, double-appending to the server's
+ * append-only attempt log. Calls chain one after another and each re-reads the
+ * queue, so a later call only sends what an earlier one didn't drain.
  */
-export async function flushAnswers(): Promise<boolean> {
+let answersChain: Promise<boolean> = Promise.resolve(true);
+export function flushAnswers(): Promise<boolean> {
+  const run = answersChain.then(drainAnswers, drainAnswers);
+  answersChain = run.catch(() => false); // keep the chain alive past a failure
+  return run;
+}
+
+async function drainAnswers(): Promise<boolean> {
   const queue = read<PendingAnswer>(ANS_KEY);
   if (queue.length === 0) return true;
   for (let i = 0; i < queue.length; i++) {
