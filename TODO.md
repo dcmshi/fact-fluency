@@ -133,8 +133,11 @@ network-first and Vite content-hashes assets). What remains, verified:
 - [~] **Classroom mode** (DESIGN.md §9 "Later") — **deferred / out of scope.**
   The userbase is scoped to parents + kids (home) for now; revisit only if a
   school/teacher actually wants it (2026-06-07 decision).
-- [ ] **Parent email / progress reports** — ~M, in scope (parent-facing). Needs
-      an email provider; a weekly per-kid summary to the parent.
+- [~] **Parent email / progress reports** — **deferred.** A weekly per-kid
+  summary email is parent-facing and in-scope conceptually, but needs a paid
+  email provider + domain we don't want to take on at this stage (2026-06-07).
+  Revisit when there's budget/appetite. (Data export already covers manual
+  pull.)
 
 ### Speed / robustness — done (audit pass 4)
 
@@ -178,6 +181,71 @@ network-first and Vite content-hashes assets). What remains, verified:
       the service. Tested across spring-forward + fall-back and a non-UTC zone.
 - [x] **Engine test gaps.** Added a box-4 "correct but slow" case (stays box 4,
       due sooner via the half interval) and an `accuracyEwma`-trends-to-0 case.
+
+## Audit pass 5 (2026-06-07) — parents + kids lens
+
+Broad multi-angle audit scoped to the home parent+kids userbase (classroom out
+of scope). One agent finding was **discarded as a false positive**:
+"`deleteExpiredGuests` is never called" — it _is_ wired into the boot prune
+(`index.ts`). Verified, actionable findings below, by theme.
+
+### Account & data lifecycle (highest value — parent UX **and** privacy)
+
+- [ ] **Delete a kid profile** (+ cascade). No DELETE route exists; a parent
+      can't remove a profile (typo'd/duplicate/child no longer using it). FKs are
+      already `ON DELETE CASCADE`, so a `DELETE /profiles/:id` cleanly purges that
+      kid's progress/attempts/sessions/rewards. ~M, high value.
+- [ ] **Rename a kid profile.** `PATCH /profiles/:id` only edits settings, not
+      `displayName`/`avatar`. Add those. ~S.
+- [ ] **Delete account + all data** (right-to-erasure). No path to delete the
+      parent account and all kids' data. Cascade support exists; add a guarded
+      `DELETE /account` + a confirm UI. Important for a children's app. ~M.
+- [ ] **Edit account: email / password / timezone.** None are changeable after
+      signup. Timezone especially matters — it silently drives the whole due-date
+      schedule (§4.2), so a wrong one quietly breaks review timing. ~M.
+
+### Child privacy
+
+- [ ] **Self-host fonts (drop the Google Fonts CDN).** CSP allows
+      `fonts.googleapis.com`/`fonts.gstatic.com`; for a kids' app, bundling the
+      font files removes a third-party request/tracking surface entirely. ~S.
+- Notes (lower priority / partly by-design): attempt-log granularity has no
+  retention policy (fine at this scale); signup distinguishes
+  `invalid_email` vs `email_taken` (minor enumeration, accepted); a kid on the
+  parent's session can see siblings' profiles — inherent to the family-account
+  model (kids don't authenticate, §2), revisit only if it becomes a concern.
+
+### Kid experience / engagement
+
+- [ ] **Study-card wait is unclear.** The "Got it!" button shows "…" and is
+      disabled for 1.5s with no cue; a young kid may tap a dead button. Add a
+      visible "ready" cue / progress beat, friendlier copy. ~S.
+- [ ] **Warmer feedback after multiple wrong munches.** "Some were wrong — keep
+      going!" is a bit flat vs the §4.8 warm ethos. Soften. ~S.
+- [ ] **Close the coins→rewards loop.** Kids earn coins but the Rewards shop
+      isn't reachable from the play/summary flow; surface a "spend your coins"
+      affordance. ~S–M.
+- [ ] **Comparison-operator comprehension (`<`/`>`).** Pre-readers may not own
+      `<`/`>` semantics; consider a visual/number-line hint or gating `<`/`>` to
+      more advanced sets. ~M, validate with real kids.
+- [ ] **Relation variety.** `pickRelation` weights `=` ~2/3; verify it doesn't
+      feel repetitive over a session; rebalance if so. ~S.
+
+### Code health (small, from the regression sweep)
+
+- [ ] **RewardsModal swallows errors.** `act()` has try/finally, no catch — a
+      failed unlock/equip leaves the tile stuck with no message. Add error UI
+      (mirror the other modals' pattern). ~S.
+- [ ] **Export links surface errors as a file.** ProgressPage uses `<a download>`
+      to `/api/...export`; an error response downloads as a file instead of
+      showing a message. Switch to fetch→blob with error handling. ~S.
+- [ ] **Modal focus management.** Modals don't trap focus or restore it on close
+      (a11y). ~M.
+- [ ] **Remove dead `appendCards`** from `AnswerResponse` (never set/read; the
+      DESIGN §8 sketch mentions it but injects are what shipped). ~S.
+- [ ] **`invalid_settings` has no client message** — add it to the error map. ~S.
+- [ ] **Document the additive-columns sync** between `ADDITIVE_COLUMNS` (SQLite)
+      and `ADDITIVE_COLUMNS_PG` (a comment, so the two don't drift). ~S.
 
 ## Features
 
