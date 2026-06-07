@@ -115,3 +115,14 @@ CREATE TABLE IF NOT EXISTS profile_effect (
   effect     TEXT NOT NULL DEFAULT 'confetti'
 );
 `;
+
+/**
+ * Idempotent additive-column migrations, run after SCHEMA_PG on every boot.
+ * `CREATE TABLE IF NOT EXISTS` can't add a column to a table that already
+ * exists, so a column introduced after a DB was first created needs an explicit
+ * (IF NOT EXISTS) ALTER to backfill it. Append here when adding a column to an
+ * existing table.
+ */
+export const ADDITIVE_COLUMNS_PG: string[] = [
+  `ALTER TABLE account ADD COLUMN IF NOT EXISTS is_guest SMALLINT NOT NULL DEFAULT 0`,
+];

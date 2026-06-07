@@ -7,7 +7,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FactProgress, Operation, OperationStat, Profile, ProfileSettings } from '@shared';
 import type { AttemptRecord, Db, SessionRecord } from './index';
-import { SCHEMA_PG } from './schema.pg';
+import { ADDITIVE_COLUMNS_PG, SCHEMA_PG } from './schema.pg';
 
 /** A single checked-out connection — what `pool.connect()` returns. Needed for
  *  multi-statement transactions (a bare pool may route each query to a
@@ -44,6 +44,10 @@ export class PostgresDb implements Db {
 
   async migrate(): Promise<void> {
     await this.pool.query(SCHEMA_PG);
+    // Self-heal additive columns on a DB created before the column existed —
+    // CREATE TABLE IF NOT EXISTS can't add columns to an existing table. Each is
+    // idempotent (ADD COLUMN IF NOT EXISTS), so this is safe to run every boot.
+    for (const ddl of ADDITIVE_COLUMNS_PG) await this.pool.query(ddl);
   }
 
   private async rows<T = Record<string, unknown>>(

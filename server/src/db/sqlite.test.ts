@@ -1,3 +1,7 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FactProgress } from '@shared';
 import { SqliteDb } from './sqlite';
@@ -9,6 +13,30 @@ beforeEach(() => {
 });
 afterEach(async () => {
   await db.close();
+});
+
+describe('schema self-heal', () => {
+  it('backfills a missing additive column (is_guest) created before it existed', async () => {
+    const file = path.join(os.tmpdir(), `ff-heal-${process.pid}-${Date.now()}.sqlite`);
+    // Simulate an old DB whose account table predates the is_guest column.
+    const raw = new Database(file);
+    raw.exec(
+      `CREATE TABLE account (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE,
+         password_hash TEXT NOT NULL, timezone TEXT NOT NULL, created_at INTEGER NOT NULL)`,
+    );
+    raw.close();
+
+    // Opening the adapter applies the schema + heals additive columns.
+    const healed = new SqliteDb(file);
+    try {
+      // createGuestAccount INSERTs is_guest — it would throw if the heal hadn't run.
+      const id = await healed.createGuestAccount('UTC');
+      expect(await healed.isGuestAccount(id)).toBe(true);
+    } finally {
+      await healed.close();
+      for (const ext of ['', '-wal', '-shm']) fs.rmSync(file + ext, { force: true });
+    }
+  });
 });
 
 async function makeAccountAndProfile() {

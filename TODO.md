@@ -273,6 +273,13 @@ network-first and Vite content-hashes assets). What remains, verified:
 
 ## Deployment / ops
 
+- [x] **Self-healing migrations.** `migrate()` now backfills additive columns
+      on a DB created before the column existed (`CREATE TABLE IF NOT EXISTS`
+      can't add columns): Postgres via idempotent `ADD COLUMN IF NOT EXISTS`
+      (`ADDITIVE_COLUMNS_PG`), SQLite via a `PRAGMA table_info` check then
+      `ADD COLUMN` (`ADDITIVE_COLUMNS`). Fixes the live `account.is_guest` drift
+      from the partial DB reset — heals on the next deploy from inside Render
+      (external DB access is now firewalled). SQLite heal is unit-tested.
 - [x] First Render deploy via Blueprint (`render.yaml`) — live at
       https://fact-fluency.onrender.com. Verified end-to-end against the managed
       Postgres: signup (Secure cookie + SSL), profile, full session

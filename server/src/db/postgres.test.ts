@@ -24,6 +24,12 @@ async function accountAndProfile() {
 }
 
 describe('PostgresDb (pg-mem)', () => {
+  // Note: the additive-column self-heal (ADD COLUMN IF NOT EXISTS) can't be
+  // exercised here — pg-mem rejects a CREATE TABLE IF NOT EXISTS that becomes a
+  // no-op (it flags the "unread" constraints), so a second migrate() throws on
+  // pg-mem though real Postgres is fine. The heal logic is covered against the
+  // SQLite adapter (sqlite.test.ts) instead.
+
   it('migrates and round-trips an account + auth session', async () => {
     const accountId = await db.createAccount('p@home.test', 'argon', 'America/Toronto');
     expect(await db.findAccountByEmail('p@home.test')).toEqual({

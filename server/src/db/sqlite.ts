@@ -9,7 +9,7 @@ import path from 'node:path';
 import Database from 'better-sqlite3';
 import type { FactProgress, Operation, OperationStat, Profile, ProfileSettings } from '@shared';
 import type { AttemptRecord, Db, SessionRecord } from './index';
-import { SCHEMA } from './schema';
+import { ADDITIVE_COLUMNS, SCHEMA } from './schema';
 
 interface ProfileRow {
   id: string;
@@ -107,12 +107,24 @@ export class SqliteDb implements Db {
     this.db = new Database(filename);
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('foreign_keys = ON');
-    this.db.exec(SCHEMA);
+    this.applySchema();
   }
 
   // Schema is applied in the constructor; migrate() satisfies the interface.
   async migrate(): Promise<void> {
+    this.applySchema();
+  }
+
+  private applySchema(): void {
     this.db.exec(SCHEMA);
+    // Backfill additive columns on a DB predating them (SQLite has no
+    // ADD COLUMN IF NOT EXISTS, so check the table's columns first).
+    for (const { table, column, decl } of ADDITIVE_COLUMNS) {
+      const cols = this.db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+      if (!cols.some((c) => c.name === column)) {
+        this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${decl}`);
+      }
+    }
   }
 
   // --- accounts & auth ---
