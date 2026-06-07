@@ -80,7 +80,82 @@ the client-closure items are plausible and want a close read before changes.
       `PlayPage` `sessionRef` "stale closure" the audit flagged is a non-issue —
       reading `.current` from a ref is the correct stale-closure-free pattern.)
 
-All audit follow-ups are now resolved.
+All first-three-pass audit follow-ups are resolved.
+
+## Audit pass 4 (2026-06-07) — new backlog
+
+A fresh scan after the first three passes. Several headline findings were
+investigated and **dropped as non-issues**: the planner "recency guard" (the
+starter deck is dup-free by construction and re-shows are gapped by
+`REHEARSAL_GAP`), and service-worker "stale shell after deploy" (navigations are
+network-first and Vite content-hashes assets). What remains, verified:
+
+### Features
+
+- [ ] **Guest / "Play for fun" mode (no signup)** — _recommended next; user-requested._
+      Remove the signup gate: a "Play for fun" button mints an anonymous,
+      cookie-backed session (no email/password) with one default profile, reusing
+      the entire existing engine/scheduling/rewards stack. Progress lives
+      server-side keyed to the guest cookie, so it's "dropped" once the cookie/
+      session is cleared (and stale guest accounts get pruned like expired auth
+      sessions). Needs: `POST /api/auth/guest`, an `is_guest` account flag
+      (additive column; prod was just reset so a fresh schema is clean), a client
+      entry button, and a guest-prune job. ~M. See discussion below the TODO.
+- [ ] **Fact-family scheduling transfer** (DESIGN.md §9 "Later"). When a sub/div
+      fact reaches mastery, nudge its inverse sibling (`familyHint`) forward —
+      e.g. seed/boost the sibling's box or shorten its `dueAt`, one direction only
+      (sub→add, div→mul). Presentation-only framing already ships; this is the
+      scheduling half. ~M, high value.
+- [ ] **Cross-operation "next" suggestion.** `suggestNextSet` only advances within
+      an operation; once a kid's add sets are ≥80% mastered, suggest the easiest
+      set of the next operation. ~S.
+- [ ] **"All caught up" celebration.** `caughtUp` is computed + passed to the
+      client but only flips a flag; give it a distinct celebratory end screen with
+      an "ask a grown-up to add more" CTA. ~S.
+- [ ] **Data export (CSV/JSON).** `GET /profiles/:id/export` — attempts + progress
+      snapshot, for a tutor/parent. ~S.
+- [ ] **Classroom mode** (DESIGN.md §9 "Later") — many profiles, quick switch, a
+      teacher aggregate view. ~L. **Parent email/progress reports** — ~M. Both
+      are larger and lower-priority than the above.
+
+### Speed / robustness
+
+- [ ] **Index the due-count hot path.** `idx_progress_due` is `(profile_id,
+    due_at)` but `countDueReview` filters `box >= 1 AND due_at <= now` and
+      `countLearning` filters `box = 0` — both run on **every answer** (caughtUp).
+      Add `(profile_id, box, due_at)` (or a partial index). ~S.
+- [ ] **Parallelize independent reads in `answer()`.** It does ~5 sequential
+      awaits (getSession → requireOwnedProfile → getProgressForFact →
+      getOperationStat → getAccountTimezone) that don't depend on each other —
+      `Promise.all` would cut per-answer latency. ~S.
+- [ ] **Cap request body + array lengths.** `express.json()` has no `limit`, and
+      `setFactSets` validates element membership but not `enabledIds.length`
+      before the delete+insert transaction. Add `express.json({ limit })` and a
+      length bound. ~S, robustness.
+- [ ] **Handle concurrent session-start gracefully.** Two racing `startSession`
+      calls now both pass the open-session check and the 2nd hits the
+      `idx_session_one_open` unique constraint → an uncaught 500. Catch it and
+      resume the existing session (or return 409). ~M. (New consequence of the
+      one-open-session index.)
+- [ ] **Tighten remaining client-trusted inputs.** Bound/whitelist the `avatar`
+      string on profile create; clamp/validate `wrongMunches` like we did
+      `responseMs`. ~S, low value.
+
+### Client polish
+
+- [ ] **Lazy-load routes.** `App.tsx` eagerly imports all four pages into one
+      ~245 KB bundle; `React.lazy` + `Suspense` would trim first paint. ~S.
+- [ ] **Minor render/input hygiene.** `React.memo` the pure animation components
+      (`Confetti`, `CelebrationBurst`, `Muncher`); add `e.repeat` guards to the
+      key handlers; clean up the flash/burst `setTimeout`s on unmount (harmless in
+      React 18 but tidy). ~S, low value.
+
+### Engine (minor)
+
+- [ ] **DST day-boundary.** `dueAt` snapping can be off by up to an hour across a
+      DST transition; masked by ≥1-day box intervals, so very low impact. ~S.
+- [ ] **Engine test gaps.** Add cases: a box-4 "correct but slow" answer (stays,
+      half interval), and `accuracyEwma` trending toward 0 over repeated misses.
 
 ## Features
 
