@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Box, CellState, DashboardView, DayTrend, ProgressGrid } from '@shared';
@@ -27,6 +28,32 @@ export function ProgressPage() {
     queryKey: qk.progress(profileId),
     queryFn: () => api.progress(profileId),
   });
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  // Fetch the export with credentials so a server error shows a message instead
+  // of the browser downloading the error JSON as a file (which a naked
+  // <a download> would do).
+  async function download(format: 'csv' | 'json') {
+    setExportError(null);
+    try {
+      const res = await fetch(`/api/profiles/${profileId}/export?format=${format}`, {
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const blob = await res.blob();
+      const match = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = match?.[1] ?? `fact-fluency-export.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setExportError('Couldn’t export — try again.');
+    }
+  }
 
   return (
     <div className="screen">
@@ -70,13 +97,18 @@ export function ProgressPage() {
 
         <div className="export-row">
           <span className="muted">Export this profile’s data:</span>
-          <a className="btn ghost" href={`/api/profiles/${profileId}/export?format=csv`} download>
+          <button className="btn ghost" onClick={() => download('csv')}>
             CSV
-          </a>
-          <a className="btn ghost" href={`/api/profiles/${profileId}/export?format=json`} download>
+          </button>
+          <button className="btn ghost" onClick={() => download('json')}>
             JSON
-          </a>
+          </button>
         </div>
+        {exportError && (
+          <div className="error-banner" style={{ textAlign: 'center' }}>
+            {exportError}
+          </div>
+        )}
       </div>
     </div>
   );
