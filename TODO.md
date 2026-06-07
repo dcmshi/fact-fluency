@@ -39,9 +39,10 @@ the client-closure items are plausible and want a close read before changes.
       (replaces the two-await `completeSession`+`addCoins` in `complete()`).
 - [x] **Enforce "one active session" at the DB.** Partial unique index
       `idx_session_one_open ON session(profile_id) WHERE completed_at IS NULL` on
-      both schemas. Note: migrate() will throw on a live DB that already holds two
-      open sessions for one profile — app logic has always kept it to one, so the
-      Render data should be clean, but worth a glance before the next deploy.
+      both schemas. (Deploy note resolved: rather than pre-checking the live DB
+      for pre-existing duplicate open sessions, the plan is to reset the Render
+      database for the new schema — user count is still negligible — so migrate()
+      runs against an empty table.)
 - [x] **Memoize the static fact universe.** `generateFactsForSets()` caches
       per-set generation keyed by (operation, range); the dashboard's per-set loop
       and every session/progress build now reuse it.
