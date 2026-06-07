@@ -178,6 +178,28 @@ export class PostgresDb implements Db {
     return row?.timezone ?? null;
   }
 
+  async getAccount(accountId: string): Promise<{ email: string; timezone: string } | null> {
+    return this.one<{ email: string; timezone: string }>(
+      'SELECT email, timezone FROM account WHERE id = $1',
+      [accountId],
+    );
+  }
+
+  async updateAccountEmail(accountId: string, email: string): Promise<void> {
+    await this.pool.query('UPDATE account SET email = $1 WHERE id = $2', [email, accountId]);
+  }
+
+  async updateAccountPassword(accountId: string, passwordHash: string): Promise<void> {
+    await this.pool.query('UPDATE account SET password_hash = $1 WHERE id = $2', [
+      passwordHash,
+      accountId,
+    ]);
+  }
+
+  async updateAccountTimezone(accountId: string, timezone: string): Promise<void> {
+    await this.pool.query('UPDATE account SET timezone = $1 WHERE id = $2', [timezone, accountId]);
+  }
+
   async deleteAccount(accountId: string): Promise<void> {
     // Profiles + their data and auth sessions cascade via ON DELETE CASCADE.
     await this.pool.query('DELETE FROM account WHERE id = $1', [accountId]);

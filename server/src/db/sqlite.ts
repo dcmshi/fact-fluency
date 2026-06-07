@@ -216,6 +216,25 @@ export class SqliteDb implements Db {
     return row?.timezone ?? null;
   }
 
+  async getAccount(accountId: string): Promise<{ email: string; timezone: string } | null> {
+    const row = this.db
+      .prepare('SELECT email, timezone FROM account WHERE id = ?')
+      .get(accountId) as { email: string; timezone: string } | undefined;
+    return row ?? null;
+  }
+
+  async updateAccountEmail(accountId: string, email: string): Promise<void> {
+    this.db.prepare('UPDATE account SET email = ? WHERE id = ?').run(email, accountId);
+  }
+
+  async updateAccountPassword(accountId: string, passwordHash: string): Promise<void> {
+    this.db.prepare('UPDATE account SET password_hash = ? WHERE id = ?').run(passwordHash, accountId);
+  }
+
+  async updateAccountTimezone(accountId: string, timezone: string): Promise<void> {
+    this.db.prepare('UPDATE account SET timezone = ? WHERE id = ?').run(timezone, accountId);
+  }
+
   async deleteAccount(accountId: string): Promise<void> {
     // Everything under the account cascades (profiles → progress/sessions/...,
     // plus auth_session) via ON DELETE CASCADE.

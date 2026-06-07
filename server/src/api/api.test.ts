@@ -179,6 +179,47 @@ describe('auth', () => {
   it('rejects account deletion without auth', async () => {
     expect((await request(app).delete('/api/auth/account')).status).toBe(401);
   });
+
+  it('reads and edits account email / password / timezone', async () => {
+    const agent = request.agent(app);
+    await agent.post('/api/auth/signup').send(CREDS);
+
+    const acct = await agent.get('/api/auth/account');
+    expect(acct.body).toEqual({ email: CREDS.email, timezone: CREDS.timezone });
+
+    const patched = await agent
+      .patch('/api/auth/account')
+      .send({ email: 'new@home.test', timezone: 'UTC', password: 'newpassword1' });
+    expect(patched.status).toBe(200);
+    expect(patched.body).toEqual({ email: 'new@home.test', timezone: 'UTC' });
+
+    // New credentials work; old email is freed.
+    const relog = request.agent(app);
+    const ok = await relog
+      .post('/api/auth/login')
+      .send({ email: 'new@home.test', password: 'newpassword1' });
+    expect(ok.status).toBe(200);
+    expect(
+      (await request(app).post('/api/auth/login').send({ email: CREDS.email, password: CREDS.password }))
+        .status,
+    ).toBe(401);
+  });
+
+  it('rejects an account edit to a taken email and a weak password', async () => {
+    const a = request.agent(app);
+    await a.post('/api/auth/signup').send(CREDS);
+    const b = request.agent(app);
+    await b.post('/api/auth/signup').send({ ...CREDS, email: 'b@home.test' });
+
+    // b tries to take a's email.
+    expect((await b.patch('/api/auth/account').send({ email: CREDS.email })).body.error).toBe(
+      'email_taken',
+    );
+    expect((await b.patch('/api/auth/account').send({ password: 'short' })).status).toBe(400);
+    // Editing to your own email is fine (no false conflict).
+    expect((await b.patch('/api/auth/account').send({ email: 'b@home.test' })).status).toBe(200);
+    expect((await request(app).get('/api/auth/account')).status).toBe(401); // unauth
+  });
 });
 
 describe('profiles', () => {

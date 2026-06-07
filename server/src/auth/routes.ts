@@ -42,6 +42,7 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
   });
   const guestLimit = rateLimit({ windowMs: GUEST_WINDOW_MS, max: GUEST_MAX, keyPrefix: 'guest:' });
   const upgradeLimit = rateLimit({ windowMs: SIGNUP_WINDOW_MS, max: 10, keyPrefix: 'upgrade:' });
+  const accountLimit = rateLimit({ windowMs: SIGNUP_WINDOW_MS, max: 20, keyPrefix: 'account:' });
 
   // A throwaway hash to verify against when the email is unknown, so a missing
   // account costs the same argon2 time as a wrong password (no timing oracle).
@@ -139,6 +140,56 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
       }
       await startSession(account.id, res);
       return res.json({ accountId: account.id, email });
+    } catch (err) {
+      return next(err);
+    }
+  });
+
+  // Current account fields (for the account screen). No password hash.
+  router.get('/account', requireAuth, async (req, res, next) => {
+    try {
+      const account = await db.getAccount(req.accountId!);
+      if (!account) return res.status(404).json({ error: 'not_found' });
+      return res.json(account);
+    } catch (err) {
+      return next(err);
+    }
+  });
+
+  // Edit account: any of email / password / timezone.
+  router.patch('/account', requireAuth, accountLimit, async (req, res, next) => {
+    try {
+      const { email, password, timezone } = req.body ?? {};
+      let touched = false;
+
+      if ('email' in (req.body ?? {})) {
+        if (typeof email !== 'string' || !EMAIL_RE.test(email)) {
+          return res.status(400).json({ error: 'invalid_email' });
+        }
+        const existing = await db.findAccountByEmail(email);
+        if (existing && existing.id !== req.accountId) {
+          return res.status(409).json({ error: 'email_taken' });
+        }
+        await db.updateAccountEmail(req.accountId!, email);
+        touched = true;
+      }
+      if ('password' in (req.body ?? {})) {
+        if (typeof password !== 'string' || password.length < MIN_PASSWORD) {
+          return res.status(400).json({ error: 'weak_password' });
+        }
+        await db.updateAccountPassword(req.accountId!, await hashPassword(password));
+        touched = true;
+      }
+      if ('timezone' in (req.body ?? {})) {
+        if (typeof timezone !== 'string' || !timezone) {
+          return res.status(400).json({ error: 'invalid_timezone' });
+        }
+        await db.updateAccountTimezone(req.accountId!, timezone);
+        touched = true;
+      }
+
+      if (!touched) return res.status(400).json({ error: 'nothing_to_update' });
+      return res.json(await db.getAccount(req.accountId!));
     } catch (err) {
       return next(err);
     }

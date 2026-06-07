@@ -56,6 +56,11 @@ export interface Db {
   deleteExpiredGuests(now: number): Promise<number>;
 
   getAccountTimezone(accountId: string): Promise<string | null>;
+  /** Account fields a parent can view/edit (no password hash). */
+  getAccount(accountId: string): Promise<{ email: string; timezone: string } | null>;
+  updateAccountEmail(accountId: string, email: string): Promise<void>;
+  updateAccountPassword(accountId: string, passwordHash: string): Promise<void>;
+  updateAccountTimezone(accountId: string, timezone: string): Promise<void>;
   /** Delete an account and (via ON DELETE CASCADE) every profile, session,
    *  attempt, reward, and auth session under it. Right-to-erasure. */
   deleteAccount(accountId: string): Promise<void>;

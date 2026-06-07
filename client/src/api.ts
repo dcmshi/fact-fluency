@@ -55,6 +55,9 @@ export const api = {
     req<{ accountId: string; profileId: string; guest: true }>('POST', '/auth/guest', { timezone }),
   upgrade: (email: string, password: string) =>
     req<{ accountId: string; email: string }>('POST', '/auth/upgrade', { email, password }),
+  account: () => req<{ email: string; timezone: string }>('GET', '/auth/account'),
+  updateAccount: (fields: { email?: string; password?: string; timezone?: string }) =>
+    req<{ email: string; timezone: string }>('PATCH', '/auth/account', fields),
   deleteAccount: () => req<void>('DELETE', '/auth/account'),
   logout: () => req<void>('POST', '/auth/logout'),
 

@@ -189,20 +189,21 @@ of scope). One agent finding was **discarded as a false positive**:
 "`deleteExpiredGuests` is never called" — it _is_ wired into the boot prune
 (`index.ts`). Verified, actionable findings below, by theme.
 
-### Account & data lifecycle (highest value — parent UX **and** privacy)
+### Account & data lifecycle — done (highest value — parent UX **and** privacy)
 
-- [ ] **Delete a kid profile** (+ cascade). No DELETE route exists; a parent
-      can't remove a profile (typo'd/duplicate/child no longer using it). FKs are
-      already `ON DELETE CASCADE`, so a `DELETE /profiles/:id` cleanly purges that
-      kid's progress/attempts/sessions/rewards. ~M, high value.
-- [ ] **Rename a kid profile.** `PATCH /profiles/:id` only edits settings, not
-      `displayName`/`avatar`. Add those. ~S.
-- [ ] **Delete account + all data** (right-to-erasure). No path to delete the
-      parent account and all kids' data. Cascade support exists; add a guarded
-      `DELETE /account` + a confirm UI. Important for a children's app. ~M.
-- [ ] **Edit account: email / password / timezone.** None are changeable after
-      signup. Timezone especially matters — it silently drives the whole due-date
-      schedule (§4.2), so a wrong one quietly breaks review timing. ~M.
+- [x] **Delete a kid profile** (+ cascade) — `DELETE /profiles/:id`
+      (ownership-checked) → `db.deleteProfile`; purges that kid's data via the
+      existing FKs. Confirm-gated in the Settings modal. Verified in-browser.
+- [x] **Rename a kid profile** — `PATCH /profiles/:id` is now a partial edit of
+      displayName / avatar / settings; the Settings modal gained a name field +
+      avatar picker.
+- [x] **Delete account + all data** (right-to-erasure) — `DELETE /auth/account`
+      cascades everything + clears the cookie; an "Account" button → confirm UI.
+      Verified in-browser (delete → routed to sign-in; email freed).
+- [x] **Edit account: email / password / timezone** — `GET`/`PATCH
+    /auth/account` (rate-limited; email-taken + weak-password guards). The
+      Account modal prefills email + timezone (IANA `<select>`), password
+      optional. Fixes the silent wrong-timezone scheduling trap. Verified.
 
 ### Child privacy
 
