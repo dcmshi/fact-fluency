@@ -6,6 +6,9 @@ set -e
 echo "pre-commit › lint"
 npm run lint
 
+echo "pre-commit › format"
+npm run format
+
 echo "pre-commit › typecheck"
 npm run typecheck
 
