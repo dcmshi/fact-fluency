@@ -130,9 +130,11 @@ network-first and Vite content-hashes assets). What remains, verified:
 - [x] **Data export (CSV/JSON)** — _done._ `GET /profiles/:id/export?format=csv|json`
       (`export.ts`): JSON = profile + full progress + attempt log; CSV = the
       attempt log (RFC-4180 escaped). Download links on the Progress page. HTTP-tested.
-- [ ] **Classroom mode** (DESIGN.md §9 "Later") — many profiles, quick switch, a
-      teacher aggregate view. ~L. **Parent email/progress reports** — ~M. Both
-      are larger and lower-priority than the above.
+- [~] **Classroom mode** (DESIGN.md §9 "Later") — **deferred / out of scope.**
+  The userbase is scoped to parents + kids (home) for now; revisit only if a
+  school/teacher actually wants it (2026-06-07 decision).
+- [ ] **Parent email / progress reports** — ~M, in scope (parent-facing). Needs
+      an email provider; a weekly per-kid summary to the parent.
 
 ### Speed / robustness — done (audit pass 4)
 
