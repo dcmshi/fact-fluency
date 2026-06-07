@@ -8,8 +8,6 @@
  */
 import type { Box, FactState } from '@shared';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 /** Days until a fact in a given box is due again. Box 0 is in-session only. */
 export const BOX_INTERVAL_DAYS: Record<Box, number> = {
   0: 0,
@@ -27,15 +25,69 @@ export function stateForBox(box: Box): FactState {
 }
 
 /**
- * Start of the next calendar day after `days` days, in a timezone given as a
- * fixed UTC offset in minutes (DESIGN.md §4.2 — intervals ≥ 1 day snap to a
- * calendar boundary in the account's timezone). Offset 0 = UTC.
+ * Minutes east of UTC for an IANA `timeZone` at a given instant — DST-aware
+ * (the offset is sampled at `atMs`, not assumed constant). Pure: the instant is
+ * passed in. Falls back to UTC for an unrecognized zone.
  */
-function startOfDayAfter(now: number, days: number, tzOffsetMin: number): number {
-  const shifted = now + tzOffsetMin * 60 * 1000;
-  const localMidnight = Math.floor(shifted / DAY_MS) * DAY_MS;
-  const targetLocalMidnight = localMidnight + days * DAY_MS;
-  return targetLocalMidnight - tzOffsetMin * 60 * 1000;
+export function tzOffsetMinutes(timeZone: string, atMs: number): number {
+  try {
+    // Read the zone's wall-clock at `atMs` via Intl parts (machine-tz
+    // independent), treat those fields as UTC, and diff against the real instant.
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hour12: false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).formatToParts(new Date(atMs));
+    const get = (type: string) => Number(parts.find((p) => p.type === type)!.value);
+    const hour = get('hour') % 24; // some engines render midnight as "24"
+    const asUtc = Date.UTC(
+      get('year'),
+      get('month') - 1,
+      get('day'),
+      hour,
+      get('minute'),
+      get('second'),
+    );
+    return Math.round((asUtc - atMs) / 60_000); // minutes east of UTC
+  } catch {
+    return 0;
+  }
+}
+
+/** The local calendar date (y, m, d) of an instant in a zone. */
+function localYMD(timeZone: string, atMs: number): { y: number; m: number; d: number } {
+  let iso: string;
+  try {
+    iso = new Date(atMs).toLocaleDateString('en-CA', { timeZone }); // YYYY-MM-DD
+  } catch {
+    iso = new Date(atMs).toISOString().slice(0, 10);
+  }
+  const [y, m, d] = iso.split('-').map(Number);
+  return { y, m, d };
+}
+
+/**
+ * Start of the calendar day `days` days after `now`, in an IANA `timeZone`
+ * (DESIGN.md §4.2 — intervals ≥ 1 day snap to a calendar boundary in the
+ * account's timezone). DST-correct: the target day's own offset is used, so a
+ * due date that crosses a transition still lands on local midnight rather than
+ * drifting ±1h. Returns the UTC epoch-ms of that local midnight.
+ */
+function startOfDayAfter(now: number, days: number, timeZone: string): number {
+  const { y, m, d } = localYMD(timeZone, now);
+  // The target wall-clock midnight treated as if it were UTC (Date.UTC rolls
+  // month/year overflow); local 00:00 in UTC = wall − offset(at that instant).
+  const wall = Date.UTC(y, m - 1, d + days);
+  // Solve t = wall − offset(t) with one fixed-point step — offsets shift by ≤1h
+  // and sampling at the first estimate lands in the correct DST period even on a
+  // spring-forward/fall-back day (where noon would be the wrong side).
+  const t0 = wall - tzOffsetMinutes(timeZone, wall) * 60_000;
+  return wall - tzOffsetMinutes(timeZone, t0) * 60_000;
 }
 
 /**
@@ -44,10 +96,10 @@ function startOfDayAfter(now: number, days: number, tzOffsetMin: number): number
  * result still snaps to a day boundary so review feels like "tomorrow", not
  * "23 hours from now".
  */
-export function dueAtForBox(box: Box, now: number, tzOffsetMin = 0, fraction = 1): number {
+export function dueAtForBox(box: Box, now: number, timeZone = 'UTC', fraction = 1): number {
   if (box === 0) return now; // handled by the in-session queue; due "next session"
   const days = Math.max(1, Math.round(BOX_INTERVAL_DAYS[box] * fraction));
-  return startOfDayAfter(now, days, tzOffsetMin);
+  return startOfDayAfter(now, days, timeZone);
 }
 
 export interface Transition {

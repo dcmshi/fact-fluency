@@ -36,7 +36,7 @@ function grade(over: Partial<GradeInput>): ReturnType<typeof gradeAnswer> {
     progress: null,
     stat: stat(),
     inSessionCorrect: 0,
-    tzOffsetMin: 0,
+    timeZone: 'UTC',
     ...over,
   });
 }
@@ -79,6 +79,21 @@ describe('review transitions', () => {
     expect(r.progress.box).toBe(1);
     expect(r.requeue).toBe(true);
     expect(r.progress.correctStreak).toBe(0);
+  });
+
+  it('keeps a box-4 fact in box 4 on correct-but-slow, due sooner (half interval)', () => {
+    const fast = grade({ responseMs: 1500, progress: reviewProgress({ box: 4 }) }); // promotes to 5
+    const slow = grade({
+      responseMs: 9000,
+      progress: reviewProgress({ box: 4 }),
+      stat: stat({ medianMsEwma: 2000, correctSamples: COLD_START_SAMPLES }), // tight threshold → slow
+    });
+    expect(slow.fast).toBe(false);
+    expect(slow.progress.box).toBe(4); // stays
+    expect(slow.requeue).toBe(false);
+    // Half interval → due strictly sooner than the promoted (box 5) fact's due.
+    expect(slow.progress.dueAt).toBeGreaterThan(NOW);
+    expect(slow.progress.dueAt).toBeLessThan(fast.progress.dueAt);
   });
 });
 
@@ -128,5 +143,18 @@ describe('stat & progress bookkeeping', () => {
     expect(r.progress.reps).toBe(5);
     expect(r.progress.fastCorrect).toBe(3);
     expect(r.progress.correctStreak).toBe(2);
+  });
+
+  it('trends accuracyEwma toward 0 over repeated wrong answers', () => {
+    let progress = reviewProgress({ box: 3, accuracyEwma: 1 });
+    const seen: number[] = [];
+    for (let i = 0; i < 8; i++) {
+      progress = grade({ correct: false, progress }).progress;
+      seen.push(progress.accuracyEwma);
+    }
+    // Strictly decreasing and approaching 0 (never negative).
+    for (let i = 1; i < seen.length; i++) expect(seen[i]).toBeLessThan(seen[i - 1]);
+    expect(seen.at(-1)!).toBeGreaterThanOrEqual(0);
+    expect(seen.at(-1)!).toBeLessThan(0.25);
   });
 });

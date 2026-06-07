@@ -181,7 +181,7 @@ export function familyTransfer(args: {
   /** The sibling's current progress, or null if unseen. */
   siblingProgress: FactProgress | null;
   now: number;
-  tzOffsetMin?: number;
+  timeZone?: string;
 }): FactProgress | null {
   const siblingId = siblingFactId(args.fact);
   if (!siblingId) return null; // base op — nothing to seed
@@ -194,7 +194,7 @@ export function familyTransfer(args: {
     factId: siblingId,
     box,
     state: stateForBox(box),
-    dueAt: dueAtForBox(box, args.now, args.tzOffsetMin ?? 0, 1),
+    dueAt: dueAtForBox(box, args.now, args.timeZone ?? 'UTC', 1),
     lastSeenAt: args.now,
     reps: 0,
     fastCorrect: 0,

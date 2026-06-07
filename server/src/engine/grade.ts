@@ -20,7 +20,8 @@ export interface GradeInput {
   stat: OperationStat;
   /** In-session correct counter for this fact (box-0 graduation, §4.3). */
   inSessionCorrect: number;
-  tzOffsetMin: number;
+  /** Account IANA timezone — day-interval dueAts snap to its calendar (§4.2). */
+  timeZone: string;
 }
 
 export interface GradeResult {
@@ -50,7 +51,7 @@ function baseProgress(profileId: string, factId: string): FactProgress {
 }
 
 export function gradeAnswer(input: GradeInput): GradeResult {
-  const { fact, correct, responseMs, now, stat, tzOffsetMin } = input;
+  const { fact, correct, responseMs, now, stat, timeZone } = input;
   const prev = input.progress ?? baseProgress(stat.profileId, fact.id);
 
   const threshold = fluencyThreshold(fact.operation, stat);
@@ -78,7 +79,7 @@ export function gradeAnswer(input: GradeInput): GradeResult {
   // dueAt: box 0 is in-session ("next session"); boxes ≥ 1 use their interval,
   // halved on a correct-but-slow answer to bring it forward.
   const fraction = prev.box >= 1 && correct && !fast ? 0.5 : 1;
-  const dueAt = box === 0 ? now : dueAtForBox(box, now, tzOffsetMin, fraction);
+  const dueAt = box === 0 ? now : dueAtForBox(box, now, timeZone, fraction);
 
   const nextStat = correct ? updateOperationStat(stat, responseMs) : stat;
 

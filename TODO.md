@@ -164,12 +164,18 @@ network-first and Vite content-hashes assets). What remains, verified:
       handlers (discrete presses, no auto-repeat); flash/burst/complete timeouts
       tracked and cleared on round unmount.
 
-### Engine (minor)
+### Engine (minor) — done (audit pass 4)
 
-- [ ] **DST day-boundary.** `dueAt` snapping can be off by up to an hour across a
-      DST transition; masked by ≥1-day box intervals, so very low impact. ~S.
-- [ ] **Engine test gaps.** Add cases: a box-4 "correct but slow" answer (stays,
-      half interval), and `accuracyEwma` trending toward 0 over repeated misses.
+- [x] **DST day-boundary.** Day-interval `dueAt` snapping is now timezone-aware
+      end to end: the engine takes the IANA zone (not a snapshot offset number)
+      and `startOfDayAfter` solves for the target day's _own_ offset (one
+      fixed-point step), so a due date crossing a DST transition lands on local
+      midnight instead of drifting ±1h. `tzOffsetMinutes` moved into the engine
+      and rebuilt on `Intl.formatToParts` (machine-tz independent). Threaded
+      through `gradeAnswer`/`familyTransfer` (now take `timeZone`), simplifying
+      the service. Tested across spring-forward + fall-back and a non-UTC zone.
+- [x] **Engine test gaps.** Added a box-4 "correct but slow" case (stays box 4,
+      due sooner via the half interval) and an `accuracyEwma`-trends-to-0 case.
 
 ## Features
 

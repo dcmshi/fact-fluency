@@ -20,22 +20,51 @@ describe('stateForBox', () => {
 describe('dueAtForBox', () => {
   it('snaps to a calendar-day boundary (UTC) N days out', () => {
     const noonDay0 = 12 * 60 * 60 * 1000; // 1970-01-01 12:00 UTC
-    const due = dueAtForBox(1, noonDay0, 0);
+    const due = dueAtForBox(1, noonDay0, 'UTC');
     expect(due).toBe(1 * DAY); // start of 1970-01-02
   });
 
   it('uses the box interval for the day count', () => {
     const noonDay0 = 12 * 60 * 60 * 1000;
-    expect(dueAtForBox(3, noonDay0, 0)).toBe(BOX_INTERVAL_DAYS[3] * DAY);
-    expect(dueAtForBox(5, noonDay0, 0)).toBe(BOX_INTERVAL_DAYS[5] * DAY);
+    expect(dueAtForBox(3, noonDay0, 'UTC')).toBe(BOX_INTERVAL_DAYS[3] * DAY);
+    expect(dueAtForBox(5, noonDay0, 'UTC')).toBe(BOX_INTERVAL_DAYS[5] * DAY);
   });
 
   it('brings the due date forward for the half-interval (slow) case', () => {
     const noonDay0 = 12 * 60 * 60 * 1000;
-    const full = dueAtForBox(4, noonDay0, 0, 1); // 8 days
-    const half = dueAtForBox(4, noonDay0, 0, 0.5); // ~4 days
+    const full = dueAtForBox(4, noonDay0, 'UTC', 1); // 8 days
+    const half = dueAtForBox(4, noonDay0, 'UTC', 0.5); // ~4 days
     expect(half).toBeLessThan(full);
     expect(half).toBe(4 * DAY);
+  });
+
+  it('snaps to local midnight across a DST transition (no ±1h drift)', () => {
+    const tz = 'America/New_York';
+    const localDate = (ms: number) => new Date(ms).toLocaleDateString('en-CA', { timeZone: tz });
+    const localTime = (ms: number) =>
+      new Date(ms).toLocaleTimeString('en-GB', { timeZone: tz, hour12: false });
+
+    // Spring forward: 2025-03-09 02:00 EST → 03:00 EDT. A 1-day due from the day
+    // before must land on local midnight 03-09, not 11pm/1am.
+    const beforeSpring = Date.parse('2025-03-08T17:00:00Z'); // 12:00 ET
+    const springDue = dueAtForBox(1, beforeSpring, tz);
+    expect(localDate(springDue)).toBe('2025-03-09');
+    expect(localTime(springDue)).toBe('00:00:00');
+
+    // Fall back: 2025-11-02 02:00 EDT → 01:00 EST.
+    const beforeFall = Date.parse('2025-11-01T16:00:00Z'); // 12:00 ET
+    const fallDue = dueAtForBox(1, beforeFall, tz);
+    expect(localDate(fallDue)).toBe('2025-11-02');
+    expect(localTime(fallDue)).toBe('00:00:00');
+  });
+
+  it('honors a non-UTC zone for the day boundary', () => {
+    // 1970-01-01 23:00 UTC is already 1970-01-02 in Tokyo (UTC+9); +1 day → 01-03.
+    const due = dueAtForBox(1, Date.parse('1970-01-01T23:00:00Z'), 'Asia/Tokyo');
+    expect(new Date(due).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' })).toBe(
+      '1970-01-03',
+    );
+    expect(new Date(due).toLocaleTimeString('en-GB', { timeZone: 'Asia/Tokyo' })).toBe('00:00:00');
   });
 });
 

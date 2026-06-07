@@ -57,18 +57,6 @@ const zeroStat = (profileId: string, operation: Operation): OperationStat => ({
   correctSamples: 0,
 });
 
-/** Minutes east of UTC for an IANA timezone at a given instant (DST-aware). */
-function tzOffsetMinutes(timeZone: string, atMs: number): number {
-  try {
-    const d = new Date(atMs);
-    const utc = new Date(d.toLocaleString('en-US', { timeZone: 'UTC' }));
-    const local = new Date(d.toLocaleString('en-US', { timeZone }));
-    return Math.round((local.getTime() - utc.getTime()) / 60000);
-  } catch {
-    return 0;
-  }
-}
-
 /** Calendar day (YYYY-MM-DD) for an instant in a timezone. en-CA yields ISO. */
 export function dayInTz(timeZone: string, atMs: number): string {
   try {
@@ -278,7 +266,7 @@ export async function answer(
     progress,
     stat,
     inSessionCorrect: ws.learning[body.factId] ?? 0,
-    tzOffsetMin: tzOffsetMinutes(timezone, now),
+    timeZone: timezone,
   });
 
   await db.upsertProgress(result.progress);
@@ -296,7 +284,7 @@ export async function answer(
       profileId,
       siblingProgress,
       now,
-      tzOffsetMin: tzOffsetMinutes(timezone, now),
+      timeZone: timezone,
     });
     if (seeded) await db.upsertProgress(seeded);
   }
