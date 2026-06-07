@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { FactSet, Profile, ProfileSettings, RewardItem } from '@shared';
 import { api, ApiError, qk } from '../api';
 import { useAuth } from '../auth';
@@ -35,6 +35,16 @@ export function ProfilesPage() {
     queryKey: qk.profiles,
     queryFn: () => api.listProfiles().then((r) => r.profiles),
   });
+
+  // Deep link from the play summary's "Spend coins" → open the kid's Rewards.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const rid = searchParams.get('rewards');
+    if (!rid || !profiles) return;
+    const p = profiles.find((x) => x.id === rid);
+    if (p) setRewardsFor(p);
+    setSearchParams({}, { replace: true }); // consume the param
+  }, [searchParams, profiles, setSearchParams]);
 
   return (
     <div className="screen">

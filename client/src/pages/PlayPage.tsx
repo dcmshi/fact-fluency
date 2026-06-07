@@ -322,6 +322,11 @@ export function PlayPage() {
             <Stat label="Coins +" value={summary.pointsEarned} accent />
           </div>
           <div className="coin-total">⭐ {summary.coins} coins to spend in Rewards</div>
+          {summary.coins > 0 && (
+            <button className="btn ghost" onClick={() => navigate(`/?rewards=${profileId}`)}>
+              ⭐ Spend coins
+            </button>
+          )}
           {summary.allMastered ? (
             <>
               <button className="btn sun full" onClick={() => navigate('/')}>
