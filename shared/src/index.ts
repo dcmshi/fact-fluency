@@ -205,7 +205,6 @@ export interface AnswerResponse {
   fast: boolean;
   updatedProgress: FactProgress;
   injects?: Inject[];
-  appendCards?: Card[];
   /** True the moment the due queue empties — triggers "all caught up" (§4.10). */
   caughtUp?: boolean;
 }
