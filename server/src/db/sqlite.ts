@@ -277,6 +277,11 @@ export class SqliteDb implements Db {
     this.db.prepare('UPDATE profile SET avatar = ? WHERE id = ?').run(avatar, profileId);
   }
 
+  async deleteProfile(profileId: string): Promise<void> {
+    // Child rows cascade (foreign_keys pragma is ON; FKs are ON DELETE CASCADE).
+    this.db.prepare('DELETE FROM profile WHERE id = ?').run(profileId);
+  }
+
   // --- rewards ---
 
   async getProfileReward(profileId: string): Promise<{ coins: number; theme: string }> {

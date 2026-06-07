@@ -112,6 +112,17 @@ export function createProfileRouter(db: Db): Router {
     }
   });
 
+  // Delete a kid profile and all its data (cascades). Ownership-checked by
+  // `owned`; 404 for a foreign/missing profile.
+  router.delete('/:id', owned, async (req, res, next) => {
+    try {
+      await db.deleteProfile(req.params.id);
+      return res.status(204).end();
+    } catch (err) {
+      return next(err);
+    }
+  });
+
   router.get('/:id/factsets', owned, async (req, res, next) => {
     try {
       const enabledIds = await db.listEnabledSetIds(req.params.id);

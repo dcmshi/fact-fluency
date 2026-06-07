@@ -198,6 +198,29 @@ describe('profiles', () => {
     expect(factsets.body.enabledIds.sort()).toEqual(['add-0-10', 'mul-0-5']);
   });
 
+  it('deletes a profile (and it disappears from the list)', async () => {
+    const agent = await authed();
+    const a = await agent.post('/api/profiles').send({ displayName: 'A', avatar: '🦊' });
+    const b = await agent.post('/api/profiles').send({ displayName: 'B', avatar: '🐼' });
+
+    expect((await agent.delete(`/api/profiles/${a.body.profile.id}`)).status).toBe(204);
+
+    const list = await agent.get('/api/profiles');
+    expect(list.body.profiles.map((p: { id: string }) => p.id)).toEqual([b.body.profile.id]);
+    // The deleted profile is gone (its routes 404).
+    expect((await agent.get(`/api/profiles/${a.body.profile.id}/factsets`)).status).toBe(404);
+  });
+
+  it("won't delete another account's profile", async () => {
+    const agent = await authed();
+    const mine = await agent.post('/api/profiles').send({ displayName: 'Kid', avatar: '🦊' });
+    const other = request.agent(app);
+    await other.post('/api/auth/signup').send({ ...CREDS, email: 'other@home.test' });
+    expect((await other.delete(`/api/profiles/${mine.body.profile.id}`)).status).toBe(404);
+    // Still there for the owner.
+    expect((await agent.get('/api/profiles')).body.profiles).toHaveLength(1);
+  });
+
   it('enables a grade band’s sets at creation, falling back to default', async () => {
     const agent = await authed();
     const g3 = await agent

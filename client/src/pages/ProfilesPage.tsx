@@ -336,6 +336,7 @@ function SettingsModal({
 }) {
   const queryClient = useQueryClient();
   const [values, setValues] = useState<ProfileSettings>(profile.settings);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const outOfRange = SETTING_FIELDS.some(({ key, min, max }) => {
     const v = values[key];
@@ -349,7 +350,14 @@ function SettingsModal({
       onSaved();
     },
   });
-  const busy = saveMut.isPending;
+  const deleteMut = useMutation({
+    mutationFn: () => api.deleteProfile(profile.id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.profiles });
+      onClose();
+    },
+  });
+  const busy = saveMut.isPending || deleteMut.isPending;
 
   function save() {
     if (outOfRange) return;
@@ -375,8 +383,36 @@ function SettingsModal({
         </div>
       ))}
       <button className="btn sun full" disabled={busy || outOfRange} onClick={save}>
-        {busy ? 'Saving…' : 'Save'}
+        {saveMut.isPending ? 'Saving…' : 'Save'}
       </button>
+
+      <div className="danger-zone">
+        {deleteMut.isError && <div className="error-banner">Couldn’t delete — try again.</div>}
+        {!confirmingDelete ? (
+          <button className="btn danger-link" onClick={() => setConfirmingDelete(true)}>
+            Delete {profile.displayName}’s profile
+          </button>
+        ) : (
+          <div className="confirm-delete">
+            <p className="muted">
+              Delete <strong>{profile.displayName}</strong> and all their progress? This can’t be
+              undone.
+            </p>
+            <div className="confirm-actions">
+              <button
+                className="btn ghost"
+                disabled={busy}
+                onClick={() => setConfirmingDelete(false)}
+              >
+                Cancel
+              </button>
+              <button className="btn danger" disabled={busy} onClick={() => deleteMut.mutate()}>
+                {deleteMut.isPending ? 'Deleting…' : 'Delete forever'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </Modal>
   );
 }

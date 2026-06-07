@@ -65,6 +65,9 @@ export interface Db {
   ): Promise<Profile>;
   updateProfileSettings(profileId: string, settings: ProfileSettings): Promise<Profile>;
   updateProfileAvatar(profileId: string, avatar: string): Promise<void>;
+  /** Delete a profile and (via ON DELETE CASCADE) all its progress, attempts,
+   *  sessions, and rewards. */
+  deleteProfile(profileId: string): Promise<void>;
 
   // --- rewards (roadmap v1.1) ---
   getProfileReward(profileId: string): Promise<{ coins: number; theme: string }>;

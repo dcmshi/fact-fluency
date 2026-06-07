@@ -66,6 +66,7 @@ export const api = {
     req<{ profile: Profile }>('POST', '/profiles', { displayName, avatar, gradeBand }),
   updateSettings: (profileId: string, settings: Partial<ProfileSettings>) =>
     req<{ profile: Profile }>('PATCH', `/profiles/${profileId}`, { settings }),
+  deleteProfile: (profileId: string) => req<void>('DELETE', `/profiles/${profileId}`),
   getFactSets: (profileId: string) =>
     req<{ catalog: FactSet[]; enabledIds: string[] }>('GET', `/profiles/${profileId}/factsets`),
   setFactSets: (profileId: string, enabledIds: string[]) =>

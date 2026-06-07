@@ -225,6 +225,11 @@ export class PostgresDb implements Db {
     await this.pool.query('UPDATE profile SET avatar = $1 WHERE id = $2', [avatar, profileId]);
   }
 
+  async deleteProfile(profileId: string): Promise<void> {
+    // Child rows cascade via ON DELETE CASCADE.
+    await this.pool.query('DELETE FROM profile WHERE id = $1', [profileId]);
+  }
+
   // --- rewards ---
 
   async getProfileReward(profileId: string): Promise<{ coins: number; theme: string }> {
