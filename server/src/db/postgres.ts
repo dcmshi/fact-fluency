@@ -221,6 +221,13 @@ export class PostgresDb implements Db {
     return profile;
   }
 
+  async updateProfileName(profileId: string, displayName: string): Promise<void> {
+    await this.pool.query('UPDATE profile SET display_name = $1 WHERE id = $2', [
+      displayName,
+      profileId,
+    ]);
+  }
+
   async updateProfileAvatar(profileId: string, avatar: string): Promise<void> {
     await this.pool.query('UPDATE profile SET avatar = $1 WHERE id = $2', [avatar, profileId]);
   }

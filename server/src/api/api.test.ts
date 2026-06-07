@@ -261,6 +261,26 @@ describe('profiles', () => {
     ).toBe(400);
   });
 
+  it('renames a profile (displayName + avatar) and rejects an empty name', async () => {
+    const agent = await authed();
+    const { body } = await agent.post('/api/profiles').send({ displayName: 'Kd', avatar: '🦊' });
+    const id = body.profile.id;
+
+    const renamed = await agent
+      .patch(`/api/profiles/${id}`)
+      .send({ displayName: 'Kid', avatar: '🐼' });
+    expect(renamed.status).toBe(200);
+    expect(renamed.body.profile.displayName).toBe('Kid');
+    expect(renamed.body.profile.avatar).toBe('🐼');
+    // Settings untouched by a name-only edit.
+    expect(renamed.body.profile.settings.sessionCards).toBe(20);
+
+    expect((await agent.patch(`/api/profiles/${id}`).send({ displayName: '   ' })).status).toBe(
+      400,
+    );
+    expect((await agent.patch(`/api/profiles/${id}`).send({})).status).toBe(400); // nothing_to_update
+  });
+
   it('patches session settings (partial merge) and rejects bad values', async () => {
     const agent = await authed();
     const { body } = await agent.post('/api/profiles').send({ displayName: 'Kid', avatar: '🦊' });

@@ -335,6 +335,8 @@ function SettingsModal({
   onSaved: () => void;
 }) {
   const queryClient = useQueryClient();
+  const [name, setName] = useState(profile.displayName);
+  const [avatar, setAvatar] = useState(profile.avatar);
   const [values, setValues] = useState<ProfileSettings>(profile.settings);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -342,9 +344,11 @@ function SettingsModal({
     const v = values[key];
     return !Number.isInteger(v) || v < min || v > max;
   });
+  const nameEmpty = !name.trim();
 
   const saveMut = useMutation({
-    mutationFn: () => api.updateSettings(profile.id, values),
+    mutationFn: () =>
+      api.updateProfile(profile.id, { displayName: name.trim(), avatar, settings: values }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: qk.profiles });
       onSaved();
@@ -360,12 +364,30 @@ function SettingsModal({
   const busy = saveMut.isPending || deleteMut.isPending;
 
   function save() {
-    if (outOfRange) return;
+    if (outOfRange || nameEmpty) return;
     saveMut.mutate();
   }
 
   return (
     <Modal onClose={onClose} title={`${profile.avatar} ${profile.displayName}'s settings`}>
+      <div className="field">
+        <label htmlFor="edit-name">Name</label>
+        <input id="edit-name" value={name} onChange={(e) => setName(e.target.value)} />
+      </div>
+      <div className="field">
+        <label>Buddy</label>
+        <div className="avatar-picker">
+          {AVATARS.map((a) => (
+            <button
+              key={a}
+              className={`avatar-option ${a === avatar ? 'selected' : ''}`}
+              onClick={() => setAvatar(a)}
+            >
+              {a}
+            </button>
+          ))}
+        </div>
+      </div>
       {SETTING_FIELDS.map(({ key, label, hint, min, max }) => (
         <div className="field" key={key}>
           <label htmlFor={`set-${key}`}>{label}</label>
@@ -382,7 +404,7 @@ function SettingsModal({
           </span>
         </div>
       ))}
-      <button className="btn sun full" disabled={busy || outOfRange} onClick={save}>
+      <button className="btn sun full" disabled={busy || outOfRange || nameEmpty} onClick={save}>
         {saveMut.isPending ? 'Saving…' : 'Save'}
       </button>
 

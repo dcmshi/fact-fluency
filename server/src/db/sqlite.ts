@@ -273,6 +273,10 @@ export class SqliteDb implements Db {
     return profile;
   }
 
+  async updateProfileName(profileId: string, displayName: string): Promise<void> {
+    this.db.prepare('UPDATE profile SET display_name = ? WHERE id = ?').run(displayName, profileId);
+  }
+
   async updateProfileAvatar(profileId: string, avatar: string): Promise<void> {
     this.db.prepare('UPDATE profile SET avatar = ? WHERE id = ?').run(avatar, profileId);
   }

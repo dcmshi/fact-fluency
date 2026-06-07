@@ -90,23 +90,46 @@ export function createProfileRouter(db: Db): Router {
   // Edit per-profile session settings (DESIGN.md §8). Partial PATCH: provided
   // fields override, the rest keep their current value; the merged result is
   // validated as a whole.
+  // Partial profile edit: any of displayName / avatar / settings.
   router.patch('/:id', owned, async (req, res, next) => {
     try {
       const profile = req.profile!;
-      const incoming = (req.body ?? {}).settings;
-      if (typeof incoming !== 'object' || incoming === null) {
-        return res.status(400).json({ error: 'invalid_settings' });
+      const body = req.body ?? {};
+      let touched = false;
+
+      if ('displayName' in body) {
+        if (typeof body.displayName !== 'string' || !body.displayName.trim()) {
+          return res.status(400).json({ error: 'invalid_display_name' });
+        }
+        await db.updateProfileName(profile.id, body.displayName.trim());
+        touched = true;
       }
-      const merged: ProfileSettings = {
-        sessionCards: incoming.sessionCards ?? profile.settings.sessionCards,
-        sessionSeconds: incoming.sessionSeconds ?? profile.settings.sessionSeconds,
-        newPerSession: incoming.newPerSession ?? profile.settings.newPerSession,
-      };
-      if (invalidSetting(merged)) {
-        return res.status(400).json({ error: 'invalid_settings' });
+      if ('avatar' in body) {
+        if (typeof body.avatar !== 'string' || !body.avatar || body.avatar.length > 16) {
+          return res.status(400).json({ error: 'invalid_avatar' });
+        }
+        await db.updateProfileAvatar(profile.id, body.avatar);
+        touched = true;
       }
-      const updated = await db.updateProfileSettings(req.params.id, merged);
-      return res.json({ profile: updated });
+      if ('settings' in body) {
+        const incoming = body.settings;
+        if (typeof incoming !== 'object' || incoming === null) {
+          return res.status(400).json({ error: 'invalid_settings' });
+        }
+        const merged: ProfileSettings = {
+          sessionCards: incoming.sessionCards ?? profile.settings.sessionCards,
+          sessionSeconds: incoming.sessionSeconds ?? profile.settings.sessionSeconds,
+          newPerSession: incoming.newPerSession ?? profile.settings.newPerSession,
+        };
+        if (invalidSetting(merged)) {
+          return res.status(400).json({ error: 'invalid_settings' });
+        }
+        await db.updateProfileSettings(profile.id, merged);
+        touched = true;
+      }
+
+      if (!touched) return res.status(400).json({ error: 'nothing_to_update' });
+      return res.json({ profile: await db.getProfile(profile.id) });
     } catch (err) {
       return next(err);
     }

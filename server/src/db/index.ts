@@ -64,6 +64,7 @@ export interface Db {
     p: Omit<Profile, 'id' | 'createdAt' | 'streak' | 'coins' | 'theme'>,
   ): Promise<Profile>;
   updateProfileSettings(profileId: string, settings: ProfileSettings): Promise<Profile>;
+  updateProfileName(profileId: string, displayName: string): Promise<void>;
   updateProfileAvatar(profileId: string, avatar: string): Promise<void>;
   /** Delete a profile and (via ON DELETE CASCADE) all its progress, attempts,
    *  sessions, and rewards. */
