@@ -220,19 +220,19 @@ of scope). One agent finding was **discarded as a false positive**:
 
 ### Kid experience / engagement
 
-- [ ] **Study-card wait is unclear.** The "Got it!" button shows "…" and is
-      disabled for 1.5s with no cue; a young kid may tap a dead button. Add a
-      visible "ready" cue / progress beat, friendlier copy. ~S.
-- [ ] **Warmer feedback after multiple wrong munches.** "Some were wrong — keep
-      going!" is a bit flat vs the §4.8 warm ethos. Soften. ~S.
-- [ ] **Close the coins→rewards loop.** Kids earn coins but the Rewards shop
-      isn't reachable from the play/summary flow; surface a "spend your coins"
-      affordance. ~S–M.
-- [ ] **Comparison-operator comprehension (`<`/`>`).** Pre-readers may not own
-      `<`/`>` semantics; consider a visual/number-line hint or gating `<`/`>` to
-      more advanced sets. ~M, validate with real kids.
-- [ ] **Relation variety.** `pickRelation` weights `=` ~2/3; verify it doesn't
-      feel repetitive over a session; rebalance if so. ~S.
+- [x] **Study-card wait legible** — disabled button now reads "Look at it…" then
+      "Got it! ▶" with a brief pop when tappable (was a dead-looking "…").
+- [x] **Warmer after-round message** — clearing a board with wrong munches now
+      says "All done — nice effort! Keep going." instead of "Some were wrong…".
+- [x] **Closed the coins→Rewards loop** — the summary's "⭐ Spend coins" deep-links
+      to the kid's Rewards modal via `/?rewards=<id>`.
+- [x] **Relation variety** — `pickRelation` is now an even =/</> mix (was ~50%+
+      `=`); each relation still reinforces knowing the answer.
+- [ ] **Comparison-operator comprehension (`<`/`>`)** — _open, needs a decision._
+      Pre-readers may not own `<`/`>` semantics. Options: friendlier copy
+      ("smaller/bigger than" vs "less/greater than"), a visual/number-line hint,
+      or gating `<`/`>` to more advanced sets. ~M; validate with real kids before
+      committing to an approach.
 
 ### Code health — done (from the regression sweep)
 
