@@ -23,7 +23,10 @@ describe('security headers', () => {
 
     const prod = await request(app(true)).get('/api/health');
     expect(prod.headers['content-security-policy']).toContain("default-src 'self'");
-    expect(prod.headers['content-security-policy']).toContain('https://fonts.gstatic.com');
+    // Fonts are self-hosted — no third-party origins in the CSP.
+    expect(prod.headers['content-security-policy']).toContain("font-src 'self'");
+    expect(prod.headers['content-security-policy']).not.toContain('fonts.gstatic.com');
+    expect(prod.headers['content-security-policy']).not.toContain('fonts.googleapis.com');
     // HSTS in prod only.
     expect(prod.headers['strict-transport-security']).toContain('max-age=31536000');
     expect(dev.headers['strict-transport-security']).toBeUndefined();

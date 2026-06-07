@@ -19,8 +19,9 @@ export function securityHeaders(isProd: boolean): RequestHandler {
     "frame-ancestors 'none'",
     "img-src 'self' data:",
     "script-src 'self'",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
+    // Fonts are self-hosted (bundled), so no third-party font/style origins.
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self'",
     "connect-src 'self'",
     "manifest-src 'self'",
   ].join('; ');

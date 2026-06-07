@@ -4,6 +4,16 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
 import { ApiError } from './api';
 import { AuthProvider } from './auth';
+// Self-hosted fonts (no third-party CDN) — Fredoka (display) + Nunito (body).
+import '@fontsource/fredoka/400.css';
+import '@fontsource/fredoka/500.css';
+import '@fontsource/fredoka/600.css';
+import '@fontsource/fredoka/700.css';
+import '@fontsource/nunito/400.css';
+import '@fontsource/nunito/600.css';
+import '@fontsource/nunito/700.css';
+import '@fontsource/nunito/700-italic.css';
+import '@fontsource/nunito/800.css';
 import './index.css';
 
 const queryClient = new QueryClient({

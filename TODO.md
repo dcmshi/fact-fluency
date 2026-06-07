@@ -207,9 +207,11 @@ of scope). One agent finding was **discarded as a false positive**:
 
 ### Child privacy
 
-- [ ] **Self-host fonts (drop the Google Fonts CDN).** CSP allows
-      `fonts.googleapis.com`/`fonts.gstatic.com`; for a kids' app, bundling the
-      font files removes a third-party request/tracking surface entirely. ~S.
+- [x] **Self-host fonts (drop the Google Fonts CDN)** — _done._ Fredoka + Nunito
+      now ship via `@fontsource` (bundled woff2 emitted as same-origin assets,
+      imported in `main.tsx`); the Google `<link>`/preconnects are gone and the
+      CSP tightened to `style-src 'self' 'unsafe-inline'` + `font-src 'self'` (no
+      third-party origins). Verified in-browser: fonts render, zero google links.
 - Notes (lower priority / partly by-design): attempt-log granularity has no
   retention policy (fine at this scale); signup distinguishes
   `invalid_email` vs `email_taken` (minor enumeration, accepted); a kid on the
