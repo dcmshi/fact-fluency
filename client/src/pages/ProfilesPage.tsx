@@ -312,6 +312,7 @@ function RewardsModal({ profile, onClose }: { profile: Profile; onClose: () => v
   const [equippedMuncher, setEquippedMuncher] = useState('cat');
   const [equippedEffect, setEquippedEffect] = useState('confetti');
   const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Live-preview the equipped theme across the whole picker while open.
   useTheme(equippedTheme);
@@ -356,6 +357,7 @@ function RewardsModal({ profile, onClose }: { profile: Profile; onClose: () => v
     const isOwned = owned.has(item.id);
     if (isEquipped(item)) return;
     setBusy(item.id);
+    setError(null);
     try {
       if (isOwned) {
         await equip(item);
@@ -368,6 +370,10 @@ function RewardsModal({ profile, onClose }: { profile: Profile; onClose: () => v
         void queryClient.invalidateQueries({ queryKey: qk.profiles });
         void queryClient.invalidateQueries({ queryKey: qk.rewards(profile.id) });
       }
+    } catch {
+      // Refresh from the server so the UI reflects true ownership/coins.
+      void queryClient.invalidateQueries({ queryKey: qk.rewards(profile.id) });
+      setError('Hmm, that didn’t work — try again.');
     } finally {
       setBusy(null);
     }
@@ -393,6 +399,7 @@ function RewardsModal({ profile, onClose }: { profile: Profile; onClose: () => v
   return (
     <Modal onClose={onClose} title={`${equippedAvatar} ${profile.displayName}'s rewards`}>
       <div className="coin-balance">⭐ {coins} coins</div>
+      {error && <div className="error-banner">{error}</div>}
       {section('Munchers', 'muncher')}
       {section('Celebrations', 'effect')}
       {section('Avatars', 'avatar')}
