@@ -234,21 +234,20 @@ of scope). One agent finding was **discarded as a false positive**:
 - [ ] **Relation variety.** `pickRelation` weights `=` ~2/3; verify it doesn't
       feel repetitive over a session; rebalance if so. ~S.
 
-### Code health (small, from the regression sweep)
+### Code health — done (from the regression sweep)
 
-- [ ] **RewardsModal swallows errors.** `act()` has try/finally, no catch — a
-      failed unlock/equip leaves the tile stuck with no message. Add error UI
-      (mirror the other modals' pattern). ~S.
-- [ ] **Export links surface errors as a file.** ProgressPage uses `<a download>`
-      to `/api/...export`; an error response downloads as a file instead of
-      showing a message. Switch to fetch→blob with error handling. ~S.
-- [ ] **Modal focus management.** Modals don't trap focus or restore it on close
-      (a11y). ~M.
-- [ ] **Remove dead `appendCards`** from `AnswerResponse` (never set/read; the
-      DESIGN §8 sketch mentions it but injects are what shipped). ~S.
-- [ ] **`invalid_settings` has no client message** — add it to the error map. ~S.
-- [ ] **Document the additive-columns sync** between `ADDITIVE_COLUMNS` (SQLite)
-      and `ADDITIVE_COLUMNS_PG` (a comment, so the two don't drift). ~S.
+- [x] **Removed dead `appendCards`** from `AnswerResponse` (never set/read).
+- [x] **Settings modal surfaces save errors** (added `onError` + message map).
+- [x] **RewardsModal error handling** — `act()` now catches, re-fetches the
+      rewards cache, and shows a banner instead of silently resetting the tile.
+- [x] **Export via fetch→blob** — failures show an inline message rather than
+      downloading the error JSON as a file (was a naked `<a download>`).
+- [x] **Modal focus management** — focus enters the dialog (respecting child
+      autoFocus), Tab-trap, Esc to close, focus restored to the trigger; plus
+      `role="dialog"`/`aria-modal`/`aria-labelledby`.
+- [x] **Additive-columns sync documented** — the `ADDITIVE_COLUMNS` /
+      `ADDITIVE_COLUMNS_PG` lists already carry "mirror in the other adapter"
+      comments (added with the self-heal migration).
 
 ## Features
 
