@@ -306,8 +306,10 @@ generation memoized; N+1s already engineered out.
       activation keys (Enter/Space) now yield to a focused interactive element
       (`keys.ts` helper); movement keys stay global since focus sits on a cell
       button after any tap.
-- [ ] **ProgressPage has no error state** — failed dashboard/progress loads show
-      skeletons forever; reuse ProfilesPage's "Couldn't load — Try again" card.
+- [x] **ProgressPage has no error state** — failed dashboard/progress loads
+      showed skeletons forever. Now renders the same "Couldn't load — Try again"
+      retry card ProfilesPage uses (skeletons suppressed on error; retry
+      refetches only the failed query/queries).
 - [ ] **Operator glyph ~1.5:1 contrast.** `.munch-op` / `.equation .op` render
       the one glyph distinguishing `+` from `×` in `--sun` yellow on cream —
       far below the 3:1 large-text minimum. Use the darker per-op shades already

@@ -20,14 +20,23 @@ function cellColor(op: keyof typeof OP_HEX, box: Box | null, state: CellState): 
 export function ProgressPage() {
   const { profileId = '' } = useParams();
   const navigate = useNavigate();
-  const { data: dash } = useQuery({
+  const {
+    data: dash,
+    isError: dashError,
+    refetch: refetchDash,
+  } = useQuery({
     queryKey: qk.dashboard(profileId),
     queryFn: () => api.dashboard(profileId),
   });
-  const { data: view } = useQuery({
+  const {
+    data: view,
+    isError: viewError,
+    refetch: refetchView,
+  } = useQuery({
     queryKey: qk.progress(profileId),
     queryFn: () => api.progress(profileId),
   });
+  const loadFailed = dashError || viewError;
   const [exportError, setExportError] = useState<string | null>(null);
 
   // Fetch the export with credentials so a server error shows a message instead
@@ -67,9 +76,24 @@ export function ProgressPage() {
       </header>
 
       <div className="stack" style={{ maxWidth: 720 }}>
-        {dash ? <Dashboard dash={dash} /> : <DashboardSkeleton />}
+        {loadFailed && (
+          <div className="card" role="alert" style={{ textAlign: 'center' }}>
+            <p className="muted">Couldn’t load progress.</p>
+            <button
+              className="btn ghost"
+              onClick={() => {
+                if (dashError) void refetchDash();
+                if (viewError) void refetchView();
+              }}
+            >
+              Try again
+            </button>
+          </div>
+        )}
 
-        {!view && <GridSkeleton />}
+        {dash ? <Dashboard dash={dash} /> : !dashError && <DashboardSkeleton />}
+
+        {!view && !viewError && <GridSkeleton />}
         {view?.grids.length === 0 && (
           <p className="muted">No fact sets enabled yet — pick some from the profiles screen.</p>
         )}
