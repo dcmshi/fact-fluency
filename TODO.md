@@ -294,9 +294,12 @@ generation memoized; N+1s already engineered out.
 - [x] **No HTTP compression in production.** Render doesn't compress for you;
       the bundle + dashboard JSON shipped 3–4× their gzipped size. Added
       `compression()` ahead of all routes; gzip round-trip tested.
-- [ ] **No Cache-Control on hashed assets.** `express.static` defaults to
-      `maxAge: 0`, so every content-hashed asset revalidates per load. Serve
-      assets with `maxAge: '1y', immutable`; `index.html` with `no-cache`.
+- [x] **No Cache-Control on hashed assets.** `express.static` defaulted to
+      `maxAge: 0`, so every content-hashed asset revalidated per load. Now
+      `assets/*` (Vite's hashed output) is `max-age=1y, immutable`; root-level
+      un-hashed files (index.html, sw.js, manifest, icon) are `no-cache` —
+      deliberately, since their names never change across deploys. Verified
+      against a prod build.
 - [ ] **Global Enter/Space handlers hijack Quit/mute during play.** The
       window-level keydown handlers (`MunchBoard.tsx`, `PlayPage.tsx`)
       `preventDefault()` without checking the target — keyboard users can't

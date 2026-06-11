@@ -38,8 +38,28 @@ export function createApp(db: Db, isProd: boolean): Application {
 
   if (isProd) {
     const clientDist = path.resolve(__dirname, '../../client/dist');
-    app.use(express.static(clientDist));
-    app.get('*', (_req, res) => res.sendFile(path.join(clientDist, 'index.html')));
+    // Vite content-hashes everything under assets/, so those are safe to cache
+    // forever. Root-level files keep their names across deploys (sw.js,
+    // manifest.webmanifest, icon.svg) and index.html names the hashed bundles,
+    // so they must always revalidate (`index: false` routes index.html through
+    // the catch-all).
+    app.use(
+      express.static(clientDist, {
+        index: false,
+        setHeaders: (res, filePath) => {
+          const immutable = filePath.includes(`${path.sep}assets${path.sep}`);
+          res.setHeader(
+            'Cache-Control',
+            immutable ? 'public, max-age=31536000, immutable' : 'no-cache',
+          );
+        },
+      }),
+    );
+    app.get('*', (_req, res) =>
+      res.sendFile(path.join(clientDist, 'index.html'), {
+        headers: { 'Cache-Control': 'no-cache' },
+      }),
+    );
   }
 
   // Centralized error handler — route handlers forward errors via next(err).
