@@ -66,6 +66,9 @@ export function MunchBoard({
 
   const [pos, setPos] = useState(Math.floor((size * size) / 2));
   const [eaten, setEaten] = useState<Set<number>>(new Set());
+  // Source of truth for what's been munched, read/written synchronously in the
+  // munch handler so effects fire exactly once; `eaten` state mirrors it for render.
+  const eatenRef = useRef<Set<number>>(eaten);
   const [flash, setFlash] = useState<{ idx: number; ok: boolean } | null>(null);
   const [muncherState, setMuncherState] = useState<MuncherState>('idle');
   const [bursts, setBursts] = useState<{ id: number; idx: number }[]>([]);
@@ -108,50 +111,53 @@ export function MunchBoard({
 
   const munchAt = useCallback(
     (idx: number) => {
-      if (doneRef.current) return;
-      setEaten((prev) => {
-        if (prev.has(idx)) return prev;
-        const isCorrect = correctIdx.has(idx);
-        const next = new Set(prev).add(idx);
-        if (isCorrect) {
-          if (firstCorrectRef.current == null) {
-            firstCorrectRef.current = Math.round(performance.now() - startRef.current);
-          }
-        } else {
-          wrongRef.current += 1;
-        }
-        onMunch(isCorrect);
-        reactMuncher(isCorrect);
-        setFlash({ idx, ok: isCorrect });
-        timers.current.push(
-          window.setTimeout(() => setFlash((f) => (f && f.idx === idx ? null : f)), 350),
-        );
-        if (isCorrect) {
-          const id = ++burstId.current;
-          setBursts((b) => [...b, { id, idx }]);
-          timers.current.push(
-            window.setTimeout(() => setBursts((b) => b.filter((x) => x.id !== id)), 900),
-          );
-        }
+      // Guard against re-munching an eaten cell from a ref/eaten check rather
+      // than inside the setState updater: side effects (sound, haptics, the
+      // wrong-munch count, onComplete) must run exactly once per munch. React
+      // can call a setState updater more than once (StrictMode does in dev),
+      // so doing effects in there double-fires them and inflates wrongMunches.
+      if (doneRef.current || eatenRef.current.has(idx)) return;
+      const isCorrect = correctIdx.has(idx);
+      eatenRef.current = new Set(eatenRef.current).add(idx);
+      setEaten(eatenRef.current);
 
-        if ([...correctIdx].every((i) => next.has(i)) && !doneRef.current) {
-          doneRef.current = true;
-          const responseMs =
-            firstCorrectRef.current ?? Math.round(performance.now() - startRef.current);
-          timers.current.push(
-            window.setTimeout(
-              () =>
-                onComplete({
-                  correct: wrongRef.current === 0,
-                  responseMs,
-                  wrongMunches: wrongRef.current,
-                }),
-              260,
-            ),
-          );
+      if (isCorrect) {
+        if (firstCorrectRef.current == null) {
+          firstCorrectRef.current = Math.round(performance.now() - startRef.current);
         }
-        return next;
-      });
+      } else {
+        wrongRef.current += 1;
+      }
+      onMunch(isCorrect);
+      reactMuncher(isCorrect);
+      setFlash({ idx, ok: isCorrect });
+      timers.current.push(
+        window.setTimeout(() => setFlash((f) => (f && f.idx === idx ? null : f)), 350),
+      );
+      if (isCorrect) {
+        const id = ++burstId.current;
+        setBursts((b) => [...b, { id, idx }]);
+        timers.current.push(
+          window.setTimeout(() => setBursts((b) => b.filter((x) => x.id !== id)), 900),
+        );
+      }
+
+      if ([...correctIdx].every((i) => eatenRef.current.has(i))) {
+        doneRef.current = true;
+        const responseMs =
+          firstCorrectRef.current ?? Math.round(performance.now() - startRef.current);
+        timers.current.push(
+          window.setTimeout(
+            () =>
+              onComplete({
+                correct: wrongRef.current === 0,
+                responseMs,
+                wrongMunches: wrongRef.current,
+              }),
+            260,
+          ),
+        );
+      }
     },
     [correctIdx, onMunch, onComplete, reactMuncher],
   );

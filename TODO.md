@@ -361,9 +361,12 @@ generation memoized; N+1s already engineered out.
       splice now skips an inject that would land at index 0 (only happens with
       an empty queue, since `afterOffset` is always 3); the demoted box schedule
       resurfaces the fact instead.
-- [ ] **MunchBoard side effects inside the `setEaten` updater** — sounds/counts
-      double-fire under StrictMode and inflate the logged `wrongMunches`. Hoist
-      the effects out of the updater.
+- [x] **MunchBoard side effects inside the `setEaten` updater** — sounds, the
+      wrong-munch count, and `onComplete` ran inside the state updater, so
+      StrictMode's double-invoke double-fired them and inflated the logged
+      `wrongMunches`. Munch state now lives in `eatenRef` (read/written
+      synchronously, guarding re-munch); the updater is pure and effects run
+      once outside it. Verified in-browser (clean round → advance).
 - [ ] **Email matching is case-sensitive end-to-end** — `Foo@Bar.com` can't log
       in as `foo@bar.com`. Normalize (lowercase) on write and lookup.
 - [ ] **Sessions expire 30 days from creation, not "30 days idle"** (DESIGN §2)
