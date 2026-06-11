@@ -71,6 +71,25 @@ describe('accounts & auth', () => {
     expect(await db.findAccountIdByToken('dead-token')).toBeNull();
   });
 
+  it('slides a session expiry forward only when it is below the threshold', async () => {
+    const accountId = await db.createAccount('slide@home.test', 'h', 'UTC');
+    const now = 1_000_000_000_000;
+    const TTL = 30 * 24 * 60 * 60 * 1000;
+    const DAY = 24 * 60 * 60 * 1000;
+    // Created a day+ ago → expiry is below (now + TTL - DAY) → should slide.
+    await db.createAuthSession(accountId, 'old', now - 2 * DAY + TTL);
+    expect(await db.slideAuthSession('old', now, now + TTL, now + TTL - DAY)).toBe(true);
+
+    // A just-refreshed session (expiry near now + TTL) is throttled — no slide.
+    await db.createAuthSession(accountId, 'fresh', now + TTL - 1000);
+    expect(await db.slideAuthSession('fresh', now, now + TTL, now + TTL - DAY)).toBe(false);
+
+    // An already-expired session is never resurrected.
+    await db.createAuthSession(accountId, 'dead', now - 1);
+    expect(await db.slideAuthSession('dead', now, now + TTL, now + TTL - DAY)).toBe(false);
+    expect(await db.findAccountIdByToken('dead')).toBeNull();
+  });
+
   it('deletes an auth session on logout', async () => {
     const accountId = await db.createAccount('p2@home.test', 'h', 'UTC');
     await db.createAuthSession(accountId, 'tok', Date.now() + 60_000);

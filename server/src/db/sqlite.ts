@@ -191,6 +191,20 @@ export class SqliteDb implements Db {
     return row?.account_id ?? null;
   }
 
+  async slideAuthSession(
+    token: string,
+    now: number,
+    newExpiresAt: number,
+    onlyIfBelow: number,
+  ): Promise<boolean> {
+    const info = this.db
+      .prepare(
+        'UPDATE auth_session SET expires_at = ? WHERE token = ? AND expires_at > ? AND expires_at < ?',
+      )
+      .run(newExpiresAt, token, now, onlyIfBelow);
+    return info.changes > 0;
+  }
+
   async deleteAuthSession(token: string): Promise<void> {
     this.db.prepare('DELETE FROM auth_session WHERE token = ?').run(token);
   }

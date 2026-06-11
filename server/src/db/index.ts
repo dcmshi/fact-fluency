@@ -47,6 +47,15 @@ export interface Db {
   findAccountByEmail(email: string): Promise<{ id: string; passwordHash: string } | null>;
   createAuthSession(accountId: string, token: string, expiresAt: number): Promise<void>;
   findAccountIdByToken(token: string): Promise<string | null>;
+  /** Slide a still-valid session's expiry forward to `newExpiresAt`, but only if
+   *  it currently expires before `onlyIfBelow` (throttles writes to ~once/day).
+   *  Returns true if a row was updated, so the caller can re-issue the cookie. */
+  slideAuthSession(
+    token: string,
+    now: number,
+    newExpiresAt: number,
+    onlyIfBelow: number,
+  ): Promise<boolean>;
   deleteAuthSession(token: string): Promise<void>;
   /** Delete auth sessions that expired at/before `now`; returns the count. */
   deleteExpiredAuthSessions(now: number): Promise<number>;

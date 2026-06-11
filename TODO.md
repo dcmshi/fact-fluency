@@ -371,8 +371,11 @@ generation memoized; N+1s already engineered out.
       log in as `foo@bar.com`, and the same mailbox could register twice. A
       `normalizeEmail` (trim + lowercase) is now applied on every store and
       lookup (signup, login, upgrade, account edit). Tested.
-- [ ] **Sessions expire 30 days from creation, not "30 days idle"** (DESIGN §2)
-      — slide `expires_at` + cookie on use, throttled to ~daily.
+- [x] **Sessions expire 30 days from creation, not "30 days idle"** (DESIGN §2)
+      — a daily player was hard-logged-out every 30 days. `attachAccount` now
+      slides `expires_at` forward on use via a new conditional `slideAuthSession`
+      (both adapters), throttled to ~once/day, and re-issues the cookie so the
+      browser copy slides too. Db-level tested (slide / throttled / expired).
 - [ ] **`bumpStreak` DST edge** — `now − 24h` lands two calendar days back in
       the first hour after spring-forward, resetting a genuine streak. Compute
       "yesterday" by calendar day.

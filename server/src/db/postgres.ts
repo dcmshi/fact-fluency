@@ -147,6 +147,20 @@ export class PostgresDb implements Db {
     return row?.account_id ?? null;
   }
 
+  async slideAuthSession(
+    token: string,
+    now: number,
+    newExpiresAt: number,
+    onlyIfBelow: number,
+  ): Promise<boolean> {
+    // RETURNING so the row count comes back via the {rows} pool interface.
+    const { rows } = await this.pool.query(
+      'UPDATE auth_session SET expires_at = $1 WHERE token = $2 AND expires_at > $3 AND expires_at < $4 RETURNING token',
+      [newExpiresAt, token, now, onlyIfBelow],
+    );
+    return rows.length > 0;
+  }
+
   async deleteAuthSession(token: string): Promise<void> {
     await this.pool.query('DELETE FROM auth_session WHERE token = $1', [token]);
   }

@@ -8,8 +8,12 @@ import type { CookieOptions, Response } from 'express';
 
 export const COOKIE_NAME = 'ff_session';
 
-/** 30 days, matching the AuthSession idle expiry in DESIGN.md §2. */
+/** 30 days of *idle* expiry (DESIGN.md §2): the window slides forward on use. */
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Don't slide the expiry (a DB write + cookie re-issue) more than once per this
+ *  window — a daily player shouldn't trigger a refresh on every request. */
+export const SESSION_SLIDE_THROTTLE_MS = 24 * 60 * 60 * 1000;
 
 /** A URL-safe, high-entropy opaque session token. */
 export function generateToken(): string {

@@ -3,19 +3,36 @@
  */
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import type { Db } from '../db';
-import { COOKIE_NAME } from './session';
+import {
+  COOKIE_NAME,
+  SESSION_SLIDE_THROTTLE_MS,
+  SESSION_TTL_MS,
+  setSessionCookie,
+} from './session';
 
 /**
- * Populates `req.accountId` when a valid, unexpired session cookie is present.
- * Never rejects — pair with `requireAuth` to guard protected routes.
+ * Populates `req.accountId` when a valid, unexpired session cookie is present,
+ * and slides the 30-day idle expiry forward on use (DESIGN.md §2) — throttled to
+ * ~once/day, re-issuing the cookie so the browser copy slides too. Never rejects
+ * — pair with `requireAuth` to guard protected routes.
  */
-export function attachAccount(db: Db): RequestHandler {
-  return async (req: Request, _res: Response, next: NextFunction) => {
+export function attachAccount(db: Db, isProd: boolean): RequestHandler {
+  return async (req: Request, res: Response, next: NextFunction) => {
     const token = req.cookies?.[COOKIE_NAME] as string | undefined;
     if (token) {
       try {
         const accountId = await db.findAccountIdByToken(token);
-        if (accountId) req.accountId = accountId;
+        if (accountId) {
+          req.accountId = accountId;
+          const now = Date.now();
+          const slid = await db.slideAuthSession(
+            token,
+            now,
+            now + SESSION_TTL_MS,
+            now + SESSION_TTL_MS - SESSION_SLIDE_THROTTLE_MS,
+          );
+          if (slid) setSessionCookie(res, token, isProd);
+        }
       } catch (err) {
         return next(err);
       }

@@ -29,7 +29,7 @@ export function createApp(db: Db, isProd: boolean): Application {
   // or hostile and is rejected before it's parsed into memory.
   app.use(express.json({ limit: '16kb' }));
   app.use(cookieParser(process.env.COOKIE_SECRET ?? 'dev-only-change-me'));
-  app.use(attachAccount(db));
+  app.use(attachAccount(db, isProd));
 
   // CSRF same-origin guard is a production concern (and the dev Vite proxy
   // rewrites Host so Origin wouldn't match). Dev still has SameSite=Lax cookies.
