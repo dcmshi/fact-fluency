@@ -381,6 +381,20 @@ describe('session errors', () => {
     expect(res.body.correct).toBe(true);
     expect(res.body.fast).toBe(false);
   });
+
+  it('rounds a fractional responseMs (the attempt column is INTEGER)', async () => {
+    const { agent, profileId } = await setup();
+    const { body } = await agent.post(`/api/profiles/${profileId}/session`);
+    const { fact } = body.deck[0];
+    // A fractional latency would 500 on Postgres's INTEGER column (after
+    // progress already wrote); SQLite accepts it but the export must stay clean.
+    const res = await agent
+      .post(`/api/sessions/${body.sessionId}/answer`)
+      .send({ factId: fact.id, correct: true, responseMs: 1234.7 });
+    expect(res.status).toBe(200);
+    const csv = await agent.get(`/api/profiles/${profileId}/export?format=csv`);
+    expect(csv.text).toContain(',1235,'); // rounded, not 1234.7
+  });
 });
 
 describe('progress view', () => {

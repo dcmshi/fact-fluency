@@ -235,7 +235,10 @@ export async function answer(
   // Clamp the client-reported latency before it feeds the per-op median EWMA
   // (DESIGN.md §4.5). A buggy/hostile client sending a huge value shouldn't be
   // able to skew the fluency threshold; the server is the source of truth.
-  const responseMs = Math.min(body.responseMs, MAX_RESPONSE_MS);
+  // Round to an integer too: the attempt.response_ms column is INTEGER, and
+  // Postgres (unlike SQLite) rejects a fractional value — which would 500
+  // *after* progress already wrote.
+  const responseMs = Math.round(Math.min(body.responseMs, MAX_RESPONSE_MS));
 
   const session = await db.getSession(sessionId);
   if (!session) throw new SessionError(404, 'session_not_found');

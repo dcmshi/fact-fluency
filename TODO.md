@@ -359,9 +359,9 @@ generation memoized; N+1s already engineered out.
 - [ ] **`bumpStreak` DST edge** — `now − 24h` lands two calendar days back in
       the first hour after spring-forward, resetting a genuine streak. Compute
       "yesterday" by calendar day.
-- [ ] **`responseMs` accepts fractions** — passes validation, then 500s on
-      Postgres (`INTEGER` column) _after_ progress already wrote. `Math.round`
-      at the existing clamp.
+- [x] **`responseMs` accepts fractions** — passed validation, then 500'd on
+      Postgres (`INTEGER` column) _after_ progress already wrote. Now
+      `Math.round`ed at the existing clamp; tested via the CSV export.
 
 ### P4 — Performance (hot path + client pacing)
 
