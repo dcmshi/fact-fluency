@@ -26,6 +26,7 @@ export function ProfilesPage() {
   const [rewardsFor, setRewardsFor] = useState<Profile | null>(null);
   const [upgrading, setUpgrading] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [exiting, setExiting] = useState(false);
 
   const {
     data: profiles,
@@ -58,7 +59,9 @@ export function ProfilesPage() {
               Account
             </button>
           )}
-          <button className="btn ghost" onClick={logout}>
+          {/* A guest's session cookie is the only key to their account — exiting
+              strands it for the prune job. Confirm (with a save path) first. */}
+          <button className="btn ghost" onClick={() => (guest ? setExiting(true) : logout())}>
             {guest ? 'Exit' : 'Sign out'}
           </button>
         </div>
@@ -157,6 +160,26 @@ export function ProfilesPage() {
         <UpgradeModal onClose={() => setUpgrading(false)} onDone={() => setUpgrading(false)} />
       )}
       {accountOpen && <AccountModal onClose={() => setAccountOpen(false)} />}
+      {exiting && (
+        <Modal title="Leaving already?" onClose={() => setExiting(false)}>
+          <p className="muted" style={{ marginTop: '-0.3rem' }}>
+            You’re playing as a guest, so exiting deletes your coins and progress for good. Want to
+            save them with an account first?
+          </p>
+          <button
+            className="btn sun full"
+            onClick={() => {
+              setExiting(false);
+              setUpgrading(true);
+            }}
+          >
+            Save my progress
+          </button>
+          <button className="btn danger" onClick={logout}>
+            Exit and delete my progress
+          </button>
+        </Modal>
+      )}
     </div>
   );
 }

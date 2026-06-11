@@ -283,10 +283,11 @@ generation memoized; N+1s already engineered out.
       points from an incomplete attempt log and the late replays 409'd. Now a
       partial drain takes the offline-finish path (`markPendingComplete`), and
       the session completes on reconnect with the full log.
-- [ ] **Guest "Exit" destroys all progress with zero warning.** The header
-      button (`ProfilesPage.tsx`) logs the guest out → account stranded → pruned;
-      coins/progress unrecoverable. Confirm dialog with a "Save my progress" CTA
-      into the existing UpgradeModal.
+- [x] **Guest "Exit" destroys all progress with zero warning.** The header
+      button logged the guest out → account stranded → pruned; coins/progress
+      unrecoverable. Now confirm-gated ("Leaving already?") with a "Save my
+      progress" CTA into the existing UpgradeModal; the destructive path is an
+      explicit "Exit and delete my progress".
 
 ### P2 — Quick high-impact wins (perf + kid-facing UX)
 
