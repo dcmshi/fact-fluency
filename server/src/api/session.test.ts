@@ -206,9 +206,10 @@ describe('rewards', () => {
     const first = await agent.post(`/api/sessions/${session.sessionId}/complete`);
     expect(first.body.pointsEarned).toBeGreaterThan(0);
     expect(first.body.coins).toBe(first.body.pointsEarned);
-    // Re-completing must not farm more coins.
+    // Re-completing must not farm more coins — or advance the streak.
     const second = await agent.post(`/api/sessions/${session.sessionId}/complete`);
     expect(second.body.coins).toBe(first.body.coins);
+    expect(second.body.streak).toBe(first.body.streak);
 
     const rewards = await agent.get(`/api/profiles/${profileId}/rewards`);
     expect(rewards.body.coins).toBe(first.body.coins);

@@ -354,12 +354,17 @@ export async function complete(
   // the session without awarding its coins. Credited exactly once, on the
   // transition to completed — reopening the summary (or a double POST) can't
   // farm coins (§10).
+  // Bump the streak only on the first completion. A re-POST (or a retried
+  // request straddling midnight) must not advance the day streak without any
+  // new play — coins are already gated the same way.
+  let streak: number;
   if (firstCompletion) {
     await db.completeSessionAndAward(sessionId, now, session.profileId, pointsEarned);
+    const timezone = (await db.getAccountTimezone(accountId)) ?? 'UTC';
+    streak = await bumpStreak(db, session.profileId, timezone, now);
+  } else {
+    streak = (await db.getProfileStreak(session.profileId)).streak;
   }
-
-  const timezone = (await db.getAccountTimezone(accountId)) ?? 'UTC';
-  const streak = await bumpStreak(db, session.profileId, timezone, now);
   const { coins } = await db.getProfileReward(session.profileId);
 
   // Facts that reached box 5 (mastered) this session. Load all progress once

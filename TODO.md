@@ -343,8 +343,10 @@ generation memoized; N+1s already engineered out.
       `complete` then sees `firstCompletion === false` and skips the award —
       breaking the offline banner's "coins will update" promise. Award via
       `completeSessionAndAward` when closing.
-- [ ] **Repeat `complete()` bumps the streak** — `bumpStreak` runs
-      unconditionally; gate it on `firstCompletion`.
+- [x] **Repeat `complete()` bumps the streak** — `bumpStreak` ran
+      unconditionally, so a re-POST straddling midnight advanced the streak with
+      no new play. Now gated on `firstCompletion` (coins already were); a repeat
+      completion just reads the current streak back.
 - [ ] **End-of-deck re-show splices to index 0** — a fact missed on the last
       card is re-shown immediately, violating §4.4's "never back-to-back"
       (`PlayPage.tsx` inject splice). (Distinct from the pass-4 dropped "recency
