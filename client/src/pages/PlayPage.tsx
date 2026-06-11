@@ -5,6 +5,7 @@ import type { Card, SessionResponse, SessionSummary } from '@shared';
 import { api, ApiError, qk } from '../api';
 import { Confetti } from '../components/Confetti';
 import { MunchBoard, type RoundResult } from '../components/MunchBoard';
+import { onInteractive } from '../keys';
 import { OP_CLASS, OP_SYMBOL } from '../ops';
 import { isMuted, playComplete, playCorrect, playWrong, setMuted } from '../sound';
 import { enqueueAnswer, flushAnswers, markPendingComplete } from '../syncQueue';
@@ -183,6 +184,7 @@ export function PlayPage() {
     if (phase !== 'study') return;
     function onKey(e: KeyboardEvent) {
       if (e.repeat) return; // a held key shouldn't fire multiple round starts
+      if (onInteractive(e)) return; // let a focused button (Quit, mute, Got it!) activate
       if (studyReady && (e.key === 'Enter' || e.key === ' ')) {
         e.preventDefault();
         startRound();

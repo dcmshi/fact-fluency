@@ -300,11 +300,12 @@ generation memoized; N+1s already engineered out.
       un-hashed files (index.html, sw.js, manifest, icon) are `no-cache` —
       deliberately, since their names never change across deploys. Verified
       against a prod build.
-- [ ] **Global Enter/Space handlers hijack Quit/mute during play.** The
-      window-level keydown handlers (`MunchBoard.tsx`, `PlayPage.tsx`)
-      `preventDefault()` without checking the target — keyboard users can't
-      activate Quit or mute for the whole session. Bail when focus is on an
-      interactive element.
+- [x] **Global Enter/Space handlers hijack Quit/mute during play.** The
+      window-level keydown handlers `preventDefault()`ed without checking the
+      target — keyboard users couldn't activate Quit or mute all session. The
+      activation keys (Enter/Space) now yield to a focused interactive element
+      (`keys.ts` helper); movement keys stay global since focus sits on a cell
+      button after any tap.
 - [ ] **ProgressPage has no error state** — failed dashboard/progress loads show
       skeletons forever; reuse ProfilesPage's "Couldn't load — Try again" card.
 - [ ] **Operator glyph ~1.5:1 contrast.** `.munch-op` / `.equation .op` render

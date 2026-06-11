@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Fact, MunchBoard as Board, MunchRelation } from '@shared';
+import { onInteractive } from '../keys';
 import { OP_SYMBOL } from '../ops';
 import { CelebrationBurst } from './CelebrationBurst';
 import { Muncher, type MuncherState } from './Muncher';
@@ -198,6 +199,10 @@ export function MunchBoard({
           break;
         case ' ':
         case 'Enter':
+          // Yield to a focused button (Quit, mute, a grid cell) — its native
+          // activation is what the user meant. Movement keys stay global since
+          // focus sits on a cell button after any tap.
+          if (onInteractive(e)) return;
           e.preventDefault();
           munchAt(posRef.current);
           break;
