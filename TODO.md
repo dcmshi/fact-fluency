@@ -414,8 +414,10 @@ generation memoized; N+1s already engineered out.
       app (28 pieces forcing layout every frame). Now animates
       `transform: translateY` with the per-piece rotation folded into the
       keyframe via a `--rot` custom property; `will-change: transform`.
-- [ ] **Trim eagerly-loaded font weights** — 9 woff2 files in the critical path
-      (`main.tsx`); verify usage in CSS, drop unused weights.
+- [x] **Trim eagerly-loaded font weights** — audited every `font-weight`
+      against its font family: Fredoka 400 (display elements only use 500/600/700)
+      and Nunito 700-italic (no italic anywhere) were never requested. Dropped
+      both imports (9 → 7 woff2 in the critical path). The rest are all in use.
 - [x] **Drop the 2-space indent on the JSON export** (`api/index.ts`) — halved
       the payload; it's a download, not read raw.
 
