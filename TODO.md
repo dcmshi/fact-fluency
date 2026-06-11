@@ -2,7 +2,7 @@
 
 Where things stand and what's left. v1 (DESIGN.md §9) is complete: auth, all four
 operations, the scheduling/fluency engine, the session player, the fact grid,
-daily streaks, and Render deploy (SQLite + Postgres). 149 tests passing.
+daily streaks, and Render deploy (SQLite + Postgres). 208 tests passing.
 
 This is a backlog, not a commitment — pick from it as needed.
 
@@ -248,6 +248,257 @@ of scope). One agent finding was **discarded as a false positive**:
 - [x] **Additive-columns sync documented** — the `ADDITIVE_COLUMNS` /
       `ADDITIVE_COLUMNS_PG` lists already carry "mirror in the other adapter"
       comments (added with the self-heal migration).
+
+## Audit pass 6 (2026-06-10) — full-repo audit backlog
+
+Five parallel review passes (UI/UX, bugs, performance, refactoring, features)
+over the whole repo. Baseline: 208 tests passing, typecheck clean. Items are
+verified in source and grouped by priority tier — address top-down. Verified
+sound, don't re-flag: engine math matches DESIGN §4.2–4.5; coins credit exactly
+once; CSRF/cookie/argon2 auth solid; DB indexes match query predicates; fact
+generation memoized; N+1s already engineered out.
+
+### P1 — Security & data-loss bugs
+
+- [ ] **`trust proxy: true` lets clients spoof their IP past every rate limit.**
+      `app.set('trust proxy', true)` (`app.ts`) trusts all hops, so `req.ip` is
+      the attacker-controlled _leftmost_ `X-Forwarded-For` entry; the
+      login/signup/guest limiters key on it (`rateLimit.ts`). Fix:
+      `app.set('trust proxy', 1)` — Render is exactly one hop.
+- [ ] **Sync queue head-of-line poisoning on 4xx.** `drainAnswers`
+      (`syncQueue.ts`) retains the first failure forever — including
+      deterministic 4xxs (409 `session_completed`, 404 after a guest prune) — so
+      every answer behind it and all future offline completions are blocked for
+      the device. Drop entries on `ApiError` status < 500 (keep-and-retry only
+      network/5xx); same for `flushAll`'s pending completes.
+- [ ] **Sync queue lost-update race.** `drainAnswers` snapshots the queue, then
+      unconditionally overwrites storage at the end — an answer enqueued while a
+      drain is in flight is silently deleted, never sent. On success re-read
+      storage and remove only the entries actually sent.
+- [ ] **`goNext` completes a session even when queued answers didn't flush.**
+      `PlayPage.tsx` ignores `flushAnswers()`' boolean; the server then computes
+      points from an incomplete attempt log and the late replays 409 (feeding the
+      poisoning above). Only call `api.complete` after a confirmed drain; else
+      `markPendingComplete` + the offline finish path.
+- [ ] **Guest "Exit" destroys all progress with zero warning.** The header
+      button (`ProfilesPage.tsx`) logs the guest out → account stranded → pruned;
+      coins/progress unrecoverable. Confirm dialog with a "Save my progress" CTA
+      into the existing UpgradeModal.
+
+### P2 — Quick high-impact wins (perf + kid-facing UX)
+
+- [ ] **No HTTP compression in production.** Render doesn't compress for you;
+      the bundle + dashboard JSON ship 3–4× their gzipped size (`app.ts`). Add
+      `compression()`.
+- [ ] **No Cache-Control on hashed assets.** `express.static` defaults to
+      `maxAge: 0`, so every content-hashed asset revalidates per load. Serve
+      assets with `maxAge: '1y', immutable`; `index.html` with `no-cache`.
+- [ ] **Global Enter/Space handlers hijack Quit/mute during play.** The
+      window-level keydown handlers (`MunchBoard.tsx`, `PlayPage.tsx`)
+      `preventDefault()` without checking the target — keyboard users can't
+      activate Quit or mute for the whole session. Bail when focus is on an
+      interactive element.
+- [ ] **ProgressPage has no error state** — failed dashboard/progress loads show
+      skeletons forever; reuse ProfilesPage's "Couldn't load — Try again" card.
+- [ ] **Operator glyph ~1.5:1 contrast.** `.munch-op` / `.equation .op` render
+      the one glyph distinguishing `+` from `×` in `--sun` yellow on cream —
+      far below the 3:1 large-text minimum. Use the darker per-op shades already
+      in `index.css`.
+- [ ] **Progress bar pins at 100% while injected re-shows remain**
+      (`PlayPage.tsx`) — breaks the §4.8 "clear finish line." Use
+      `played / (played + queue.length)`.
+- [ ] **Use the delivered `thresholds` for instant "fast" feedback** (DESIGN
+      §4.7 pins this). The client never reads `SessionResponse.thresholds`;
+      `fast` waits on the answer round trip and is always `false` offline, so an
+      offline kid never hears "super fast!". Compute feedback locally; the
+      server stays authoritative for scheduling.
+
+### P3 — Server correctness (medium/low bugs)
+
+- [ ] **"All caught up" can become permanently unreachable.** `caughtUp` counts
+      _all_ progress rows but the planner serves only enabled sets — a disabled
+      set's rows, or `familyTransfer` seeding an inverse sibling whose set isn't
+      enabled, strand due rows no session can clear (`session/service.ts`).
+      Scope the counts to enabled-set facts; consider gating `familyTransfer` to
+      enabled sets.
+- [ ] **`unlockReward` non-atomic read-modify-write** (`rewards.ts`) — a
+      concurrent session award can be clobbered (absolute `setCoins`); a crash
+      between debit and unlock spends coins for nothing; two tabs can
+      double-spend. Add a transactional `spendAndUnlock` Db method with a
+      conditional `coins >= cost` debit, mirroring `completeSessionAndAward`.
+- [ ] **Stale open session closed without awarding its coins.** `startSession`
+      plain-`completeSession`s a prior-day open session; the queued offline
+      `complete` then sees `firstCompletion === false` and skips the award —
+      breaking the offline banner's "coins will update" promise. Award via
+      `completeSessionAndAward` when closing.
+- [ ] **Repeat `complete()` bumps the streak** — `bumpStreak` runs
+      unconditionally; gate it on `firstCompletion`.
+- [ ] **End-of-deck re-show splices to index 0** — a fact missed on the last
+      card is re-shown immediately, violating §4.4's "never back-to-back"
+      (`PlayPage.tsx` inject splice). (Distinct from the pass-4 dropped "recency
+      guard" claim, which concerned the dup-free starter deck.)
+- [ ] **MunchBoard side effects inside the `setEaten` updater** — sounds/counts
+      double-fire under StrictMode and inflate the logged `wrongMunches`. Hoist
+      the effects out of the updater.
+- [ ] **Email matching is case-sensitive end-to-end** — `Foo@Bar.com` can't log
+      in as `foo@bar.com`. Normalize (lowercase) on write and lookup.
+- [ ] **Sessions expire 30 days from creation, not "30 days idle"** (DESIGN §2)
+      — slide `expires_at` + cookie on use, throttled to ~daily.
+- [ ] **`bumpStreak` DST edge** — `now − 24h` lands two calendar days back in
+      the first hour after spring-forward, resetting a genuine streak. Compute
+      "yesterday" by calendar day.
+- [ ] **`responseMs` accepts fractions** — passes validation, then 500s on
+      Postgres (`INTEGER` column) _after_ progress already wrote. `Math.round`
+      at the existing clamp.
+
+### P4 — Performance (hot path + client pacing)
+
+- [ ] **Wrap `answer()`'s writes in one transaction** — 4–5 separate WAL
+      commits / PG round trips per answer today, and a crash can persist
+      progress without its attempt row. One transactional Db method, like
+      `completeSessionAndAward`.
+- [ ] **Don't block the next card on the answer round trip** (`PlayPage.tsx`) —
+      200–800 ms dead time per card on slow links, ~20×/session. Advance
+      immediately; apply injects/caughtUp when the response lands (injects only
+      need to land within `REHEARSAL_GAP`). Pairs with the thresholds item (P2).
+- [ ] **Skip the full-deck `working_state` rewrite when `learning` didn't
+      change** — 5–15 KB of JSON re-stringified per answer, a no-op for most
+      review facts.
+- [ ] **Parallelize `startSession`'s independent reads** — ~9 sequential awaits;
+      `Promise.all` them as `answer()` already does.
+- [ ] **SW cache hygiene.** Old hashed bundles accumulate forever and the
+      offline fallback (`/` + assets) is pinned at first-install version
+      (`sw.js`). Version the cache per deploy and re-cache `/` on successful
+      navigations. (Refines pass 4's "non-issue": online users _do_ get fresh
+      shells — the gap is offline-fallback staleness + unbounded growth.)
+- [ ] **Confetti animates `top`** — the one non-compositable animation in the
+      app; animate `transform: translateY` (+ fold in the per-piece rotation,
+      which the keyframe currently overrides).
+- [ ] **Trim eagerly-loaded font weights** — 9 woff2 files in the critical path
+      (`main.tsx`); verify usage in CSS, drop unused weights.
+- [ ] **Drop the 2-space indent on the JSON export** (`api/index.ts`) — halves
+      the payload.
+
+### P5 — UI polish & accessibility
+
+- [ ] **Locked reward tiles show no goal** — tappable "⭐ 80 — 45 to go!" note
+      instead of a dead 55%-opacity tile; it's the strongest motivation loop.
+- [ ] **Profile-create and fact-set save mutations fail silently** — add
+      `onError` banners (pattern exists in SettingsModal/AccountModal).
+- [ ] **Keyboard-only hint shown on touch devices** — gate "Arrow keys / WASD…"
+      behind `(hover: hover) and (pointer: fine)`; tablets see only "tap".
+- [ ] **`aria-pressed` on fact-set pills, grade-band and avatar pickers**;
+      give avatar buttons an accessible name (bare emoji today).
+- [ ] **Munch grid ARIA + focus loss** — `role="grid"` without rows/gridcells;
+      a focused cell that's munched becomes `disabled` and drops focus to
+      `<body>`. Use `role="group"`, `aria-disabled` + click guard; consider a
+      roving tabindex.
+- [ ] **Touch targets** — profile-tile action buttons are ~28 px tall;
+      `min-height: 44px`.
+- [ ] **Fact-grid cell details are hover-`title`-only** — invisible on touch
+      (the primary device), keyboard, and SR; same for trend-bar tooltips. Make
+      cells focusable with a tap popover or `aria-label`.
+- [ ] **PWA icons + orientation** — iOS ignores the SVG `apple-touch-icon`
+      (iPad install gets a screenshot blob); single icon is `"any maskable"`
+      combined; `"orientation": "portrait"` fights landscape
+      tablets/Chromebooks. Add 180 px apple-touch + 192/512 PNGs (separate
+      `any`/`maskable`), drop the portrait lock. (Subsumes the earlier
+      "PNG icons later" note under Polish.)
+- [ ] **RewardsModal loading skeletons** — shop sections render empty while the
+      catalog loads; `.skeleton` class already exists.
+- [ ] **Quit label mismatch** — `aria-label="Back"` contradicts the visible
+      "← Quit" (WCAG 2.5.3); drop the override.
+- [ ] **Offline banner can overlap the play header** — fixed top-0 opaque strip
+      sits on the Quit button on small screens; make it in-flow (or pad), add
+      `safe-area-inset-top`.
+- [ ] **Decorative emoji read aloud by SRs** — wrap in
+      `<span aria-hidden="true">`; keep text alternatives on streak/coin badges.
+- [ ] **No per-munch SR feedback mid-round** — announce munch results through
+      the existing live region, throttled.
+- [ ] **Midnight theme breaks `--sun` companions** — `.stat.accent` hardcodes
+      gold text/shadow against a periwinkle-remapped `--sun`; add
+      `--sun-shadow` / `--on-sun` vars overridden per theme.
+
+### P6 — Refactoring
+
+- [ ] **Extract shared `db/rows.ts`** — row interfaces, mappers, and
+      `PROFILE_SELECT` are duplicated verbatim across the adapters (~120 lines)
+      with drift already present (SQLite `createProfile` omits the streak column
+      PG inserts).
+- [ ] **Shared Db contract test suite** — one `describeDbContract()` run against
+      both adapters; today the PG suite never exercises `upgradeGuestAccount`,
+      `completeSessionAndAward`, cascades, or equipped-reward reads.
+- [ ] **Use `handle()` in all routers** — 17 handlers in `auth/routes.ts` +
+      `api/profiles.ts` hand-roll try/catch around a wrapper that already exists
+      in `api/index.ts`; move it to a shared module and rename `SessionError` →
+      `HttpError` (it's used by rewards/progress/export/dashboard).
+- [ ] **Delete `shared`'s runtime `OPERATIONS` export** — un-importable (all
+      imports are `import type`), re-declared in three server files, and exactly
+      the hazard CLAUDE.md's type-only note warns about. One server-side module.
+- [ ] **Wire `Transition.fraction` into `gradeAnswer`** (or delete the field) —
+      the half-interval rule is encoded twice in the engine; tuning one copy
+      does nothing.
+- [ ] **Unify ownership on `loadOwnedProfile`** — apply the middleware to the
+      `/profiles/:id/*` routes in `api/index.ts` and pass `req.profile` into the
+      services (drops a redundant `getProfile` per request); keep
+      `requireOwnedProfile` only where the id comes from the session row.
+- [ ] **Single source for `DEFAULT_SETTINGS` / `SETTING_BOUNDS`** — duplicated
+      server×2 (profiles router + auth routes) and client×1; one server
+      constants module, and serve bounds via `/catalog` for the client.
+- [ ] **Split `ProfilesPage.tsx` (919 lines, 8 components)** — extract the
+      reusable a11y `Modal` to `components/`, an `AvatarPicker` (duplicated JSX
+      in two modals), and per-modal files.
+- [ ] **Drive both `ADDITIVE_COLUMNS` lists from one declaration**
+      (`{table, column, sqliteDecl, pgDecl}`).
+- [ ] **Client error-message map + query-key hygiene** — auth error strings
+      copied in three maps; `qk.me` is dead while `auth.tsx` re-declares
+      `ME_KEY` and AccountModal uses a raw `['account']` key.
+- [ ] **Move `dayInTz` into the engine** beside `localYMD` (near-duplicate
+      idiom), unit-test it directly (DST day, bad-zone fallback).
+
+### P7 — Features (spec gaps + new ideas)
+
+- [ ] **Accuracy-aware new-fact throttle** (DESIGN §4.4's "~80% success" is
+      currently a static cap) — shrink the new-fact allotment when recent
+      accuracy < ~75%, restore at ≥ 85%; pure planner change, easily tested.
+- [ ] **Enforce the ~30-presentation session ceiling** (§10) — nothing bounds a
+      miss-loop today but the silent time cap; stop emitting injects past the
+      ceiling.
+- [ ] **Local rehearsal for offline misses** — a fact missed while offline gets
+      no in-session re-show (injects are server-driven); self-requeue locally
+      mirroring `REHEARSAL_GAP`.
+- [ ] **One-tap "Enable now" on the dashboard suggestion** — the banner
+      currently says "Enable it from the Facts screen"; `PUT
+/profiles/:id/factsets` already exists.
+- [ ] **"Due today" badge on profile tiles** — "5 to review!" / "All caught up
+      ✓" chip; `countDueReview`/`countLearning` already exist. Positive framing,
+      never homework-backlog.
+- [ ] **"Trickiest facts" dashboard panel** — ranked top-5 by low
+      `accuracyEwma` / slow `medianMsEwma` (reps ≥ 3); the single most
+      actionable parent insight, pure aggregation over existing data.
+- [ ] **Name the mastered facts on the session summary** — `complete()` already
+      knows them; return `masteredFacts` and render celebration chips instead of
+      just a count.
+- [ ] **Streak grace / coin-purchasable streak shield** — the hard reset after
+      one missed day is the most punitive mechanic left (§4.8), and the coin
+      economy needs a sink.
+- [ ] **Weekly in-app recap card** — sessions/mastered/accuracy-delta "This
+      week" card from the existing attempt log; covers most of the deferred
+      email report with zero infra.
+- [ ] **Family-transfer refinement: nudge in-progress siblings** (noted as
+      future work when `familyTransfer` landed) — capped one-box raise for a
+      sibling already in boxes 1–2.
+- [ ] **Grade-band gating for `<`/`>` munch relations** — K–1 profiles get
+      mostly `=` rounds until comparisons are introduced; `pickRelation` is
+      already a pure seeded function.
+- [ ] **More reward catalog entries / seasonal items** — a dedicated kid owns
+      everything within weeks; date-gated seasonal items are a pure function of
+      the date.
+- [ ] **Printable mastery certificate** — per-set/operation mastery is already
+      computable; print-friendly page + `window.print()`, fridge-door appeal.
+- [ ] **Config-driven fluency constants** — let the calibrate tooling's output
+      apply via env/DB instead of redeploying `threshold.ts` constants (pairs
+      with the open calibration item).
 
 ## Features
 
