@@ -403,11 +403,13 @@ generation memoized; N+1s already engineered out.
       reads (enabled sets, timezone, open session, thresholds, muncher, effect)
       now run in one `Promise.all` batch, and both return branches share a
       `common` fields object instead of re-fetching muncher/effect/thresholds.
-- [ ] **SW cache hygiene.** Old hashed bundles accumulate forever and the
-      offline fallback (`/` + assets) is pinned at first-install version
-      (`sw.js`). Version the cache per deploy and re-cache `/` on successful
-      navigations. (Refines pass 4's "non-issue": online users _do_ get fresh
-      shells — the gap is offline-fallback staleness + unbounded growth.)
+- [~] **SW cache hygiene.** The offline `/` shell was pinned at the
+  first-install version. Navigations now refresh the cached shell on success
+  so the offline fallback tracks the latest deploy; `CACHE` bumped to v2
+  (activate evicts the old one). _Deferred:_ fully-automatic per-deploy
+  eviction needs a build-time hash stamped into the cache name — until then
+  stale content-hashed assets are inert (new deploys have new names), only
+  unbounded growth remains, which is slow at this scale.
 - [x] **Confetti animates `top`** — the one non-compositable animation in the
       app (28 pieces forcing layout every frame). Now animates
       `transform: translateY` with the per-piece rotation folded into the
