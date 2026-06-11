@@ -327,12 +327,14 @@ generation memoized; N+1s already engineered out.
 
 ### P3 — Server correctness (medium/low bugs)
 
-- [ ] **"All caught up" can become permanently unreachable.** `caughtUp` counts
+- [x] **"All caught up" can become permanently unreachable.** `caughtUp` counted
       _all_ progress rows but the planner serves only enabled sets — a disabled
       set's rows, or `familyTransfer` seeding an inverse sibling whose set isn't
-      enabled, strand due rows no session can clear (`session/service.ts`).
-      Scope the counts to enabled-set facts; consider gating `familyTransfer` to
-      enabled sets.
+      enabled, stranded due rows no session could clear. `answer()` now builds
+      the enabled fact universe and (a) scopes both caught-up counts to it (new
+      optional `factIds` filter on `countDueReview`/`countLearning`, both
+      adapters) and (b) only seeds a sibling that's actually reachable.
+      Service-level tested.
 - [ ] **`unlockReward` non-atomic read-modify-write** (`rewards.ts`) — a
       concurrent session award can be clobbered (absolute `setCoins`); a crash
       between debit and unlock spends coins for nothing; two tabs can

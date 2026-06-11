@@ -414,18 +414,26 @@ export class PostgresDb implements Db {
     return row ? toProgress(row) : null;
   }
 
-  async countDueReview(profileId: string, now: number): Promise<number> {
+  async countDueReview(profileId: string, now: number, factIds?: string[]): Promise<number> {
+    if (factIds && factIds.length === 0) return 0;
+    const inClause = factIds
+      ? ` AND fact_id IN (${factIds.map((_, i) => `$${i + 3}`).join(',')})`
+      : '';
     const row = await this.one<{ n: number }>(
-      'SELECT COUNT(*)::int AS n FROM fact_progress WHERE profile_id = $1 AND box >= 1 AND due_at <= $2',
-      [profileId, now],
+      `SELECT COUNT(*)::int AS n FROM fact_progress WHERE profile_id = $1 AND box >= 1 AND due_at <= $2${inClause}`,
+      [profileId, now, ...(factIds ?? [])],
     );
     return row?.n ?? 0;
   }
 
-  async countLearning(profileId: string): Promise<number> {
+  async countLearning(profileId: string, factIds?: string[]): Promise<number> {
+    if (factIds && factIds.length === 0) return 0;
+    const inClause = factIds
+      ? ` AND fact_id IN (${factIds.map((_, i) => `$${i + 2}`).join(',')})`
+      : '';
     const row = await this.one<{ n: number }>(
-      'SELECT COUNT(*)::int AS n FROM fact_progress WHERE profile_id = $1 AND box = 0',
-      [profileId],
+      `SELECT COUNT(*)::int AS n FROM fact_progress WHERE profile_id = $1 AND box = 0${inClause}`,
+      [profileId, ...(factIds ?? [])],
     );
     return row?.n ?? 0;
   }

@@ -439,19 +439,25 @@ export class SqliteDb implements Db {
     return row ? toProgress(row) : null;
   }
 
-  async countDueReview(profileId: string, now: number): Promise<number> {
+  async countDueReview(profileId: string, now: number, factIds?: string[]): Promise<number> {
+    if (factIds && factIds.length === 0) return 0;
+    const inClause = factIds ? ` AND fact_id IN (${factIds.map(() => '?').join(',')})` : '';
     const row = this.db
       .prepare(
-        'SELECT COUNT(*) AS n FROM fact_progress WHERE profile_id = ? AND box >= 1 AND due_at <= ?',
+        `SELECT COUNT(*) AS n FROM fact_progress WHERE profile_id = ? AND box >= 1 AND due_at <= ?${inClause}`,
       )
-      .get(profileId, now) as { n: number };
+      .get(profileId, now, ...(factIds ?? [])) as { n: number };
     return row.n;
   }
 
-  async countLearning(profileId: string): Promise<number> {
+  async countLearning(profileId: string, factIds?: string[]): Promise<number> {
+    if (factIds && factIds.length === 0) return 0;
+    const inClause = factIds ? ` AND fact_id IN (${factIds.map(() => '?').join(',')})` : '';
     const row = this.db
-      .prepare('SELECT COUNT(*) AS n FROM fact_progress WHERE profile_id = ? AND box = 0')
-      .get(profileId) as { n: number };
+      .prepare(
+        `SELECT COUNT(*) AS n FROM fact_progress WHERE profile_id = ? AND box = 0${inClause}`,
+      )
+      .get(profileId, ...(factIds ?? [])) as { n: number };
     return row.n;
   }
 

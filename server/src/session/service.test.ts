@@ -67,3 +67,64 @@ describe('stale open session is reconciled on next start', () => {
     expect((await db.getProfileReward(profileId)).coins).toBe(0);
   });
 });
+
+describe('caught-up is scoped to the enabled sets', () => {
+  it('a disabled set\'s due rows no longer block "all caught up"', async () => {
+    const accountId = await db.createAccount('a@b.co', 'hash', 'UTC');
+    const profile = await db.createProfile({
+      accountId,
+      displayName: 'Kid',
+      avatar: '🦊',
+      settings: { sessionCards: 20, sessionSeconds: 180, newPerSession: 3 },
+    });
+    const profileId = profile.id;
+    const now = Date.UTC(2026, 0, 1, 9, 0, 0);
+
+    // A leftover review row from a set that is NOT enabled — due now.
+    await db.upsertProgress({
+      profileId,
+      factId: 'mul:6x7',
+      box: 2,
+      state: 'review',
+      dueAt: now - 1000,
+      lastSeenAt: now - DAY_MS,
+      reps: 4,
+      fastCorrect: 2,
+      correctStreak: 2,
+      accuracyEwma: 0.9,
+      medianMsEwma: 1400,
+    });
+
+    // Only add-0-10 is enabled; the mul fact above can never be served.
+    await db.setEnabledSetIds(profileId, ['add-0-10']);
+    const session = await startSession(db, accountId, profileId, now);
+
+    // Graduate every box-0 deck fact out of the learning phase (two in-session
+    // corrects, §4.3). The last answer should report caughtUp even though the
+    // orphan mul row is still "due".
+    let lastCaughtUp = false;
+    for (const card of session.deck) {
+      for (let rep = 0; rep < 2; rep++) {
+        const r = await answer(
+          db,
+          accountId,
+          session.sessionId,
+          { factId: card.fact.id, correct: true, responseMs: 600 },
+          now,
+        );
+        lastCaughtUp = !!r.caughtUp;
+      }
+    }
+    // The orphan row is still counted unscoped, proving the scoping is what
+    // unblocks the celebration.
+    expect(await db.countDueReview(profileId, now)).toBeGreaterThan(0);
+    expect(
+      await db.countDueReview(
+        profileId,
+        now,
+        session.deck.map((c) => c.fact.id),
+      ),
+    ).toBe(0);
+    expect(lastCaughtUp).toBe(true);
+  });
+});

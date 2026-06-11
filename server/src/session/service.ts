@@ -283,15 +283,23 @@ export async function answer(
 
   const { fact } = card;
   const { profileId } = session;
-  // These three reads are independent — fetch them concurrently to cut the
-  // per-answer round-trip latency (this is the hot path of a session).
-  const [progress, statRow, accountTz] = await Promise.all([
+  // These reads are independent — fetch them concurrently to cut the per-answer
+  // round-trip latency (this is the hot path of a session).
+  const [progress, statRow, accountTz, enabledSetIds] = await Promise.all([
     db.getProgressForFact(profileId, body.factId),
     db.getOperationStat(profileId, fact.operation),
     db.getAccountTimezone(accountId),
+    db.listEnabledSetIds(profileId),
   ]);
   const stat = statRow ?? zeroStat(profileId, fact.operation);
   const timezone = accountTz ?? 'UTC';
+  // The fact ids the planner can actually serve right now. Used to gate family
+  // transfer and to scope "caught up" — facts from a disabled set still carry
+  // progress (DESIGN.md §10) but can never be reviewed, so they must not seed
+  // unreachable rows nor block the caught-up celebration.
+  const enabledFactIds = new Set(
+    generateFactsForSets(SEED_CATALOG.filter((s) => enabledSetIds.includes(s.id))).map((f) => f.id),
+  );
 
   const result = gradeAnswer({
     fact,
@@ -310,8 +318,11 @@ export async function answer(
   // Fact-family scheduling transfer (DESIGN.md §9): when a sub/div fact is
   // freshly mastered, give its unseen inverse sibling a review head start.
   const newlyMastered = result.progress.box === 5 && (progress?.box ?? 0) < 5;
-  if (newlyMastered && siblingFactId(fact)) {
-    const siblingProgress = await db.getProgressForFact(profileId, siblingFactId(fact)!);
+  const sibling = siblingFactId(fact);
+  // Only seed a sibling the kid can actually reach — otherwise it becomes a due
+  // row no session ever serves, stranding "all caught up" forever.
+  if (newlyMastered && sibling && enabledFactIds.has(sibling)) {
+    const siblingProgress = await db.getProgressForFact(profileId, sibling);
     const seeded = familyTransfer({
       fact,
       prevBox: progress?.box ?? 0,
@@ -347,10 +358,13 @@ export async function answer(
   await db.updateSessionWorkingState(sessionId, JSON.stringify(ws));
 
   // Caught up = today's work done: nothing due to review AND nothing still
-  // being learned (DESIGN.md §4.10). Independent counts → fetch concurrently.
+  // being learned, among the *enabled* facts (DESIGN.md §4.10). Scoped so a
+  // disabled set's leftover rows can't keep this false forever. Independent
+  // counts → fetch concurrently.
+  const enabledIds = [...enabledFactIds];
   const [dueReview, learning] = await Promise.all([
-    db.countDueReview(profileId, now),
-    db.countLearning(profileId),
+    db.countDueReview(profileId, now, enabledIds),
+    db.countLearning(profileId, enabledIds),
   ]);
 
   return {

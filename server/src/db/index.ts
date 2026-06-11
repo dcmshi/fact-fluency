@@ -102,10 +102,12 @@ export interface Db {
   getProgress(profileId: string): Promise<FactProgress[]>;
   getProgressForFact(profileId: string, factId: string): Promise<FactProgress | null>;
   upsertProgress(p: FactProgress): Promise<void>;
-  /** Count due review facts (box ≥ 1, dueAt ≤ now) — drives "all caught up". */
-  countDueReview(profileId: string, now: number): Promise<number>;
-  /** Count facts still in the learning phase (box 0). */
-  countLearning(profileId: string): Promise<number>;
+  /** Count due review facts (box ≥ 1, dueAt ≤ now) — drives "all caught up".
+   *  Pass `factIds` to scope to the currently enabled fact universe, so a
+   *  disabled set's lingering rows don't keep the kid from ever catching up. */
+  countDueReview(profileId: string, now: number, factIds?: string[]): Promise<number>;
+  /** Count facts still in the learning phase (box 0); `factIds` scopes as above. */
+  countLearning(profileId: string, factIds?: string[]): Promise<number>;
   getOperationStats(profileId: string): Promise<OperationStat[]>;
   getOperationStat(profileId: string, operation: Operation): Promise<OperationStat | null>;
   upsertOperationStat(s: OperationStat): Promise<void>;
