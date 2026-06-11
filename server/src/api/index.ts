@@ -98,7 +98,9 @@ export function createApiRouter(db: Db, isProd: boolean): Router {
       } else {
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.setHeader('Content-Disposition', `attachment; filename="${base}.json"`);
-        res.send(JSON.stringify(data, null, 2));
+        // No pretty-print indent — it ~doubles a long-lived profile's export
+        // (all-time attempts + progress); it's a download, not meant to be read raw.
+        res.send(JSON.stringify(data));
       }
     }),
   );

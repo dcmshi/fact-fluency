@@ -408,13 +408,14 @@ generation memoized; N+1s already engineered out.
       (`sw.js`). Version the cache per deploy and re-cache `/` on successful
       navigations. (Refines pass 4's "non-issue": online users _do_ get fresh
       shells — the gap is offline-fallback staleness + unbounded growth.)
-- [ ] **Confetti animates `top`** — the one non-compositable animation in the
-      app; animate `transform: translateY` (+ fold in the per-piece rotation,
-      which the keyframe currently overrides).
+- [x] **Confetti animates `top`** — the one non-compositable animation in the
+      app (28 pieces forcing layout every frame). Now animates
+      `transform: translateY` with the per-piece rotation folded into the
+      keyframe via a `--rot` custom property; `will-change: transform`.
 - [ ] **Trim eagerly-loaded font weights** — 9 woff2 files in the critical path
       (`main.tsx`); verify usage in CSS, drop unused weights.
-- [ ] **Drop the 2-space indent on the JSON export** (`api/index.ts`) — halves
-      the payload.
+- [x] **Drop the 2-space indent on the JSON export** (`api/index.ts`) — halved
+      the payload; it's a download, not read raw.
 
 ### P5 — UI polish & accessibility
 
