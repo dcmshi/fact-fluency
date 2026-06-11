@@ -19,13 +19,15 @@ export const Confetti = memo(function Confetti() {
           <span
             key={i}
             className="confetti-piece"
-            style={{
-              left: `${left}%`,
-              background: color,
-              animationDelay: `${delay}s`,
-              animationDuration: `${duration}s`,
-              transform: `rotate(${rotate}deg)`,
-            }}
+            style={
+              {
+                left: `${left}%`,
+                background: color,
+                animationDelay: `${delay}s`,
+                animationDuration: `${duration}s`,
+                '--rot': `${rotate}deg`,
+              } as React.CSSProperties
+            }
           />
         );
       })}

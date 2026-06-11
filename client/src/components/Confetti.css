@@ -13,23 +13,26 @@
   height: 16px;
   border-radius: 3px;
   opacity: 0;
+  /* Animate transform (compositor-offloaded), not top (forces layout every
+     frame for all 28 pieces). The per-piece rotation rides along via --rot. */
   animation-name: confetti-fall;
   animation-timing-function: cubic-bezier(0.2, 0.6, 0.4, 1);
   animation-iteration-count: 1;
   animation-fill-mode: both;
+  will-change: transform, opacity;
 }
 
 @keyframes confetti-fall {
   0% {
     opacity: 0;
-    top: -5vh;
+    transform: translateY(0) rotate(var(--rot, 0deg));
   }
   10% {
     opacity: 1;
   }
   100% {
     opacity: 0;
-    top: 105vh;
+    transform: translateY(110vh) rotate(var(--rot, 0deg));
   }
 }
 
