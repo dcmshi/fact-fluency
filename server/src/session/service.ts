@@ -66,7 +66,15 @@ export function dayInTz(timeZone: string, atMs: number): string {
   }
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+/** The calendar day (YYYY-MM-DD) before `ymd`. Pure string/date arithmetic, so
+ *  it's DST-proof — `now - 24h` lands two days back the morning after
+ *  spring-forward (a 23-hour day), which would wrongly reset a real streak. */
+export function previousDay(ymd: string): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() - 1);
+  return dt.toISOString().slice(0, 10);
+}
 
 /**
  * Update the day streak on session completion (DESIGN.md §4.10): same day → no
@@ -81,8 +89,7 @@ async function bumpStreak(
   const today = dayInTz(timezone, now);
   const { streak, lastPlayedDay } = await db.getProfileStreak(profileId);
   if (lastPlayedDay === today) return streak;
-  const yesterday = dayInTz(timezone, now - DAY_MS);
-  const next = lastPlayedDay === yesterday ? streak + 1 : 1;
+  const next = lastPlayedDay === previousDay(today) ? streak + 1 : 1;
   await db.setProfileStreak(profileId, next, today);
   return next;
 }

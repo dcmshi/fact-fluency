@@ -4,7 +4,16 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SqliteDb } from '../db/sqlite';
-import { answer, complete, startSession } from './service';
+import { answer, complete, previousDay, startSession } from './service';
+
+describe('previousDay (DST-proof calendar arithmetic)', () => {
+  it('steps back across normal, month, year, and leap boundaries', () => {
+    expect(previousDay('2026-03-09')).toBe('2026-03-08'); // day after US spring-forward
+    expect(previousDay('2026-03-01')).toBe('2026-02-28');
+    expect(previousDay('2024-03-01')).toBe('2024-02-29'); // leap year
+    expect(previousDay('2026-01-01')).toBe('2025-12-31');
+  });
+});
 
 let db: SqliteDb;
 beforeEach(() => {

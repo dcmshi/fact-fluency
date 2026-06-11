@@ -376,9 +376,10 @@ generation memoized; N+1s already engineered out.
       slides `expires_at` forward on use via a new conditional `slideAuthSession`
       (both adapters), throttled to ~once/day, and re-issues the cookie so the
       browser copy slides too. Db-level tested (slide / throttled / expired).
-- [ ] **`bumpStreak` DST edge** — `now − 24h` lands two calendar days back in
-      the first hour after spring-forward, resetting a genuine streak. Compute
-      "yesterday" by calendar day.
+- [x] **`bumpStreak` DST edge** — `now − 24h` landed two calendar days back in
+      the first hour after spring-forward, resetting a genuine streak. "Yesterday"
+      is now computed by calendar arithmetic (`previousDay`), DST-proof. Unit
+      tested across spring-forward, month, year, and leap boundaries.
 - [x] **`responseMs` accepts fractions** — passed validation, then 500'd on
       Postgres (`INTEGER` column) _after_ progress already wrote. Now
       `Math.round`ed at the existing clamp; tested via the CSV export.
