@@ -63,7 +63,11 @@ export function PlayPage() {
       if (nextQueue.length === 0 || timeUp) {
         const sid = sessionRef.current!.sessionId;
         try {
-          await flushAnswers();
+          // flushAnswers returns false (it doesn't throw) when answers are
+          // still queued. Completing anyway would have the server score an
+          // incomplete attempt log and 409 the late replays — so a partial
+          // drain takes the offline-finish path and completes on reconnect.
+          if (!(await flushAnswers())) throw new Error('answers_pending');
           setSummary(await api.complete(sid));
           // Completion credits coins + streak and advances mastery — refresh the
           // picker and progress views so they're current when the kid returns.

@@ -278,11 +278,11 @@ generation memoized; N+1s already engineered out.
       while a drain was in flight. It now re-reads storage and drops exactly the
       settled prefix (drains are serialized; enqueue only appends).
       Regression-tested.
-- [ ] **`goNext` completes a session even when queued answers didn't flush.**
-      `PlayPage.tsx` ignores `flushAnswers()`' boolean; the server then computes
-      points from an incomplete attempt log and the late replays 409 (feeding the
-      poisoning above). Only call `api.complete` after a confirmed drain; else
-      `markPendingComplete` + the offline finish path.
+- [x] **`goNext` completes a session even when queued answers didn't flush.**
+      `PlayPage.tsx` ignored `flushAnswers()`' boolean; the server then computed
+      points from an incomplete attempt log and the late replays 409'd. Now a
+      partial drain takes the offline-finish path (`markPendingComplete`), and
+      the session completes on reconnect with the full log.
 - [ ] **Guest "Exit" destroys all progress with zero warning.** The header
       button (`ProfilesPage.tsx`) logs the guest out → account stranded → pruned;
       coins/progress unrecoverable. Confirm dialog with a "Save my progress" CTA
