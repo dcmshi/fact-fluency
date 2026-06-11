@@ -195,7 +195,10 @@ export function PlayPage() {
   }, [phase, studyReady, startRound]);
 
   const opClass = current ? OP_CLASS[current.fact.operation] : '';
-  const progress = session ? Math.min(100, (played / Math.max(1, session.deck.length)) * 100) : 0;
+  // Denominator = cards actually remaining (the live queue grows when misses
+  // inject re-shows), not the starter deck — so the bar never promises "done!"
+  // while cards are still coming (§4.8's clear finish line stays honest).
+  const progress = session ? Math.min(100, (played / Math.max(1, played + queue.length)) * 100) : 0;
 
   return (
     <div className={`screen play ${opClass}`}>

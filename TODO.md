@@ -314,9 +314,10 @@ generation memoized; N+1s already engineered out.
       the one glyph distinguishing `+` from `×` in `--sun` yellow on cream — far
       below the 3:1 large-text minimum. Operators (and the study-card answer
       reveal) now use the op's darker `--shadow` shade (3:1+, hue preserved).
-- [ ] **Progress bar pins at 100% while injected re-shows remain**
-      (`PlayPage.tsx`) — breaks the §4.8 "clear finish line." Use
-      `played / (played + queue.length)`.
+- [x] **Progress bar pins at 100% while injected re-shows remain** — divided by
+      the starter deck only, so after a few misses the bar promised "done!" with
+      cards still coming. Now `played / (played + queue.length)` — the live
+      remaining count, injects included.
 - [ ] **Use the delivered `thresholds` for instant "fast" feedback** (DESIGN
       §4.7 pins this). The client never reads `SessionResponse.thresholds`;
       `fast` waits on the answer round trip and is always `false` offline, so an
