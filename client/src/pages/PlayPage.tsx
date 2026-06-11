@@ -146,18 +146,11 @@ export function PlayPage() {
         responseMs: r.responseMs,
         wrongMunches: r.wrongMunches,
       };
-      let injects: { factId: string; afterOffset: number }[] = [];
-      let caught = false;
-      let fast = false;
-      try {
-        const resp = await api.answer(s.sessionId, body);
-        injects = resp.injects ?? [];
-        caught = !!resp.caughtUp;
-        fast = resp.fast;
-      } catch {
-        // Offline (or a blip): queue the report; it replays on reconnect.
-        enqueueAnswer(s.sessionId, body);
-      }
+      // §4.7: the session ships per-op thresholds precisely so fast/slow
+      // feedback renders instantly — no waiting on the answer round trip, and
+      // an offline kid still hears "super fast!". The server recomputes `fast`
+      // authoritatively for scheduling; this copy is presentation-only.
+      const fast = r.correct && r.responseMs <= s.thresholds[current.fact.operation];
       setAnnounce(
         r.correct
           ? fast
@@ -165,7 +158,15 @@ export function PlayPage() {
             : 'All munched!'
           : 'All done — nice effort! Keep going.',
       );
-      if (caught) setCaughtUp(true);
+      let injects: { factId: string; afterOffset: number }[] = [];
+      try {
+        const resp = await api.answer(s.sessionId, body);
+        injects = resp.injects ?? [];
+        if (resp.caughtUp) setCaughtUp(true);
+      } catch {
+        // Offline (or a blip): queue the report; it replays on reconnect.
+        enqueueAnswer(s.sessionId, body);
+      }
 
       let next = queue.slice(1);
       for (const inj of injects) {

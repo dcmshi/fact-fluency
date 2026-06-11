@@ -318,11 +318,12 @@ generation memoized; N+1s already engineered out.
       the starter deck only, so after a few misses the bar promised "done!" with
       cards still coming. Now `played / (played + queue.length)` — the live
       remaining count, injects included.
-- [ ] **Use the delivered `thresholds` for instant "fast" feedback** (DESIGN
-      §4.7 pins this). The client never reads `SessionResponse.thresholds`;
-      `fast` waits on the answer round trip and is always `false` offline, so an
-      offline kid never hears "super fast!". Compute feedback locally; the
-      server stays authoritative for scheduling.
+- [x] **Use the delivered `thresholds` for instant "fast" feedback** (DESIGN
+      §4.7 pins this). The client never read `SessionResponse.thresholds`;
+      `fast` waited on the answer round trip and was always `false` offline.
+      The round announcement now computes `fast` locally from the session's
+      per-op threshold and fires before the network call; the server stays
+      authoritative for scheduling.
 
 ### P3 — Server correctness (medium/low bugs)
 
