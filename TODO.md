@@ -291,9 +291,9 @@ generation memoized; N+1s already engineered out.
 
 ### P2 — Quick high-impact wins (perf + kid-facing UX)
 
-- [ ] **No HTTP compression in production.** Render doesn't compress for you;
-      the bundle + dashboard JSON ship 3–4× their gzipped size (`app.ts`). Add
-      `compression()`.
+- [x] **No HTTP compression in production.** Render doesn't compress for you;
+      the bundle + dashboard JSON shipped 3–4× their gzipped size. Added
+      `compression()` ahead of all routes; gzip round-trip tested.
 - [ ] **No Cache-Control on hashed assets.** `express.static` defaults to
       `maxAge: 0`, so every content-hashed asset revalidates per load. Serve
       assets with `maxAge: '1y', immutable`; `index.html` with `no-cache`.

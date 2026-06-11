@@ -3,6 +3,7 @@
  * so tests can construct the app over an in-memory DB.
  */
 import path from 'node:path';
+import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import express, { type Application, type NextFunction, type Request, type Response } from 'express';
 import { createApiRouter } from './api';
@@ -18,6 +19,10 @@ export function createApp(db: Db, isProd: boolean): Application {
   // letting an attacker rotate fake IPs past the auth rate limits. Off in
   // dev/test so req.ip is the local socket.
   if (isProd) app.set('trust proxy', 1);
+  // Render's proxy doesn't compress responses — without this every first visit
+  // ships the JS bundle (and the chunky dashboard/progress JSON) at 3-4x its
+  // gzipped size.
+  app.use(compression());
   app.use(securityHeaders(isProd));
   // Cap request bodies — every endpoint takes small JSON (credentials, a setId
   // list, one answer). 16kb is generous headroom; anything larger is malformed

@@ -44,6 +44,16 @@ describe('error handling', () => {
   });
 });
 
+describe('compression', () => {
+  it('gzips compressible JSON when the client accepts it', async () => {
+    // Render's proxy doesn't compress; the middleware must. The catalog is the
+    // biggest public payload (well past compression's 1kb threshold).
+    const res = await request(app(true)).get('/api/catalog').set('Accept-Encoding', 'gzip');
+    expect(res.headers['content-encoding']).toBe('gzip');
+    expect(res.body.sets.length).toBeGreaterThan(0); // still parses end-to-end
+  });
+});
+
 describe('rate limiting behind the proxy (trust proxy = 1)', () => {
   it('is not evaded by rotating a spoofed X-Forwarded-For prefix in prod', async () => {
     // Render appends the real client IP as the *last* XFF entry; everything to
