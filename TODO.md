@@ -356,10 +356,11 @@ generation memoized; N+1s already engineered out.
       unconditionally, so a re-POST straddling midnight advanced the streak with
       no new play. Now gated on `firstCompletion` (coins already were); a repeat
       completion just reads the current streak back.
-- [ ] **End-of-deck re-show splices to index 0** — a fact missed on the last
-      card is re-shown immediately, violating §4.4's "never back-to-back"
-      (`PlayPage.tsx` inject splice). (Distinct from the pass-4 dropped "recency
-      guard" claim, which concerned the dup-free starter deck.)
+- [x] **End-of-deck re-show splices to index 0** — a fact missed on the last
+      card was re-shown immediately, violating §4.4's "never back-to-back". The
+      splice now skips an inject that would land at index 0 (only happens with
+      an empty queue, since `afterOffset` is always 3); the demoted box schedule
+      resurfaces the fact instead.
 - [ ] **MunchBoard side effects inside the `setEaten` updater** — sounds/counts
       double-fire under StrictMode and inflate the logged `wrongMunches`. Hoist
       the effects out of the updater.

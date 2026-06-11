@@ -173,6 +173,11 @@ export function PlayPage() {
         const card = s.deck.find((c) => c.fact.id === inj.factId);
         if (!card) continue;
         const at = Math.min(inj.afterOffset, next.length);
+        // at === 0 only when the queue is empty (the missed card was last):
+        // splicing here would re-show the same fact immediately, which §4.4
+        // forbids ("never the same fact twice back-to-back"). Skip the
+        // in-session rehearsal — its demoted box schedule resurfaces it.
+        if (at === 0) continue;
         next = [...next.slice(0, at), { ...card, isNew: false }, ...next.slice(at)];
       }
       await goNext(next);
