@@ -179,27 +179,37 @@ export async function startSession(
 ): Promise<SessionResponse> {
   const profile = await requireOwnedProfile(db, accountId, profileId);
 
-  const enabled = new Set(await db.listEnabledSetIds(profileId));
-  const sets = SEED_CATALOG.filter((s) => enabled.has(s.id));
+  // After the ownership gate these reads are all independent — fetch them in
+  // one round-trip batch rather than serially (matters most on Render Postgres,
+  // where each await is a network hop). The response fields shared by both the
+  // resume and fresh-plan branches come from here.
+  const [enabledSetIds, accountTz, open, thresholds, muncher, effect] = await Promise.all([
+    db.listEnabledSetIds(profileId),
+    db.getAccountTimezone(accountId),
+    db.getOpenSession(profileId),
+    computeThresholds(db, profileId),
+    db.getEquippedMuncher(profileId),
+    db.getEquippedEffect(profileId),
+  ]);
+  const timezone = accountTz ?? 'UTC';
+  const sets = SEED_CATALOG.filter((s) => enabledSetIds.includes(s.id));
   if (sets.length === 0) throw new SessionError(400, 'no_enabled_sets');
+
+  const common = {
+    thresholds,
+    sessionSeconds: profile.settings.sessionSeconds,
+    theme: profile.theme,
+    muncher,
+    effect,
+  };
 
   // Resume an interrupted session reopened the same day; otherwise discard a
   // stale open session and plan fresh (DESIGN.md §10, one active session/profile).
-  const timezone = (await db.getAccountTimezone(accountId)) ?? 'UTC';
-  const open = await db.getOpenSession(profileId);
   if (open) {
     const sameDay = dayInTz(timezone, open.startedAt) === dayInTz(timezone, now);
     const resumeDeck = sameDay ? await buildResumeDeck(db, open, profileId) : [];
     if (resumeDeck.length > 0) {
-      return {
-        sessionId: open.id,
-        deck: resumeDeck,
-        thresholds: await computeThresholds(db, profileId),
-        sessionSeconds: profile.settings.sessionSeconds,
-        theme: profile.theme,
-        muncher: await db.getEquippedMuncher(profileId),
-        effect: await db.getEquippedEffect(profileId),
-      };
+      return { sessionId: open.id, deck: resumeDeck, ...common };
     }
     // Nothing left to resume (or a different day): close it — crediting any
     // attempts it logged (e.g. an offline finish) — and plan fresh.
@@ -244,15 +254,7 @@ export async function startSession(
     throw err;
   }
 
-  return {
-    sessionId,
-    deck,
-    thresholds: await computeThresholds(db, profileId),
-    sessionSeconds: profile.settings.sessionSeconds,
-    theme: profile.theme,
-    muncher: await db.getEquippedMuncher(profileId),
-    effect: await db.getEquippedEffect(profileId),
-  };
+  return { sessionId, deck, ...common };
 }
 
 export async function answer(

@@ -397,8 +397,10 @@ generation memoized; N+1s already engineered out.
 - [ ] **Skip the full-deck `working_state` rewrite when `learning` didn't
       change** — 5–15 KB of JSON re-stringified per answer, a no-op for most
       review facts.
-- [ ] **Parallelize `startSession`'s independent reads** — ~9 sequential awaits;
-      `Promise.all` them as `answer()` already does.
+- [x] **Parallelize `startSession`'s independent reads** — the ~6 post-gate
+      reads (enabled sets, timezone, open session, thresholds, muncher, effect)
+      now run in one `Promise.all` batch, and both return branches share a
+      `common` fields object instead of re-fetching muncher/effect/thresholds.
 - [ ] **SW cache hygiene.** Old hashed bundles accumulate forever and the
       offline fallback (`/` + assets) is pinned at first-install version
       (`sw.js`). Version the cache per deploy and re-cache `/` on successful
