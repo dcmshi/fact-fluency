@@ -153,6 +153,32 @@ describe('PostgresDb (pg-mem)', () => {
     expect(await db.listUnlocks(profile.id)).toEqual(['theme-candy']);
   });
 
+  it('spendAndUnlock debits relatively and reports ok / already-owned / insufficient', async () => {
+    const { profile } = await accountAndProfile();
+    await db.addCoins(profile.id, 50);
+
+    expect(await db.spendAndUnlock(profile.id, 'muncher-fox', 40)).toEqual({
+      status: 'ok',
+      coins: 10,
+    });
+    expect(await db.listUnlocks(profile.id)).toContain('muncher-fox');
+
+    // Same item again — already owned, no further debit.
+    expect(await db.spendAndUnlock(profile.id, 'muncher-fox', 40)).toEqual({
+      status: 'already_owned',
+    });
+    expect((await db.getProfileReward(profile.id)).coins).toBe(10);
+
+    // Can't afford a second item.
+    expect(await db.spendAndUnlock(profile.id, 'avatar-dragon', 60)).toEqual({
+      status: 'insufficient',
+    });
+    // NB: the claim-rollback on the insufficient path can't be asserted here —
+    // pg-mem's pooled client doesn't honor ROLLBACK — so its side effects (the
+    // unlock claim undone) are verified against the real-transaction SQLite
+    // adapter in rewards.test.ts instead. Real Postgres rolls back correctly.
+  });
+
   it('getOpenSession tracks the latest incomplete session', async () => {
     const { profile } = await accountAndProfile();
     const row = (id: string, startedAt: number) => ({

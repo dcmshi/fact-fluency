@@ -335,11 +335,16 @@ generation memoized; N+1s already engineered out.
       optional `factIds` filter on `countDueReview`/`countLearning`, both
       adapters) and (b) only seeds a sibling that's actually reachable.
       Service-level tested.
-- [ ] **`unlockReward` non-atomic read-modify-write** (`rewards.ts`) — a
-      concurrent session award can be clobbered (absolute `setCoins`); a crash
-      between debit and unlock spends coins for nothing; two tabs can
-      double-spend. Add a transactional `spendAndUnlock` Db method with a
-      conditional `coins >= cost` debit, mirroring `completeSessionAndAward`.
+- [x] **`unlockReward` non-atomic read-modify-write** — a concurrent session
+      award could be clobbered (absolute `setCoins`); a crash between debit and
+      unlock spent coins for nothing; two tabs could double-spend. New
+      transactional `spendAndUnlock` Db method (both adapters) claims the item,
+      then debits with a conditional relative `coins >= cost` update, all in one
+      transaction. SQLite tests cover the concurrent-double-spend and
+      award-survives-mid-spend races and the insufficient-rollback; pg-mem
+      covers the debit math (note: pg-mem can't honor ROLLBACK, so the
+      rollback side-effect is asserted on the SQLite adapter). (`setCoins` is now
+      test-only — a dead-code cleanup for the refactor pass.)
 - [x] **Stale open session closed without awarding its coins.** `startSession`
       plain-`completeSession`d a prior-day open session; the queued offline
       `complete` then saw `firstCompletion === false` and skipped the award —

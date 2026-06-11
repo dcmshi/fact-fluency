@@ -394,6 +394,41 @@ export class SqliteDb implements Db {
       .run(profileId, itemId);
   }
 
+  async spendAndUnlock(
+    profileId: string,
+    itemId: string,
+    cost: number,
+  ): Promise<
+    { status: 'ok'; coins: number } | { status: 'insufficient' } | { status: 'already_owned' }
+  > {
+    // Claim ownership first, then debit conditionally — both in one transaction
+    // so two concurrent unlocks can't both pass a stale `coins >= cost` read
+    // (double-spend), and a session coin award landing mid-spend can't be
+    // clobbered (the debit is relative, not an absolute setCoins).
+    const INSUFFICIENT = Symbol('insufficient');
+    try {
+      return this.db.transaction(() => {
+        const ins = this.db
+          .prepare('INSERT OR IGNORE INTO profile_unlock (profile_id, item_id) VALUES (?, ?)')
+          .run(profileId, itemId);
+        if (ins.changes === 0) return { status: 'already_owned' as const };
+        const upd = this.db
+          .prepare(
+            'UPDATE profile_reward SET coins = coins - ? WHERE profile_id = ? AND coins >= ?',
+          )
+          .run(cost, profileId, cost);
+        if (upd.changes === 0) throw INSUFFICIENT; // rolls back the unlock insert
+        const { coins } = this.db
+          .prepare('SELECT coins FROM profile_reward WHERE profile_id = ?')
+          .get(profileId) as { coins: number };
+        return { status: 'ok' as const, coins };
+      })();
+    } catch (err) {
+      if (err === INSUFFICIENT) return { status: 'insufficient' };
+      throw err;
+    }
+  }
+
   async updateProfileSettings(profileId: string, settings: ProfileSettings): Promise<Profile> {
     this.db
       .prepare('UPDATE profile SET settings = ? WHERE id = ?')

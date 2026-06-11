@@ -37,18 +37,18 @@ export async function unlockReward(
   profileId: string,
   itemId: string,
 ): Promise<{ coins: number; owned: string[] }> {
-  const profile = await requireOwnedProfile(db, accountId, profileId);
+  await requireOwnedProfile(db, accountId, profileId);
   const item = rewardById(itemId);
   if (!item) throw new SessionError(400, 'unknown_item');
   if (item.cost === 0) throw new SessionError(400, 'item_free'); // already owned
-  const unlocks = await db.listUnlocks(profileId);
-  if (unlocks.includes(itemId)) throw new SessionError(409, 'already_owned');
-  if (profile.coins < item.cost) throw new SessionError(400, 'insufficient_coins');
 
-  const coins = profile.coins - item.cost;
-  await db.setCoins(profileId, coins);
-  await db.addUnlock(profileId, itemId);
-  return { coins, owned: [...new Set([...FREE_ITEM_IDS, ...unlocks, itemId])] };
+  // Claim + debit atomically (no read-modify-write on coins): a session coin
+  // award racing this spend can't be lost, and two concurrent unlocks of the
+  // same item can't both succeed.
+  const result = await db.spendAndUnlock(profileId, itemId, item.cost);
+  if (result.status === 'already_owned') throw new SessionError(409, 'already_owned');
+  if (result.status === 'insufficient') throw new SessionError(400, 'insufficient_coins');
+  return { coins: result.coins, owned: await ownedIds(db, profileId) };
 }
 
 export async function equipReward(

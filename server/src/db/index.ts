@@ -91,6 +91,16 @@ export interface Db {
   setEquippedEffect(profileId: string, effect: string): Promise<void>;
   listUnlocks(profileId: string): Promise<string[]>;
   addUnlock(profileId: string, itemId: string): Promise<void>;
+  /** Atomically claim an item and debit `cost` coins in one transaction.
+   *  Prevents a concurrent coin award being clobbered (vs read-modify-write
+   *  setCoins) and a double-spend from two concurrent unlocks of one item. */
+  spendAndUnlock(
+    profileId: string,
+    itemId: string,
+    cost: number,
+  ): Promise<
+    { status: 'ok'; coins: number } | { status: 'insufficient' } | { status: 'already_owned' }
+  >;
   getProfileStreak(profileId: string): Promise<{ streak: number; lastPlayedDay: string | null }>;
   setProfileStreak(profileId: string, streak: number, day: string): Promise<void>;
 

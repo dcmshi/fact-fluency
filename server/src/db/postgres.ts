@@ -346,6 +346,38 @@ export class PostgresDb implements Db {
     );
   }
 
+  async spendAndUnlock(
+    profileId: string,
+    itemId: string,
+    cost: number,
+  ): Promise<
+    { status: 'ok'; coins: number } | { status: 'insufficient' } | { status: 'already_owned' }
+  > {
+    // Claim ownership then debit conditionally, one transaction — see the
+    // SQLite adapter for the race rationale.
+    return this.withTransaction(async (q) => {
+      const claim = await q(
+        'INSERT INTO profile_unlock (profile_id, item_id) VALUES ($1,$2) ON CONFLICT DO NOTHING RETURNING item_id',
+        [profileId, itemId],
+      );
+      if (claim.rows.length === 0) return { status: 'already_owned' as const };
+      // Add a negative delta rather than subtract: pg-mem evaluates `coins - $n`
+      // with its operands swapped (a pg-mem bug), but addition commutes, so this
+      // is correct on both real Postgres and pg-mem. $3 guards the balance.
+      const debit = await q(
+        'UPDATE profile_reward SET coins = coins + $2 WHERE profile_id = $1 AND coins >= $3 RETURNING coins',
+        [profileId, -cost, cost],
+      );
+      if (debit.rows.length === 0) throw new Error('rollback:insufficient'); // undoes the claim
+      return { status: 'ok' as const, coins: (debit.rows[0] as { coins: number }).coins };
+    }).catch((err: unknown) => {
+      if (err instanceof Error && err.message === 'rollback:insufficient') {
+        return { status: 'insufficient' as const };
+      }
+      throw err;
+    });
+  }
+
   async updateProfileSettings(profileId: string, settings: ProfileSettings): Promise<Profile> {
     await this.pool.query('UPDATE profile SET settings = $1 WHERE id = $2', [
       JSON.stringify(settings),

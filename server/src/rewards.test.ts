@@ -51,6 +51,8 @@ describe('unlockReward', () => {
       code: 'insufficient_coins',
     });
     expect((await db.getProfileReward(profile.id)).coins).toBe(10);
+    // The atomic claim was rolled back — the item isn't owned.
+    expect(await db.listUnlocks(profile.id)).not.toContain('muncher-fox');
   });
 
   it('rejects a free item and an unknown item', async () => {
@@ -75,6 +77,31 @@ describe('unlockReward', () => {
       status: 409,
       code: 'already_owned',
     });
+  });
+
+  it('does not double-spend when the same item is unlocked concurrently', async () => {
+    const { accountId, profile } = await setup();
+    await db.addCoins(profile.id, 100);
+    // Two near-simultaneous unlocks of muncher-fox (cost 40): exactly one wins;
+    // the loser is rejected, and only one debit lands.
+    const results = await Promise.allSettled([
+      unlockReward(db, accountId, profile.id, 'muncher-fox'),
+      unlockReward(db, accountId, profile.id, 'muncher-fox'),
+    ]);
+    const ok = results.filter((r) => r.status === 'fulfilled');
+    expect(ok).toHaveLength(1);
+    expect((await db.getProfileReward(profile.id)).coins).toBe(60); // debited once, not twice
+  });
+
+  it('does not clobber a coin award that lands mid-spend (relative debit)', async () => {
+    const { accountId, profile } = await setup();
+    await db.addCoins(profile.id, 100);
+    // A session award is credited between an unlock's start and finish; because
+    // the debit is relative (coins = coins - cost), the award survives.
+    const unlock = unlockReward(db, accountId, profile.id, 'muncher-fox'); // cost 40
+    await db.addCoins(profile.id, 25);
+    await unlock;
+    expect((await db.getProfileReward(profile.id)).coins).toBe(85); // 100 - 40 + 25
   });
 });
 
