@@ -394,9 +394,11 @@ generation memoized; N+1s already engineered out.
       200–800 ms dead time per card on slow links, ~20×/session. Advance
       immediately; apply injects/caughtUp when the response lands (injects only
       need to land within `REHEARSAL_GAP`). Pairs with the thresholds item (P2).
-- [ ] **Skip the full-deck `working_state` rewrite when `learning` didn't
-      change** — 5–15 KB of JSON re-stringified per answer, a no-op for most
-      review facts.
+- [x] **Skip the full-deck `working_state` rewrite when `learning` didn't
+      change** — the deck half of workingState is static, so for a review fact
+      (the majority) the per-answer rewrite of 5–15 KB of JSON was pure waste.
+      `answer()` now tracks whether the learning map changed and only writes
+      then.
 - [x] **Parallelize `startSession`'s independent reads** — the ~6 post-gate
       reads (enabled sets, timezone, open session, thresholds, muncher, effect)
       now run in one `Promise.all` batch, and both return branches share a

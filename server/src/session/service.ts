@@ -361,10 +361,21 @@ export async function answer(
     answeredAt: now,
   });
 
-  // Track the box-0 counter only while the fact is still learning.
-  if (result.progress.box === 0) ws.learning[body.factId] = result.inSessionCorrect;
-  else delete ws.learning[body.factId];
-  await db.updateSessionWorkingState(sessionId, JSON.stringify(ws));
+  // Track the box-0 counter only while the fact is still learning. Only persist
+  // when the learning map actually changed — the deck half of workingState is
+  // static, so for a review fact (the majority) this is a no-op, and rewriting
+  // the whole 5-15 KB deck JSON on every answer is wasted IO.
+  let learningChanged = false;
+  if (result.progress.box === 0) {
+    if (ws.learning[body.factId] !== result.inSessionCorrect) {
+      ws.learning[body.factId] = result.inSessionCorrect;
+      learningChanged = true;
+    }
+  } else if (body.factId in ws.learning) {
+    delete ws.learning[body.factId];
+    learningChanged = true;
+  }
+  if (learningChanged) await db.updateSessionWorkingState(sessionId, JSON.stringify(ws));
 
   // Caught up = today's work done: nothing due to review AND nothing still
   // being learned, among the *enabled* facts (DESIGN.md §4.10). Scoped so a
