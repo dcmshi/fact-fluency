@@ -87,6 +87,37 @@ async function bumpStreak(
   return next;
 }
 
+/**
+ * Close an open session and credit whatever it earned. Used when startSession
+ * discards an open session (a prior-day one, or a same-day one with nothing
+ * left to resume): the kid may have finished it offline, queuing a complete()
+ * that will now no-op once completedAt is set — so its coins/streak must be
+ * reconciled here, or the offline-finish promise ("coins update on reconnect")
+ * is broken. A session with no attempts is just closed. completeSessionAndAward
+ * sets completedAt transactionally, so the later queued complete() sees
+ * firstCompletion=false and can't double-award.
+ */
+async function closeAndAward(
+  db: Db,
+  session: SessionRecord,
+  timezone: string,
+  now: number,
+): Promise<void> {
+  const attempts = await db.listSessionAttempts(session.id);
+  if (attempts.length === 0) {
+    await db.completeSession(session.id, now);
+    return;
+  }
+  let correct = 0;
+  let fastCorrect = 0;
+  for (const a of attempts) {
+    if (a.correct) correct++;
+    if (a.fast) fastCorrect++;
+  }
+  await db.completeSessionAndAward(session.id, now, session.profileId, correct + fastCorrect);
+  await bumpStreak(db, session.profileId, timezone, now);
+}
+
 export async function requireOwnedProfile(db: Db, accountId: string, profileId: string) {
   const profile = await db.getProfile(profileId);
   if (!profile || profile.accountId !== accountId) {
@@ -163,8 +194,9 @@ export async function startSession(
         effect: await db.getEquippedEffect(profileId),
       };
     }
-    // Nothing left to resume (or a different day): close it and plan fresh.
-    await db.completeSession(open.id, now);
+    // Nothing left to resume (or a different day): close it — crediting any
+    // attempts it logged (e.g. an offline finish) — and plan fresh.
+    await closeAndAward(db, open, timezone, now);
   }
 
   const facts = generateFactsForSets(sets);

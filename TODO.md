@@ -338,11 +338,13 @@ generation memoized; N+1s already engineered out.
       between debit and unlock spends coins for nothing; two tabs can
       double-spend. Add a transactional `spendAndUnlock` Db method with a
       conditional `coins >= cost` debit, mirroring `completeSessionAndAward`.
-- [ ] **Stale open session closed without awarding its coins.** `startSession`
-      plain-`completeSession`s a prior-day open session; the queued offline
-      `complete` then sees `firstCompletion === false` and skips the award —
-      breaking the offline banner's "coins will update" promise. Award via
-      `completeSessionAndAward` when closing.
+- [x] **Stale open session closed without awarding its coins.** `startSession`
+      plain-`completeSession`d a prior-day open session; the queued offline
+      `complete` then saw `firstCompletion === false` and skipped the award —
+      breaking the offline banner's "coins will update" promise. New
+      `closeAndAward` helper reconciles attempts (coins + streak) when closing;
+      `completeSessionAndAward` sets `completedAt` transactionally so the late
+      `complete` can't double-award. Service-level tested across a day boundary.
 - [x] **Repeat `complete()` bumps the streak** — `bumpStreak` ran
       unconditionally, so a re-POST straddling midnight advanced the streak with
       no new play. Now gated on `firstCompletion` (coins already were); a repeat
