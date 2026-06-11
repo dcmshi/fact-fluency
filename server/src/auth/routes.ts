@@ -18,6 +18,11 @@ import {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
 
+// Emails are case-insensitive in practice — normalize on every store and lookup
+// so `Foo@Bar.com` and `foo@bar.com` are the same account (and can't both be
+// created). Validated against EMAIL_RE before normalizing.
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
 const MINUTE = 60_000;
 // Per-IP limits (tunable). Login is the brute-force surface; signup the
 // account-spam surface. argon2id already makes each guess server-expensive.
@@ -64,13 +69,14 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
         return res.status(400).json({ error: 'weak_password' });
       }
       const tz = typeof timezone === 'string' && timezone ? timezone : 'UTC';
+      const normEmail = normalizeEmail(email);
 
-      if (await db.findAccountByEmail(email)) {
+      if (await db.findAccountByEmail(normEmail)) {
         return res.status(409).json({ error: 'email_taken' });
       }
-      const accountId = await db.createAccount(email, await hashPassword(password), tz);
+      const accountId = await db.createAccount(normEmail, await hashPassword(password), tz);
       await startSession(accountId, res);
-      return res.status(201).json({ accountId, email });
+      return res.status(201).json({ accountId, email: normEmail });
     } catch (err) {
       return next(err);
     }
@@ -110,16 +116,17 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
       if (typeof password !== 'string' || password.length < MIN_PASSWORD) {
         return res.status(400).json({ error: 'weak_password' });
       }
-      if (await db.findAccountByEmail(email)) {
+      const normEmail = normalizeEmail(email);
+      if (await db.findAccountByEmail(normEmail)) {
         return res.status(409).json({ error: 'email_taken' });
       }
       const upgraded = await db.upgradeGuestAccount(
         req.accountId!,
-        email,
+        normEmail,
         await hashPassword(password),
       );
       if (!upgraded) return res.status(409).json({ error: 'not_a_guest' });
-      return res.json({ accountId: req.accountId, email });
+      return res.json({ accountId: req.accountId, email: normEmail });
     } catch (err) {
       return next(err);
     }
@@ -131,7 +138,7 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
       if (typeof email !== 'string' || typeof password !== 'string') {
         return res.status(400).json({ error: 'invalid_credentials' });
       }
-      const account = await db.findAccountByEmail(email);
+      const account = await db.findAccountByEmail(normalizeEmail(email));
       // Always run one verify so a missing account and a wrong password take the
       // same time (no account-enumeration timing oracle).
       const ok = await verifyPassword(account?.passwordHash ?? (await dummyHash), password);
@@ -166,11 +173,12 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
         if (typeof email !== 'string' || !EMAIL_RE.test(email)) {
           return res.status(400).json({ error: 'invalid_email' });
         }
-        const existing = await db.findAccountByEmail(email);
+        const normEmail = normalizeEmail(email);
+        const existing = await db.findAccountByEmail(normEmail);
         if (existing && existing.id !== req.accountId) {
           return res.status(409).json({ error: 'email_taken' });
         }
-        await db.updateAccountEmail(req.accountId!, email);
+        await db.updateAccountEmail(req.accountId!, normEmail);
         touched = true;
       }
       if ('password' in (req.body ?? {})) {

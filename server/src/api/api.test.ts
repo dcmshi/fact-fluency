@@ -130,6 +130,26 @@ describe('auth', () => {
     expect((await request(app).post('/api/auth/signup').send(CREDS)).status).toBe(409);
   });
 
+  it('treats email case-insensitively for signup, dedupe, and login', async () => {
+    const signup = await request(app)
+      .post('/api/auth/signup')
+      .send({ ...CREDS, email: 'Parent@Home.test' });
+    expect(signup.status).toBe(201);
+    expect(signup.body.email).toBe('parent@home.test'); // stored normalized
+
+    // A different-cased variant is the same account — can't re-register.
+    const dup = await request(app)
+      .post('/api/auth/signup')
+      .send({ ...CREDS, email: 'PARENT@HOME.TEST' });
+    expect(dup.status).toBe(409);
+
+    // ...and can log in.
+    const login = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'PARENT@home.TEST', password: CREDS.password });
+    expect(login.status).toBe(200);
+  });
+
   it('logs in with correct creds and rejects wrong ones', async () => {
     await request(app).post('/api/auth/signup').send(CREDS);
     expect(

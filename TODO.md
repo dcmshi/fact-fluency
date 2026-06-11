@@ -367,8 +367,10 @@ generation memoized; N+1s already engineered out.
       `wrongMunches`. Munch state now lives in `eatenRef` (read/written
       synchronously, guarding re-munch); the updater is pure and effects run
       once outside it. Verified in-browser (clean round → advance).
-- [ ] **Email matching is case-sensitive end-to-end** — `Foo@Bar.com` can't log
-      in as `foo@bar.com`. Normalize (lowercase) on write and lookup.
+- [x] **Email matching is case-sensitive end-to-end** — `Foo@Bar.com` couldn't
+      log in as `foo@bar.com`, and the same mailbox could register twice. A
+      `normalizeEmail` (trim + lowercase) is now applied on every store and
+      lookup (signup, login, upgrade, account edit). Tested.
 - [ ] **Sessions expire 30 days from creation, not "30 days idle"** (DESIGN §2)
       — slide `expires_at` + cookie on use, throttled to ~daily.
 - [ ] **`bumpStreak` DST edge** — `now − 24h` lands two calendar days back in
