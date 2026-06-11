@@ -10,7 +10,17 @@
  * server exactly as live ones, just later.
  */
 import type { AnswerRequest } from '@shared';
-import { api } from './api';
+import { api, ApiError } from './api';
+
+/**
+ * A 4xx replay is deterministic — the server will reject it identically every
+ * time (e.g. 409 `session_completed` after the session closed, 404 after a
+ * guest prune). Retaining one would block everything queued behind it forever,
+ * so only transient failures (network, 5xx) are kept for retry.
+ */
+function isPermanentRejection(err: unknown): boolean {
+  return err instanceof ApiError && err.status < 500;
+}
 
 const ANS_KEY = 'ff_pending_answers';
 const DONE_KEY = 'ff_pending_complete';
@@ -51,9 +61,10 @@ export function pendingCount(): number {
 }
 
 /**
- * Replay queued answers in order, stopping at the first that still fails (almost
- * always = still offline) so ordering is preserved. Returns true if the queue
- * fully drained.
+ * Replay queued answers in order, stopping at the first *transient* failure
+ * (almost always = still offline) so ordering is preserved; a permanently
+ * rejected answer (4xx) is dropped rather than retried, so it can't block the
+ * queue behind it. Returns true if the queue fully drained.
  *
  * Serialized: a mount flush, an `online` event, and the end-of-session flush can
  * all fire near-simultaneously. Without a lock each would read the same queue
@@ -71,16 +82,28 @@ export function flushAnswers(): Promise<boolean> {
 async function drainAnswers(): Promise<boolean> {
   const queue = read<PendingAnswer>(ANS_KEY);
   if (queue.length === 0) return true;
-  for (let i = 0; i < queue.length; i++) {
+  let settled = 0; // delivered, or permanently rejected and dropped
+  let blocked = false; // hit a transient failure — stop, keep this one + the rest
+  for (const entry of queue) {
     try {
-      await api.answer(queue[i].sessionId, queue[i].body);
-    } catch {
-      write(ANS_KEY, queue.slice(i)); // keep this one and the rest
-      return false;
+      await api.answer(entry.sessionId, entry.body);
+      settled += 1;
+    } catch (err) {
+      if (isPermanentRejection(err)) {
+        settled += 1;
+        continue;
+      }
+      blocked = true;
+      break;
     }
   }
-  write(ANS_KEY, []);
-  return true;
+  // Re-read before writing: an answer enqueued *while* this drain was in flight
+  // sits after our snapshot (drains are serialized and enqueue only appends),
+  // so drop exactly the settled prefix instead of overwriting storage with the
+  // stale snapshot — which would silently delete it.
+  const remaining = read<PendingAnswer>(ANS_KEY).slice(settled);
+  write(ANS_KEY, remaining);
+  return !blocked && remaining.length === 0;
 }
 
 /** Flush queued answers, then complete any sessions that finished offline. */
@@ -92,8 +115,9 @@ export async function flushAll(): Promise<void> {
   for (const id of ids) {
     try {
       await api.complete(id);
-    } catch {
-      remaining.push(id);
+    } catch (err) {
+      // Keep only transient failures — a 404/409 will never start succeeding.
+      if (!isPermanentRejection(err)) remaining.push(id);
     }
   }
   write(DONE_KEY, remaining);

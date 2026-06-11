@@ -266,16 +266,18 @@ generation memoized; N+1s already engineered out.
       login/signup/guest limiters key on it. Now `app.set('trust proxy', 1)` —
       Render is exactly one hop — with a regression test proving a rotating
       spoofed XFF prefix still 429s.
-- [ ] **Sync queue head-of-line poisoning on 4xx.** `drainAnswers`
-      (`syncQueue.ts`) retains the first failure forever — including
-      deterministic 4xxs (409 `session_completed`, 404 after a guest prune) — so
-      every answer behind it and all future offline completions are blocked for
-      the device. Drop entries on `ApiError` status < 500 (keep-and-retry only
-      network/5xx); same for `flushAll`'s pending completes.
-- [ ] **Sync queue lost-update race.** `drainAnswers` snapshots the queue, then
-      unconditionally overwrites storage at the end — an answer enqueued while a
-      drain is in flight is silently deleted, never sent. On success re-read
-      storage and remove only the entries actually sent.
+- [x] **Sync queue head-of-line poisoning on 4xx.** `drainAnswers` retained the
+      first failure forever — including deterministic 4xxs (409
+      `session_completed`, 404 after a guest prune) — blocking every answer
+      behind it and all future offline completions. Now a permanent rejection
+      (`ApiError` status < 500) is dropped and the drain continues; only
+      network/5xx failures keep-and-retry. Same rule applied to `flushAll`'s
+      pending completes. Regression-tested.
+- [x] **Sync queue lost-update race.** `drainAnswers` snapshotted the queue then
+      unconditionally overwrote storage, silently deleting an answer enqueued
+      while a drain was in flight. It now re-reads storage and drops exactly the
+      settled prefix (drains are serialized; enqueue only appends).
+      Regression-tested.
 - [ ] **`goNext` completes a session even when queued answers didn't flush.**
       `PlayPage.tsx` ignores `flushAnswers()`' boolean; the server then computes
       points from an incomplete attempt log and the late replays 409 (feeding the

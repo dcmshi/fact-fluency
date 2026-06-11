@@ -9,9 +9,13 @@ import {
 } from './syncQueue';
 
 // Mock the HTTP client — these tests assert queue ordering/draining behavior,
-// not real network calls.
-vi.mock('./api', () => ({ api: { answer: vi.fn(), complete: vi.fn() } }));
-import { api } from './api';
+// not real network calls. Keep the real ApiError so the queue's
+// permanent-vs-transient classification works against it.
+vi.mock('./api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./api')>()),
+  api: { answer: vi.fn(), complete: vi.fn() },
+}));
+import { api, ApiError } from './api';
 
 const answerMock = api.answer as unknown as ReturnType<typeof vi.fn>;
 const completeMock = api.complete as unknown as ReturnType<typeof vi.fn>;
@@ -61,6 +65,41 @@ describe('queued answers', () => {
     expect(answerMock).not.toHaveBeenCalled();
   });
 
+  it('drops a permanently rejected (4xx) answer and keeps draining behind it', async () => {
+    // e.g. 409 session_completed after the session closed without this answer —
+    // retaining it would block every later answer and completion forever.
+    answerMock.mockRejectedValueOnce(new ApiError(409, 'session_completed')).mockResolvedValue({});
+    enqueueAnswer('s1', body('a'));
+    enqueueAnswer('s1', body('b'));
+
+    expect(await flushAnswers()).toBe(true);
+    expect(answerMock.mock.calls.map((c) => c[1].factId)).toEqual(['a', 'b']);
+    expect(pendingCount()).toBe(0);
+  });
+
+  it('keeps retrying a 5xx like a network failure', async () => {
+    answerMock.mockRejectedValue(new ApiError(500, 'internal_error'));
+    enqueueAnswer('s1', body('a'));
+
+    expect(await flushAnswers()).toBe(false);
+    expect(pendingCount()).toBe(1);
+  });
+
+  it('does not wipe an answer enqueued while a drain is in flight', async () => {
+    answerMock
+      .mockImplementationOnce(async () => {
+        enqueueAnswer('s1', body('late')); // races the drain, lands after its snapshot
+        return {};
+      })
+      .mockResolvedValue({});
+    enqueueAnswer('s1', body('a'));
+
+    expect(await flushAnswers()).toBe(false); // 'late' arrived mid-drain — not done yet
+    expect(pendingCount()).toBe(1);
+    expect(await flushAnswers()).toBe(true);
+    expect(answerMock.mock.calls.map((c) => c[1].factId)).toEqual(['a', 'late']);
+  });
+
   it('serializes concurrent flushes so each answer is sent exactly once', async () => {
     answerMock.mockResolvedValue({});
     enqueueAnswer('s1', body('a'));
@@ -95,6 +134,16 @@ describe('flushAll', () => {
     await flushAll();
     expect(completeMock).toHaveBeenCalledTimes(1);
     expect(completeMock).toHaveBeenCalledWith('s1');
+  });
+
+  it('drops a permanently rejected completion instead of retrying it forever', async () => {
+    completeMock.mockRejectedValue(new ApiError(404, 'session_not_found'));
+    markPendingComplete('s1');
+
+    await flushAll();
+    expect(completeMock).toHaveBeenCalledTimes(1);
+    await flushAll();
+    expect(completeMock).toHaveBeenCalledTimes(1); // gone from the queue
   });
 
   it('keeps a session queued when its completion still fails, retrying later', async () => {
