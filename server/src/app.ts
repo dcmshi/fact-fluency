@@ -12,10 +12,12 @@ import { sameOriginGuard, securityHeaders } from './security';
 
 export function createApp(db: Db, isProd: boolean): Application {
   const app = express();
-  // Behind Render's proxy in prod: trust X-Forwarded-For so req.ip is the real
-  // client IP (per-IP rate limiting depends on this). Off in dev/test so req.ip
-  // is the local socket.
-  if (isProd) app.set('trust proxy', true);
+  // Behind Render's proxy in prod: trust exactly one hop so req.ip is the
+  // address Render saw (per-IP rate limiting depends on this). `true` would
+  // take the *leftmost* X-Forwarded-For entry, which the client controls —
+  // letting an attacker rotate fake IPs past the auth rate limits. Off in
+  // dev/test so req.ip is the local socket.
+  if (isProd) app.set('trust proxy', 1);
   app.use(securityHeaders(isProd));
   // Cap request bodies — every endpoint takes small JSON (credentials, a setId
   // list, one answer). 16kb is generous headroom; anything larger is malformed

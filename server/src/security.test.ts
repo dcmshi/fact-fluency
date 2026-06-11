@@ -44,6 +44,26 @@ describe('error handling', () => {
   });
 });
 
+describe('rate limiting behind the proxy (trust proxy = 1)', () => {
+  it('is not evaded by rotating a spoofed X-Forwarded-For prefix in prod', async () => {
+    // Render appends the real client IP as the *last* XFF entry; everything to
+    // its left is client-supplied. With `trust proxy: true` an attacker who
+    // rotates the leftmost entry gets a fresh rate-limit bucket per request —
+    // with exactly one trusted hop, req.ip stays the proxy-observed address.
+    const a = app(true);
+    const statuses: number[] = [];
+    for (let i = 0; i < 11; i++) {
+      const res = await request(a)
+        .post('/api/auth/login')
+        .set('X-Forwarded-For', `198.51.100.${i}, 203.0.113.7`)
+        .send({ email: 'a@b.co', password: 'whatever12' });
+      statuses.push(res.status);
+    }
+    expect(statuses.slice(0, 10)).toEqual(Array(10).fill(401)); // limit is 10/15min
+    expect(statuses[10]).toBe(429);
+  });
+});
+
 describe('same-origin guard (CSRF defense-in-depth, prod only)', () => {
   it('rejects a cross-origin mutating request in prod', async () => {
     const res = await request(app(true))

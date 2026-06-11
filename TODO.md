@@ -260,11 +260,12 @@ generation memoized; N+1s already engineered out.
 
 ### P1 — Security & data-loss bugs
 
-- [ ] **`trust proxy: true` lets clients spoof their IP past every rate limit.**
-      `app.set('trust proxy', true)` (`app.ts`) trusts all hops, so `req.ip` is
-      the attacker-controlled _leftmost_ `X-Forwarded-For` entry; the
-      login/signup/guest limiters key on it (`rateLimit.ts`). Fix:
-      `app.set('trust proxy', 1)` — Render is exactly one hop.
+- [x] **`trust proxy: true` lets clients spoof their IP past every rate limit.**
+      `app.set('trust proxy', true)` trusted all hops, so `req.ip` was the
+      attacker-controlled _leftmost_ `X-Forwarded-For` entry; the
+      login/signup/guest limiters key on it. Now `app.set('trust proxy', 1)` —
+      Render is exactly one hop — with a regression test proving a rotating
+      spoofed XFF prefix still 429s.
 - [ ] **Sync queue head-of-line poisoning on 4xx.** `drainAnswers`
       (`syncQueue.ts`) retains the first failure forever — including
       deterministic 4xxs (409 `session_completed`, 404 after a guest prune) — so
@@ -619,8 +620,9 @@ generation memoized; N+1s already engineered out.
       violations). `security.ts` + tests.
 - [x] Rate-limit auth endpoints — dependency-free fixed-window per-IP limiter
       (`rateLimit.ts`, pure core + thin middleware). Login 10/15min, signup
-      6/hr; returns 429 + `Retry-After`. `trust proxy` enabled in prod so the
-      key is the real client IP behind Render. Unit + HTTP tested.
+      6/hr; returns 429 + `Retry-After`. `trust proxy` set to `1` in prod so the
+      key is the proxy-observed client IP behind Render (audit pass 6 tightened
+      this from `true`, which was spoofable). Unit + HTTP tested.
 
 ## Known limitations
 
