@@ -67,11 +67,13 @@
 .equation.big {
   font-size: clamp(2.6rem, 13vw, 4rem);
 }
+/* Operator + revealed answer carry the fact's meaning — use the op's darker
+   shadow shade (3:1+ on the white card) rather than the bright fill (~2-2.5:1). */
 .equation .op {
-  color: var(--c);
+  color: var(--shadow, var(--ink));
 }
 .answer-reveal {
-  color: var(--c);
+  color: var(--shadow, var(--ink));
 }
 .entry {
   min-width: 1.4ch;

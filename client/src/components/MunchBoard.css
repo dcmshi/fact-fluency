@@ -26,7 +26,9 @@
   color: var(--ink);
 }
 .munch-op {
-  color: var(--sun);
+  /* The operator is the one glyph separating 3+4 from 3×4 — --sun on paper is
+     ~1.5:1 and misreadable. The op's darker shadow shade keeps the hue at 3:1+. */
+  color: var(--shadow, var(--ink));
 }
 .munch-remaining {
   font-weight: 800;

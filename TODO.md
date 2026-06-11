@@ -310,10 +310,10 @@ generation memoized; N+1s already engineered out.
       showed skeletons forever. Now renders the same "Couldn't load — Try again"
       retry card ProfilesPage uses (skeletons suppressed on error; retry
       refetches only the failed query/queries).
-- [ ] **Operator glyph ~1.5:1 contrast.** `.munch-op` / `.equation .op` render
-      the one glyph distinguishing `+` from `×` in `--sun` yellow on cream —
-      far below the 3:1 large-text minimum. Use the darker per-op shades already
-      in `index.css`.
+- [x] **Operator glyph ~1.5:1 contrast.** `.munch-op` / `.equation .op` rendered
+      the one glyph distinguishing `+` from `×` in `--sun` yellow on cream — far
+      below the 3:1 large-text minimum. Operators (and the study-card answer
+      reveal) now use the op's darker `--shadow` shade (3:1+, hue preserved).
 - [ ] **Progress bar pins at 100% while injected re-shows remain**
       (`PlayPage.tsx`) — breaks the §4.8 "clear finish line." Use
       `played / (played + queue.length)`.
