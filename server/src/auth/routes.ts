@@ -53,6 +53,19 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
   // account costs the same argon2 time as a wrong password (no timing oracle).
   const dummyHash = hashPassword('timing-equalizer-not-a-real-password');
 
+  // The email-uniqueness checks below are check-then-write: two concurrent
+  // requests claiming the same email can both pass the check, and the loser
+  // dies on the DB unique constraint. Map that write failure back to the
+  // honest 409 (the email *is* taken) instead of surfacing a raw 500.
+  async function claimingEmail<T>(normEmail: string, write: () => Promise<T>): Promise<T | null> {
+    try {
+      return await write();
+    } catch (err) {
+      if (await db.findAccountByEmail(normEmail)) return null; // lost the race
+      throw err;
+    }
+  }
+
   async function startSession(accountId: string, res: import('express').Response) {
     const token = generateToken();
     await db.createAuthSession(accountId, token, Date.now() + SESSION_TTL_MS);
@@ -74,7 +87,11 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
       if (await db.findAccountByEmail(normEmail)) {
         return res.status(409).json({ error: 'email_taken' });
       }
-      const accountId = await db.createAccount(normEmail, await hashPassword(password), tz);
+      const passwordHash = await hashPassword(password);
+      const accountId = await claimingEmail(normEmail, () =>
+        db.createAccount(normEmail, passwordHash, tz),
+      );
+      if (accountId === null) return res.status(409).json({ error: 'email_taken' });
       await startSession(accountId, res);
       return res.status(201).json({ accountId, email: normEmail });
     } catch (err) {
@@ -120,11 +137,11 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
       if (await db.findAccountByEmail(normEmail)) {
         return res.status(409).json({ error: 'email_taken' });
       }
-      const upgraded = await db.upgradeGuestAccount(
-        req.accountId!,
-        normEmail,
-        await hashPassword(password),
+      const passwordHash = await hashPassword(password);
+      const upgraded = await claimingEmail(normEmail, () =>
+        db.upgradeGuestAccount(req.accountId!, normEmail, passwordHash),
       );
+      if (upgraded === null) return res.status(409).json({ error: 'email_taken' });
       if (!upgraded) return res.status(409).json({ error: 'not_a_guest' });
       return res.json({ accountId: req.accountId, email: normEmail });
     } catch (err) {
@@ -138,7 +155,8 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
       if (typeof email !== 'string' || typeof password !== 'string') {
         return res.status(400).json({ error: 'invalid_credentials' });
       }
-      const account = await db.findAccountByEmail(normalizeEmail(email));
+      const normEmail = normalizeEmail(email);
+      const account = await db.findAccountByEmail(normEmail);
       // Always run one verify so a missing account and a wrong password take the
       // same time (no account-enumeration timing oracle).
       const ok = await verifyPassword(account?.passwordHash ?? (await dummyHash), password);
@@ -146,7 +164,7 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
         return res.status(401).json({ error: 'invalid_credentials' });
       }
       await startSession(account.id, res);
-      return res.json({ accountId: account.id, email });
+      return res.json({ accountId: account.id, email: normEmail });
     } catch (err) {
       return next(err);
     }
@@ -166,37 +184,52 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
   // Edit account: any of email / password / timezone.
   router.patch('/account', requireAuth, accountLimit, async (req, res, next) => {
     try {
-      const { email, password, timezone } = req.body ?? {};
-      let touched = false;
+      const body = req.body ?? {};
+      const { email, password, timezone } = body;
+      const editsEmail = 'email' in body;
+      const editsPassword = 'password' in body;
+      const editsTimezone = 'timezone' in body;
+      if (!editsEmail && !editsPassword && !editsTimezone) {
+        return res.status(400).json({ error: 'nothing_to_update' });
+      }
 
-      if ('email' in (req.body ?? {})) {
-        if (typeof email !== 'string' || !EMAIL_RE.test(email)) {
-          return res.status(400).json({ error: 'invalid_email' });
-        }
+      // Validate *every* provided field before applying any of them — a 400
+      // must mean nothing changed, never "the first half of your edit landed".
+      if (editsEmail && (typeof email !== 'string' || !EMAIL_RE.test(email))) {
+        return res.status(400).json({ error: 'invalid_email' });
+      }
+      if (editsPassword && (typeof password !== 'string' || password.length < MIN_PASSWORD)) {
+        return res.status(400).json({ error: 'weak_password' });
+      }
+      if (editsTimezone && (typeof timezone !== 'string' || !timezone)) {
+        return res.status(400).json({ error: 'invalid_timezone' });
+      }
+
+      // Credentials on a guest account must go through /auth/upgrade: a PATCH
+      // would leave is_guest set, so the account the user believes is saved
+      // would still be reclaimed by the guest prune once its sessions lapse.
+      if ((editsEmail || editsPassword) && (await db.isGuestAccount(req.accountId!))) {
+        return res.status(409).json({ error: 'guest_account' });
+      }
+
+      if (editsEmail) {
         const normEmail = normalizeEmail(email);
         const existing = await db.findAccountByEmail(normEmail);
         if (existing && existing.id !== req.accountId) {
           return res.status(409).json({ error: 'email_taken' });
         }
-        await db.updateAccountEmail(req.accountId!, normEmail);
-        touched = true;
+        const claimed = await claimingEmail(normEmail, async () => {
+          await db.updateAccountEmail(req.accountId!, normEmail);
+          return true;
+        });
+        if (claimed === null) return res.status(409).json({ error: 'email_taken' });
       }
-      if ('password' in (req.body ?? {})) {
-        if (typeof password !== 'string' || password.length < MIN_PASSWORD) {
-          return res.status(400).json({ error: 'weak_password' });
-        }
+      if (editsPassword) {
         await db.updateAccountPassword(req.accountId!, await hashPassword(password));
-        touched = true;
       }
-      if ('timezone' in (req.body ?? {})) {
-        if (typeof timezone !== 'string' || !timezone) {
-          return res.status(400).json({ error: 'invalid_timezone' });
-        }
+      if (editsTimezone) {
         await db.updateAccountTimezone(req.accountId!, timezone);
-        touched = true;
       }
-
-      if (!touched) return res.status(400).json({ error: 'nothing_to_update' });
       return res.json(await db.getAccount(req.accountId!));
     } catch (err) {
       return next(err);

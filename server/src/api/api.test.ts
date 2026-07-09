@@ -243,6 +243,57 @@ describe('auth', () => {
     expect((await b.patch('/api/auth/account').send({ email: 'b@home.test' })).status).toBe(200);
     expect((await request(app).get('/api/auth/account')).status).toBe(401); // unauth
   });
+
+  it('a 400 account edit applies nothing — no half-applied PATCH', async () => {
+    const agent = request.agent(app);
+    await agent.post('/api/auth/signup').send(CREDS);
+
+    // Valid email + weak password: must reject *without* changing the email.
+    const bad = await agent
+      .patch('/api/auth/account')
+      .send({ email: 'changed@home.test', password: 'short' });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error).toBe('weak_password');
+    expect((await agent.get('/api/auth/account')).body.email).toBe(CREDS.email);
+  });
+
+  it('rejects credential edits on a guest account (upgrade is the path)', async () => {
+    const agent = request.agent(app);
+    await agent.post('/api/auth/guest').send({});
+
+    // Setting email/password via PATCH would leave is_guest set, so the
+    // "saved" account would still be reclaimed by the guest prune.
+    const cred = await agent
+      .patch('/api/auth/account')
+      .send({ email: 'saved@home.test', password: 'correcthorse' });
+    expect(cred.status).toBe(409);
+    expect(cred.body.error).toBe('guest_account');
+    expect((await agent.get('/api/auth/me')).body.guest).toBe(true);
+
+    // A timezone-only edit is harmless and stays allowed.
+    expect((await agent.patch('/api/auth/account').send({ timezone: 'UTC' })).status).toBe(200);
+  });
+
+  it('concurrent signups for one email resolve to 201 + 409, never 500', async () => {
+    // Both requests pass the pre-insert uniqueness check (argon2 hashing sits
+    // between check and insert); the loser must map the constraint violation
+    // to the honest conflict.
+    const [a, b] = await Promise.all([
+      request(app).post('/api/auth/signup').send(CREDS),
+      request(app).post('/api/auth/signup').send(CREDS),
+    ]);
+    expect([a.status, b.status].sort()).toEqual([201, 409]);
+    const loser = a.status === 409 ? a : b;
+    expect(loser.body.error).toBe('email_taken');
+  });
+
+  it('login echoes the normalized email', async () => {
+    await request(app).post('/api/auth/signup').send(CREDS);
+    const login = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'PARENT@home.TEST', password: CREDS.password });
+    expect(login.body.email).toBe(CREDS.email);
+  });
 });
 
 describe('profiles', () => {
@@ -343,6 +394,14 @@ describe('profiles', () => {
     expect(
       (await agent.put(`/api/profiles/${id}/factsets`).send({ enabledIds: ['nope'] })).status,
     ).toBe(400);
+
+    // Repeated ids would violate the (profile_id, fact_set_id) primary key —
+    // they must be de-duplicated, not 500.
+    const dup = await agent
+      .put(`/api/profiles/${id}/factsets`)
+      .send({ enabledIds: ['add-0-5', 'add-0-5', 'mul-0-5'] });
+    expect(dup.status).toBe(200);
+    expect(dup.body.enabledIds.sort()).toEqual(['add-0-5', 'mul-0-5']);
   });
 
   it('renames a profile (displayName + avatar) and rejects an empty name', async () => {
@@ -363,6 +422,16 @@ describe('profiles', () => {
       400,
     );
     expect((await agent.patch(`/api/profiles/${id}`).send({})).status).toBe(400); // nothing_to_update
+
+    // A 400 applies nothing: a valid name alongside an invalid avatar must not
+    // half-apply the rename.
+    const bad = await agent
+      .patch(`/api/profiles/${id}`)
+      .send({ displayName: 'Halfway', avatar: '' });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error).toBe('invalid_avatar');
+    const list = await agent.get('/api/profiles');
+    expect(list.body.profiles[0].displayName).toBe('Kid');
   });
 
   it('patches session settings (partial merge) and rejects bad values', async () => {
@@ -454,14 +523,17 @@ describe('input limits', () => {
     expect(res.body.error).toBe('invalid_avatar');
   });
 
-  it('rejects more enabled sets than the catalog holds', async () => {
+  it('collapses an absurdly repeated set list to its unique ids', async () => {
+    // Every id must be a catalog id, and duplicates are collapsed — so the
+    // stored list is bounded by the catalog size no matter how long the input
+    // (the 16kb body cap bounds the raw request; a repeat can't 500 on the PK).
     const agent = await authed();
     const { body } = await agent.post('/api/profiles').send({ displayName: 'Kid', avatar: '🦊' });
     const tooMany = Array.from({ length: 100 }, () => 'add-0-5'); // valid id, absurd count
     const res = await agent
       .put(`/api/profiles/${body.profile.id}/factsets`)
       .send({ enabledIds: tooMany });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toBe('invalid_set_ids');
+    expect(res.status).toBe(200);
+    expect(res.body.enabledIds).toEqual(['add-0-5']);
   });
 });

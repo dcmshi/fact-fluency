@@ -560,27 +560,27 @@ posture from earlier passes all re-verified sound. New, verified findings below
       the transition conditional (`WHERE completed_at IS NULL`), return whether
       this call won it, and gate the award/streak on that (both adapters;
       `closeAndAward` gets the same treatment).
-- [ ] **A guest can set real credentials via `PATCH /auth/account` without
+- [x] **A guest can set real credentials via `PATCH /auth/account` without
       clearing `is_guest`** — the account then has a working email/password but
       `deleteExpiredGuests` still reclaims it once its sessions lapse (silent
       data loss for an account the user believes is saved), bypassing the
       upgrade flow. Reject email/password edits for guest accounts (409
       `guest_account`); `/auth/upgrade` is the supported path. (UI already hides
       Account for guests — this closes the server-side hole.)
-- [ ] **Partial write before validation in the PATCH handlers.** Both
+- [x] **Partial write before validation in the PATCH handlers.** Both
       `PATCH /auth/account` and `PATCH /profiles/:id` validate-and-apply field
       by field, so `{ email: valid, password: "short" }` persists the email
       change and _then_ returns 400 `weak_password` — a response that reads as
       "nothing happened" after half the edit landed. Validate every provided
       field first, then write.
-- [ ] **Email uniqueness check-then-write races return raw 500s.** Signup,
+- [x] **Email uniqueness check-then-write races return raw 500s.** Signup,
       guest upgrade, and account email edit all do `findAccountByEmail` → write;
       two concurrent requests with the same email both pass the check and the
       loser dies on the DB unique constraint as `internal_error`. Catch the
       write failure, re-check the email, and return the honest 409
       `email_taken`. (Also: `POST /auth/login` echoes the submitted email
       verbatim instead of the normalized form — return the stored casing.)
-- [ ] **Duplicate ids in `PUT /profiles/:id/factsets` → 500.** The validation
+- [x] **Duplicate ids in `PUT /profiles/:id/factsets` → 500.** The validation
       admits `["add-0-5","add-0-5"]` (length + membership checks pass); the
       insert then violates the `(profile_id, fact_set_id)` primary key.
       De-duplicate before validating length.

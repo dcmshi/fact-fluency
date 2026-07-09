@@ -95,28 +95,31 @@ export function createProfileRouter(db: Db): Router {
     try {
       const profile = req.profile!;
       const body = req.body ?? {};
-      let touched = false;
+      const editsName = 'displayName' in body;
+      const editsAvatar = 'avatar' in body;
+      const editsSettings = 'settings' in body;
+      if (!editsName && !editsAvatar && !editsSettings) {
+        return res.status(400).json({ error: 'nothing_to_update' });
+      }
 
-      if ('displayName' in body) {
-        if (typeof body.displayName !== 'string' || !body.displayName.trim()) {
-          return res.status(400).json({ error: 'invalid_display_name' });
-        }
-        await db.updateProfileName(profile.id, body.displayName.trim());
-        touched = true;
+      // Validate every provided field before applying any of them — a 400 must
+      // mean nothing changed, never a half-applied edit.
+      if (editsName && (typeof body.displayName !== 'string' || !body.displayName.trim())) {
+        return res.status(400).json({ error: 'invalid_display_name' });
       }
-      if ('avatar' in body) {
-        if (typeof body.avatar !== 'string' || !body.avatar || body.avatar.length > 16) {
-          return res.status(400).json({ error: 'invalid_avatar' });
-        }
-        await db.updateProfileAvatar(profile.id, body.avatar);
-        touched = true;
+      if (
+        editsAvatar &&
+        (typeof body.avatar !== 'string' || !body.avatar || body.avatar.length > 16)
+      ) {
+        return res.status(400).json({ error: 'invalid_avatar' });
       }
-      if ('settings' in body) {
+      let merged: ProfileSettings | null = null;
+      if (editsSettings) {
         const incoming = body.settings;
         if (typeof incoming !== 'object' || incoming === null) {
           return res.status(400).json({ error: 'invalid_settings' });
         }
-        const merged: ProfileSettings = {
+        merged = {
           sessionCards: incoming.sessionCards ?? profile.settings.sessionCards,
           sessionSeconds: incoming.sessionSeconds ?? profile.settings.sessionSeconds,
           newPerSession: incoming.newPerSession ?? profile.settings.newPerSession,
@@ -124,11 +127,11 @@ export function createProfileRouter(db: Db): Router {
         if (invalidSetting(merged)) {
           return res.status(400).json({ error: 'invalid_settings' });
         }
-        await db.updateProfileSettings(profile.id, merged);
-        touched = true;
       }
 
-      if (!touched) return res.status(400).json({ error: 'nothing_to_update' });
+      if (editsName) await db.updateProfileName(profile.id, body.displayName.trim());
+      if (editsAvatar) await db.updateProfileAvatar(profile.id, body.avatar);
+      if (merged) await db.updateProfileSettings(profile.id, merged);
       return res.json({ profile: await db.getProfile(profile.id) });
     } catch (err) {
       return next(err);
@@ -158,15 +161,15 @@ export function createProfileRouter(db: Db): Router {
   router.put('/:id/factsets', owned, async (req, res, next) => {
     try {
       const { enabledIds } = req.body ?? {};
-      if (
-        !Array.isArray(enabledIds) ||
-        enabledIds.length > CATALOG_IDS.size || // can't enable more than the whole catalog
-        enabledIds.some((id) => !CATALOG_IDS.has(id))
-      ) {
+      if (!Array.isArray(enabledIds) || enabledIds.some((id) => !CATALOG_IDS.has(id))) {
         return res.status(400).json({ error: 'invalid_set_ids' });
       }
-      await db.setEnabledSetIds(req.params.id, enabledIds);
-      return res.json({ enabledIds });
+      // De-duplicate before storing: a repeated id would violate the
+      // (profile_id, fact_set_id) primary key and 500. The Set also bounds the
+      // list at the catalog size, since every id was checked against it above.
+      const unique = [...new Set(enabledIds as string[])];
+      await db.setEnabledSetIds(req.params.id, unique);
+      return res.json({ enabledIds: unique });
     } catch (err) {
       return next(err);
     }
