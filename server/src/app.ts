@@ -29,12 +29,17 @@ export function createApp(db: Db, isProd: boolean): Application {
   // or hostile and is rejected before it's parsed into memory.
   app.use(express.json({ limit: '16kb' }));
   app.use(cookieParser(process.env.COOKIE_SECRET ?? 'dev-only-change-me'));
-  app.use(attachAccount(db, isProd));
 
   // CSRF same-origin guard is a production concern (and the dev Vite proxy
   // rewrites Host so Origin wouldn't match). Dev still has SameSite=Lax cookies.
+  // attachAccount (a DB session lookup per request) is scoped to /api — only
+  // API handlers read req.accountId, so static assets and SPA navigations
+  // shouldn't pay for it.
   const apiGuards = isProd ? [sameOriginGuard()] : [];
-  app.use('/api', ...apiGuards, createApiRouter(db, isProd));
+  app.use('/api', ...apiGuards, attachAccount(db, isProd), createApiRouter(db, isProd));
+  // Unknown /api paths must answer as the API (JSON 404), not fall through to
+  // the SPA catch-all — which would 200 a typo'd endpoint with index.html.
+  app.use('/api', (_req, res) => res.status(404).json({ error: 'not_found' }));
 
   if (isProd) {
     const clientDist = path.resolve(__dirname, '../../client/dist');

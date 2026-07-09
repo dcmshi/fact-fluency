@@ -584,14 +584,14 @@ posture from earlier passes all re-verified sound. New, verified findings below
       admits `["add-0-5","add-0-5"]` (length + membership checks pass); the
       insert then violates the `(profile_id, fact_set_id)` primary key.
       De-duplicate before validating length.
-- [ ] **Unknown `/api/*` paths fall through to the SPA catch-all** — in prod a
+- [x] **Unknown `/api/*` paths fall through to the SPA catch-all** — in prod a
       typo'd API GET returns 200 + index.html instead of a 404 (and JSON
       consumers choke on HTML). Add a JSON 404 fallback at the end of the /api
       chain.
 
 ### Hygiene / perf
 
-- [ ] **`attachAccount` runs a DB session lookup for every static asset and
+- [x] **`attachAccount` runs a DB session lookup for every static asset and
       navigation request in prod** — only `/api` handlers read `req.accountId`.
       Scope the middleware to the /api mount.
 - [ ] **`COOKIE_SECRET` is dead config guarded by boot-refusal theater.** The

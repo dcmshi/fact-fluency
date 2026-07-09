@@ -24,6 +24,12 @@ describe('public endpoints', () => {
     expect(catalog.body.gradeBands.length).toBeGreaterThan(0);
     expect(catalog.body.gradeBands[0]).toHaveProperty('setIds');
   });
+
+  it('answers unknown /api paths with a JSON 404, not the SPA shell', async () => {
+    const res = await request(app).get('/api/nope');
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('not_found');
+  });
 });
 
 describe('auth', () => {
