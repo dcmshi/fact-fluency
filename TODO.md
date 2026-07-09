@@ -552,7 +552,7 @@ posture from earlier passes all re-verified sound. New, verified findings below
 
 ### Correctness
 
-- [ ] **Concurrent `complete()` double-awards coins and streak.** `complete()`
+- [x] **Concurrent `complete()` double-awards coins and streak.** `complete()`
       reads `session.completedAt`, then `completeSessionAndAward` sets it
       _unconditionally_ — two in-flight completes (e.g. the play screen's
       complete racing a reconnect `flushAll` replay, or two tabs) both see
@@ -602,7 +602,7 @@ posture from earlier passes all re-verified sound. New, verified findings below
       cookie was signed) and render.yaml generates one. Remove the unused
       wiring, the guard, and the env entries; document the actual security
       model where the cookie is set.
-- [ ] **Windows checkout breaks `npm run format` and the pre-commit hook.** No
+- [x] **Windows checkout breaks `npm run format` and the pre-commit hook.** No
       `.gitattributes`, so `core.autocrlf=true` smudges every file to CRLF and
       Prettier (endOfLine: lf) flags all of them — the hook's format gate can't
       pass, inviting `--no-verify` habits. Add `.gitattributes`

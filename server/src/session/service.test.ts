@@ -77,6 +77,39 @@ describe('stale open session is reconciled on next start', () => {
   });
 });
 
+describe('concurrent completes award exactly once', () => {
+  it('two in-flight complete() calls credit coins and bump the streak once', async () => {
+    const { accountId, profileId } = await makeProfile();
+    const now = Date.UTC(2026, 0, 1, 9, 0, 0);
+
+    const session = await startSession(db, accountId, profileId, now);
+    for (const card of session.deck) {
+      await answer(
+        db,
+        accountId,
+        session.sessionId,
+        { factId: card.fact.id, correct: true, responseMs: 1200 },
+        now,
+      );
+    }
+
+    // Both calls read the session while it's still open (e.g. the play screen's
+    // complete racing a reconnect flushAll replay) — only one may award.
+    const [a, b] = await Promise.all([
+      complete(db, accountId, session.sessionId, now),
+      complete(db, accountId, session.sessionId, now),
+    ]);
+
+    expect(a.pointsEarned).toBeGreaterThan(0);
+    const { coins } = await db.getProfileReward(profileId);
+    expect(coins).toBe(a.pointsEarned); // credited once, not twice
+    // The loser may read the streak before or after the winner's bump — but the
+    // stored streak must end at 1 (bumped once), never 2.
+    expect(Math.max(a.streak, b.streak)).toBe(1);
+    expect((await db.getProfileStreak(profileId)).streak).toBe(1);
+  });
+});
+
 describe('caught-up is scoped to the enabled sets', () => {
   it('a disabled set\'s due rows no longer block "all caught up"', async () => {
     const accountId = await db.createAccount('a@b.co', 'hash', 'UTC');

@@ -591,11 +591,14 @@ export class SqliteDb implements Db {
     completedAt: number,
     profileId: string,
     coinDelta: number,
-  ): Promise<void> {
-    const tx = this.db.transaction(() => {
-      this.db
-        .prepare('UPDATE session SET completed_at = ? WHERE id = ?')
+  ): Promise<boolean> {
+    const tx = this.db.transaction((): boolean => {
+      // Conditional on the session still being open: a concurrent complete
+      // that already won must not award a second time.
+      const info = this.db
+        .prepare('UPDATE session SET completed_at = ? WHERE id = ? AND completed_at IS NULL')
         .run(completedAt, sessionId);
+      if (info.changes === 0) return false;
       if (coinDelta > 0) {
         this.db
           .prepare(
@@ -604,8 +607,9 @@ export class SqliteDb implements Db {
           )
           .run(profileId, coinDelta);
       }
+      return true;
     });
-    tx();
+    return tx();
   }
 
   async appendAttempt(a: AttemptRecord): Promise<void> {

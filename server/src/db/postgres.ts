@@ -573,9 +573,14 @@ export class PostgresDb implements Db {
     completedAt: number,
     profileId: string,
     coinDelta: number,
-  ): Promise<void> {
-    await this.withTransaction(async (q) => {
-      await q('UPDATE session SET completed_at = $1 WHERE id = $2', [completedAt, sessionId]);
+  ): Promise<boolean> {
+    return this.withTransaction(async (q) => {
+      // Conditional on the session still being open — see the SQLite adapter.
+      const upd = await q(
+        'UPDATE session SET completed_at = $1 WHERE id = $2 AND completed_at IS NULL RETURNING id',
+        [completedAt, sessionId],
+      );
+      if (upd.rows.length === 0) return false;
       if (coinDelta > 0) {
         await q(
           `INSERT INTO profile_reward (profile_id, coins) VALUES ($1,$2)
@@ -583,6 +588,7 @@ export class PostgresDb implements Db {
           [profileId, coinDelta],
         );
       }
+      return true;
     });
   }
 

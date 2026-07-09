@@ -228,10 +228,21 @@ describe('sessions', () => {
   it('completeSessionAndAward completes and credits coins together', async () => {
     const { profile } = await makeAccountAndProfile();
     await db.createSession(make('s1', profile.id, 1));
-    await db.completeSessionAndAward('s1', 9, profile.id, 7);
+    expect(await db.completeSessionAndAward('s1', 9, profile.id, 7)).toBe(true);
     expect((await db.getSession('s1'))?.completedAt).toBe(9);
     expect((await db.getProfileReward(profile.id)).coins).toBe(7);
     expect(await db.getOpenSession(profile.id)).toBeNull();
+  });
+
+  it('completeSessionAndAward on an already-completed session awards nothing', async () => {
+    const { profile } = await makeAccountAndProfile();
+    await db.createSession(make('s1', profile.id, 1));
+    expect(await db.completeSessionAndAward('s1', 9, profile.id, 7)).toBe(true);
+    // A concurrent/repeat complete loses the conditional transition: no second
+    // award, and the original completedAt is preserved.
+    expect(await db.completeSessionAndAward('s1', 11, profile.id, 7)).toBe(false);
+    expect((await db.getSession('s1'))?.completedAt).toBe(9);
+    expect((await db.getProfileReward(profile.id)).coins).toBe(7);
   });
 
   it('completeSessionAndAward with a zero delta just completes', async () => {

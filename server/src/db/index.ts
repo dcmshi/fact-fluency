@@ -142,13 +142,16 @@ export interface Db {
   /** Mark a session completed and credit `coinDelta` coins in one transaction,
    *  so a crash can't finish the session without awarding its coins (DESIGN.md
    *  §10, coins credited exactly once on completion). `coinDelta` ≤ 0 just
-   *  completes. */
+   *  completes. The transition is conditional on the session still being open,
+   *  and returns whether *this* call won it — so two concurrent completes (a
+   *  double POST, or the play screen racing a reconnect replay) can't both
+   *  award; the loser must take the repeat-completion path. */
   completeSessionAndAward(
     sessionId: string,
     completedAt: number,
     profileId: string,
     coinDelta: number,
-  ): Promise<void>;
+  ): Promise<boolean>;
   appendAttempt(a: AttemptRecord): Promise<void>;
   listSessionAttempts(sessionId: string): Promise<AttemptRecord[]>;
   /** All of a profile's attempts at/after `since` (epoch ms), oldest first —

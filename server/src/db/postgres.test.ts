@@ -179,6 +179,23 @@ describe('PostgresDb (pg-mem)', () => {
     // adapter in rewards.test.ts instead. Real Postgres rolls back correctly.
   });
 
+  it('completeSessionAndAward transitions once and credits once', async () => {
+    const { profile } = await accountAndProfile();
+    await db.createSession({
+      id: 's1',
+      profileId: profile.id,
+      startedAt: 1,
+      completedAt: null,
+      plannedCount: 3,
+      workingState: '{}',
+    });
+    expect(await db.completeSessionAndAward('s1', 9, profile.id, 7)).toBe(true);
+    // A repeat/concurrent complete loses the conditional transition.
+    expect(await db.completeSessionAndAward('s1', 11, profile.id, 7)).toBe(false);
+    expect((await db.getSession('s1'))?.completedAt).toBe(9);
+    expect((await db.getProfileReward(profile.id)).coins).toBe(7);
+  });
+
   it('getOpenSession tracks the latest incomplete session', async () => {
     const { profile } = await accountAndProfile();
     const row = (id: string, startedAt: number) => ({

@@ -121,8 +121,13 @@ async function closeAndAward(
     if (a.correct) correct++;
     if (a.fast) fastCorrect++;
   }
-  await db.completeSessionAndAward(session.id, now, session.profileId, correct + fastCorrect);
-  await bumpStreak(db, session.profileId, timezone, now);
+  const won = await db.completeSessionAndAward(
+    session.id,
+    now,
+    session.profileId,
+    correct + fastCorrect,
+  );
+  if (won) await bumpStreak(db, session.profileId, timezone, now);
 }
 
 export async function requireOwnedProfile(db: Db, accountId: string, profileId: string) {
@@ -419,13 +424,17 @@ export async function complete(
   // Mark complete and credit coins in one transaction, so a crash can't finish
   // the session without awarding its coins. Credited exactly once, on the
   // transition to completed — reopening the summary (or a double POST) can't
-  // farm coins (§10).
-  // Bump the streak only on the first completion. A re-POST (or a retried
+  // farm coins (§10). The transition is conditional at the DB, so even two
+  // *concurrent* completes (both reading completedAt = null above) resolve to
+  // one winner; the loser takes the repeat path below.
+  // Bump the streak only on that winning completion. A re-POST (or a retried
   // request straddling midnight) must not advance the day streak without any
   // new play — coins are already gated the same way.
+  const won =
+    firstCompletion &&
+    (await db.completeSessionAndAward(sessionId, now, session.profileId, pointsEarned));
   let streak: number;
-  if (firstCompletion) {
-    await db.completeSessionAndAward(sessionId, now, session.profileId, pointsEarned);
+  if (won) {
     const timezone = (await db.getAccountTimezone(accountId)) ?? 'UTC';
     streak = await bumpStreak(db, session.profileId, timezone, now);
   } else {
