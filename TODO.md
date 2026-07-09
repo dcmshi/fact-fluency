@@ -27,7 +27,9 @@ the client-closure items are plausible and want a close read before changes.
       wired into CI and the pre-commit hook. Repo formatted to baseline.
 - [x] **`COOKIE_SECRET` prod guard** — `index.ts` now refuses to boot in
       production if the secret is unset or the dev placeholder, instead of
-      silently signing cookies with a public key.
+      silently signing cookies with a public key. _(Superseded in pass 7: the
+      cookie was never signed — the guard and the secret were removed as dead
+      config; the token's entropy is the secret.)_
 
 **Done in the second pass:**
 
@@ -594,7 +596,7 @@ posture from earlier passes all re-verified sound. New, verified findings below
 - [x] **`attachAccount` runs a DB session lookup for every static asset and
       navigation request in prod** — only `/api` handlers read `req.accountId`.
       Scope the middleware to the /api mount.
-- [ ] **`COOKIE_SECRET` is dead config guarded by boot-refusal theater.** The
+- [x] **`COOKIE_SECRET` is dead config guarded by boot-refusal theater.** The
       session cookie is deliberately unsigned (the token's entropy is the
       secret — auth/session.ts); `cookieParser(secret)` only signs cookies
       created with `signed: true`, which nothing uses. Yet index.ts refuses to

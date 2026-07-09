@@ -491,7 +491,9 @@ These were resolved to keep implementation unambiguous; revisit if needed:
 - **Answers in payload:** cards embed their answer for instant client feedback;
   kids aren't an adversarial threat model (§4.7). Server stays sole state writer.
 - **Config via env:** `PORT`, `DATABASE_URL` (`sqlite:` path vs `postgres:` URL
-  selects the adapter), `COOKIE_SECRET`; DB seeding runs as part of migrate.
+  selects the adapter); DB seeding runs as part of migrate. No cookie secret —
+  the session cookie is an unsigned random opaque token (its entropy is the
+  secret; the server-side session row is the source of truth).
 - **Fact grid:** one 2-D grid per operation (operand A × operand B), cells
   colored by box.
 - **Disabling a set retains progress:** disabling a set stops drawing its facts

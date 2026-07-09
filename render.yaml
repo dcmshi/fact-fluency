@@ -23,8 +23,6 @@ services:
         fromDatabase:
           name: fact-fluency-db
           property: connectionString
-      - key: COOKIE_SECRET
-        generateValue: true
 
 databases:
   - name: fact-fluency-db

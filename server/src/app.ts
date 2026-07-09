@@ -28,7 +28,10 @@ export function createApp(db: Db, isProd: boolean): Application {
   // list, one answer). 16kb is generous headroom; anything larger is malformed
   // or hostile and is rejected before it's parsed into memory.
   app.use(express.json({ limit: '16kb' }));
-  app.use(cookieParser(process.env.COOKIE_SECRET ?? 'dev-only-change-me'));
+  // No cookie-signing secret: the session cookie is deliberately unsigned — it
+  // holds a random opaque token whose entropy is the secret, and the
+  // server-side auth_session row is the source of truth (auth/session.ts).
+  app.use(cookieParser());
 
   // CSRF same-origin guard is a production concern (and the dev Vite proxy
   // rewrites Host so Origin wouldn't match). Dev still has SameSite=Lax cookies.

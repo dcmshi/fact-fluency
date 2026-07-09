@@ -86,13 +86,13 @@ npm start          # production: serve the built SPA + API from one process
 ```
 
 Config is via env (`.env.example`): `PORT`, `DATABASE_URL` (the scheme —
-`sqlite:` vs `postgres://` — selects the adapter), `COOKIE_SECRET`.
+`sqlite:` vs `postgres://` — selects the adapter).
 
 ## Deploy (Render)
 
 `render.yaml` is a Blueprint: one Node web service serving the built SPA + API,
-backed by a managed Postgres (`DATABASE_URL` injected, `COOKIE_SECRET`
-generated, Node pinned via `NODE_VERSION`).
+backed by a managed Postgres (`DATABASE_URL` injected, Node pinned via
+`NODE_VERSION`).
 
 1. Render dashboard → **New + → Blueprint**, connect this repo.
 2. Apply — Render provisions Postgres, builds, and starts. The schema

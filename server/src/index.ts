@@ -13,15 +13,6 @@ const isProd = process.env.NODE_ENV === 'production';
 const PRUNE_INTERVAL_MS = 12 * 60 * 60 * 1000;
 
 async function main() {
-  // Fail fast on a missing/placeholder cookie secret in production — otherwise
-  // session cookies would be signed with a publicly-known default key. Render
-  // injects a generated COOKIE_SECRET (render.yaml); a bare deploy without one
-  // should refuse to boot rather than run insecurely.
-  const cookieSecret = process.env.COOKIE_SECRET;
-  if (isProd && (!cookieSecret || cookieSecret === 'dev-only-change-me')) {
-    throw new Error('COOKIE_SECRET must be set to a strong value in production');
-  }
-
   const db = createDb(DATABASE_URL);
   await db.migrate();
 

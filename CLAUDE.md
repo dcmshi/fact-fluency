@@ -81,7 +81,8 @@ Per-workspace: append `-w server` / `-w client` / `-w shared` (e.g.
   deps left external. `tsc` is used only for `--noEmit` typechecking (setting
   `rootDir` would trip TS6059 on the cross-package type import).
 - **Config via env** (`.env.example`): `PORT`, `DATABASE_URL` (scheme selects
-  the DB adapter), `COOKIE_SECRET`.
+  the DB adapter). No cookie secret — the session cookie is an unsigned opaque
+  token (auth/session.ts).
 - Dev-only `npm audit` warnings come from the esbuild/vite/vitest chain
   (GHSA-67mh-4wv8-2f99); they don't affect the production server/static bundle.
 
