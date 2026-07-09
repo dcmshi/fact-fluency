@@ -1,0 +1,11 @@
+# Force LF in working trees regardless of core.autocrlf, so Prettier's
+# endOfLine: "lf" check (npm run format, the pre-commit hook, CI) passes on
+# Windows checkouts too.
+* text=auto eol=lf
+
+# Binaries — never subject to text normalization.
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary

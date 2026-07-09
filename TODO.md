@@ -542,6 +542,72 @@ generation memoized; N+1s already engineered out.
       apply via env/DB instead of redeploying `threshold.ts` constants (pairs
       with the open calibration item).
 
+## Audit pass 7 (2026-07-09) — full-repo re-read
+
+A fresh top-to-bottom read after pass 6 (engine, DB adapters/schemas, auth, API
+routes, client pages, sync queue, service worker, deploy/CI config). The engine
+math, scheduling, sync-queue serialization, reward atomicity, and security
+posture from earlier passes all re-verified sound. New, verified findings below
+(ordered most- to least-severe); pass-6 leftovers (P4–P7) remain tracked above.
+
+### Correctness
+
+- [ ] **Concurrent `complete()` double-awards coins and streak.** `complete()`
+      reads `session.completedAt`, then `completeSessionAndAward` sets it
+      _unconditionally_ — two in-flight completes (e.g. the play screen's
+      complete racing a reconnect `flushAll` replay, or two tabs) both see
+      `firstCompletion === true` and both credit coins + bump the streak. Make
+      the transition conditional (`WHERE completed_at IS NULL`), return whether
+      this call won it, and gate the award/streak on that (both adapters;
+      `closeAndAward` gets the same treatment).
+- [ ] **A guest can set real credentials via `PATCH /auth/account` without
+      clearing `is_guest`** — the account then has a working email/password but
+      `deleteExpiredGuests` still reclaims it once its sessions lapse (silent
+      data loss for an account the user believes is saved), bypassing the
+      upgrade flow. Reject email/password edits for guest accounts (409
+      `guest_account`); `/auth/upgrade` is the supported path. (UI already hides
+      Account for guests — this closes the server-side hole.)
+- [ ] **Partial write before validation in the PATCH handlers.** Both
+      `PATCH /auth/account` and `PATCH /profiles/:id` validate-and-apply field
+      by field, so `{ email: valid, password: "short" }` persists the email
+      change and _then_ returns 400 `weak_password` — a response that reads as
+      "nothing happened" after half the edit landed. Validate every provided
+      field first, then write.
+- [ ] **Email uniqueness check-then-write races return raw 500s.** Signup,
+      guest upgrade, and account email edit all do `findAccountByEmail` → write;
+      two concurrent requests with the same email both pass the check and the
+      loser dies on the DB unique constraint as `internal_error`. Catch the
+      write failure, re-check the email, and return the honest 409
+      `email_taken`. (Also: `POST /auth/login` echoes the submitted email
+      verbatim instead of the normalized form — return the stored casing.)
+- [ ] **Duplicate ids in `PUT /profiles/:id/factsets` → 500.** The validation
+      admits `["add-0-5","add-0-5"]` (length + membership checks pass); the
+      insert then violates the `(profile_id, fact_set_id)` primary key.
+      De-duplicate before validating length.
+- [ ] **Unknown `/api/*` paths fall through to the SPA catch-all** — in prod a
+      typo'd API GET returns 200 + index.html instead of a 404 (and JSON
+      consumers choke on HTML). Add a JSON 404 fallback at the end of the /api
+      chain.
+
+### Hygiene / perf
+
+- [ ] **`attachAccount` runs a DB session lookup for every static asset and
+      navigation request in prod** — only `/api` handlers read `req.accountId`.
+      Scope the middleware to the /api mount.
+- [ ] **`COOKIE_SECRET` is dead config guarded by boot-refusal theater.** The
+      session cookie is deliberately unsigned (the token's entropy is the
+      secret — auth/session.ts); `cookieParser(secret)` only signs cookies
+      created with `signed: true`, which nothing uses. Yet index.ts refuses to
+      boot in prod without a strong value (added in pass 1 under the belief the
+      cookie was signed) and render.yaml generates one. Remove the unused
+      wiring, the guard, and the env entries; document the actual security
+      model where the cookie is set.
+- [ ] **Windows checkout breaks `npm run format` and the pre-commit hook.** No
+      `.gitattributes`, so `core.autocrlf=true` smudges every file to CRLF and
+      Prettier (endOfLine: lf) flags all of them — the hook's format gate can't
+      pass, inviting `--no-verify` habits. Add `.gitattributes`
+      (`* text=auto eol=lf`, binaries marked) and normalize the working tree.
+
 ## Features
 
 - [x] **Number Munchers play mode** (pivot — DESIGN.md §12) — replaced typed
