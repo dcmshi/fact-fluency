@@ -6,7 +6,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import type { FactProgress, Operation, OperationStat, Profile, ProfileSettings } from '@shared';
-import type { AttemptRecord, Db, SessionRecord } from './index';
+import type { AnswerWrite, AttemptRecord, Db, SessionRecord } from './index';
 import { ADDITIVE_COLUMNS_PG, SCHEMA_PG } from './schema.pg';
 
 /** A single checked-out connection — what `pool.connect()` returns. Needed for
@@ -484,8 +484,8 @@ export class PostgresDb implements Db {
     return row?.n ?? 0;
   }
 
-  async upsertProgress(p: FactProgress): Promise<void> {
-    await this.pool.query(
+  private async execUpsertProgress(q: PgQuery, p: FactProgress): Promise<void> {
+    await q(
       `INSERT INTO fact_progress
          (profile_id, fact_id, box, state, due_at, last_seen_at, reps,
           fast_correct, correct_streak, accuracy_ewma, median_ms_ewma)
@@ -509,6 +509,10 @@ export class PostgresDb implements Db {
     );
   }
 
+  async upsertProgress(p: FactProgress): Promise<void> {
+    await this.execUpsertProgress((t, params) => this.pool.query(t, params), p);
+  }
+
   async getOperationStats(profileId: string): Promise<OperationStat[]> {
     return (
       await this.rows<OperationStatRow>('SELECT * FROM operation_stat WHERE profile_id = $1', [
@@ -525,13 +529,17 @@ export class PostgresDb implements Db {
     return row ? toOperationStat(row) : null;
   }
 
-  async upsertOperationStat(s: OperationStat): Promise<void> {
-    await this.pool.query(
+  private async execUpsertOperationStat(q: PgQuery, s: OperationStat): Promise<void> {
+    await q(
       `INSERT INTO operation_stat (profile_id, operation, median_ms_ewma, correct_samples)
        VALUES ($1,$2,$3,$4)
        ON CONFLICT (profile_id, operation) DO UPDATE SET median_ms_ewma=$3, correct_samples=$4`,
       [s.profileId, s.operation, s.medianMsEwma, s.correctSamples],
     );
+  }
+
+  async upsertOperationStat(s: OperationStat): Promise<void> {
+    await this.execUpsertOperationStat((t, params) => this.pool.query(t, params), s);
   }
 
   // --- sessions & attempts ---
@@ -592,8 +600,8 @@ export class PostgresDb implements Db {
     });
   }
 
-  async appendAttempt(a: AttemptRecord): Promise<void> {
-    await this.pool.query(
+  private async execAppendAttempt(q: PgQuery, a: AttemptRecord): Promise<void> {
+    await q(
       `INSERT INTO attempt (id, session_id, profile_id, fact_id, given, correct, fast, response_ms, answered_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
       [
@@ -608,6 +616,28 @@ export class PostgresDb implements Db {
         a.answeredAt,
       ],
     );
+  }
+
+  async appendAttempt(a: AttemptRecord): Promise<void> {
+    await this.execAppendAttempt((t, params) => this.pool.query(t, params), a);
+  }
+
+  async recordAnswer(w: AnswerWrite): Promise<void> {
+    // One transaction (and one connection checkout) for the per-answer write
+    // set — fewer round-trips on the hottest path, and progress can never
+    // persist without its attempt row.
+    await this.withTransaction(async (q) => {
+      await this.execUpsertProgress(q, w.progress);
+      if (w.stat) await this.execUpsertOperationStat(q, w.stat);
+      if (w.siblingProgress) await this.execUpsertProgress(q, w.siblingProgress);
+      await this.execAppendAttempt(q, w.attempt);
+      if (w.workingState) {
+        await q('UPDATE session SET working_state = $1 WHERE id = $2', [
+          w.workingState.json,
+          w.workingState.sessionId,
+        ]);
+      }
+    });
   }
 
   async listSessionAttempts(sessionId: string): Promise<AttemptRecord[]> {

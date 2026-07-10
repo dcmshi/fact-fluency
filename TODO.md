@@ -389,14 +389,17 @@ generation memoized; N+1s already engineered out.
 
 ### P4 — Performance (hot path + client pacing)
 
-- [ ] **Wrap `answer()`'s writes in one transaction** — 4–5 separate WAL
-      commits / PG round trips per answer today, and a crash can persist
-      progress without its attempt row. One transactional Db method, like
-      `completeSessionAndAward`.
-- [ ] **Don't block the next card on the answer round trip** (`PlayPage.tsx`) —
-      200–800 ms dead time per card on slow links, ~20×/session. Advance
-      immediately; apply injects/caughtUp when the response lands (injects only
-      need to land within `REHEARSAL_GAP`). Pairs with the thresholds item (P2).
+- [x] **Wrap `answer()`'s writes in one transaction** — _done._ New
+      `db.recordAnswer(AnswerWrite)` persists progress + per-op stat + family
+      seed + attempt + working-state in one transaction on both adapters (one
+      WAL commit / one PG connection round trip); rollback asserted on SQLite.
+- [x] **Don't block the next card on the answer round trip** — _done._
+      `finishRound` advances immediately; the response reconciles into the
+      _live_ queue when it lands (pure `spliceInject`, position compensated by
+      rounds played meanwhile, never index 0, unit-tested) and completion
+      awaits the in-flight POSTs so the server scores a full attempt log.
+      Verified in-browser: instant advance, re-shows land at the rehearsal
+      gap, summary scores all attempts.
 - [x] **Skip the full-deck `working_state` rewrite when `learning` didn't
       change** — the deck half of workingState is static, so for a review fact
       (the majority) the per-answer rewrite of 5–15 KB of JSON was pure waste.
@@ -406,13 +409,14 @@ generation memoized; N+1s already engineered out.
       reads (enabled sets, timezone, open session, thresholds, muncher, effect)
       now run in one `Promise.all` batch, and both return branches share a
       `common` fields object instead of re-fetching muncher/effect/thresholds.
-- [~] **SW cache hygiene.** The offline `/` shell was pinned at the
-  first-install version. Navigations now refresh the cached shell on success
-  so the offline fallback tracks the latest deploy; `CACHE` bumped to v2
-  (activate evicts the old one). _Deferred:_ fully-automatic per-deploy
-  eviction needs a build-time hash stamped into the cache name — until then
-  stale content-hashed assets are inert (new deploys have new names), only
-  unbounded growth remains, which is slow at this scale.
+- [x] **SW cache hygiene.** The offline `/` shell was pinned at the
+      first-install version. Navigations now refresh the cached shell on success;
+      and the deferred half is done too — sw.js moved to `client/src/` and is
+      emitted at build time with a per-build id stamped into the cache name
+      (`emit-stamped-sw` plugin), so each deploy's activate evicts the previous
+      cache automatically. (Fun autopsy: the first stamp attempts "worked" but
+      `String.replace` was stamping the placeholder's _mention in the header
+      comment_, not the CACHE constant — replaceAll now.)
 - [x] **Confetti animates `top`** — the one non-compositable animation in the
       app (28 pieces forcing layout every frame). Now animates
       `transform: translateY` with the per-piece rotation folded into the

@@ -9,6 +9,7 @@ import type {
   AnswerRequest,
   AnswerResponse,
   Card,
+  FactProgress,
   Operation,
   OperationStat,
   SessionResponse,
@@ -326,45 +327,26 @@ export async function answer(
     timeZone: timezone,
   });
 
-  await db.upsertProgress(result.progress);
-  if (result.correct) await db.upsertOperationStat(result.stat);
-
   // Fact-family scheduling transfer (DESIGN.md §9): when a sub/div fact is
   // freshly mastered, give its unseen inverse sibling a review head start.
   const newlyMastered = result.progress.box === 5 && (progress?.box ?? 0) < 5;
   const sibling = siblingFactId(fact);
   // Only seed a sibling the kid can actually reach — otherwise it becomes a due
   // row no session ever serves, stranding "all caught up" forever.
+  let siblingSeed: FactProgress | undefined;
   if (newlyMastered && sibling && enabledFactIds.has(sibling)) {
     const siblingProgress = await db.getProgressForFact(profileId, sibling);
-    const seeded = familyTransfer({
-      fact,
-      prevBox: progress?.box ?? 0,
-      newBox: result.progress.box,
-      profileId,
-      siblingProgress,
-      now,
-      timeZone: timezone,
-    });
-    if (seeded) await db.upsertProgress(seeded);
+    siblingSeed =
+      familyTransfer({
+        fact,
+        prevBox: progress?.box ?? 0,
+        newBox: result.progress.box,
+        profileId,
+        siblingProgress,
+        now,
+        timeZone: timezone,
+      }) ?? undefined;
   }
-  await db.appendAttempt({
-    id: randomUUID(),
-    sessionId,
-    profileId,
-    factId: body.factId,
-    // `given` repurposed for munch: count of wrong munches this round (signal
-    // for future tuning; not used in grading or aggregation). Clamp the
-    // client-reported value the same way as responseMs.
-    given:
-      typeof body.wrongMunches === 'number' && Number.isFinite(body.wrongMunches)
-        ? Math.min(Math.max(0, Math.trunc(body.wrongMunches)), 999)
-        : 0,
-    correct: result.correct,
-    fast: result.fast,
-    responseMs,
-    answeredAt: now,
-  });
 
   // Track the box-0 counter only while the fact is still learning. Only persist
   // when the learning map actually changed — the deck half of workingState is
@@ -380,7 +362,33 @@ export async function answer(
     delete ws.learning[body.factId];
     learningChanged = true;
   }
-  if (learningChanged) await db.updateSessionWorkingState(sessionId, JSON.stringify(ws));
+
+  // Persist the whole answer atomically (progress + stat + sibling seed +
+  // attempt + working state): one commit instead of 4-5 on the hot path, and a
+  // crash can't record progress without its attempt row.
+  await db.recordAnswer({
+    progress: result.progress,
+    stat: result.correct ? result.stat : undefined,
+    siblingProgress: siblingSeed,
+    attempt: {
+      id: randomUUID(),
+      sessionId,
+      profileId,
+      factId: body.factId,
+      // `given` repurposed for munch: count of wrong munches this round (signal
+      // for future tuning; not used in grading or aggregation). Clamp the
+      // client-reported value the same way as responseMs.
+      given:
+        typeof body.wrongMunches === 'number' && Number.isFinite(body.wrongMunches)
+          ? Math.min(Math.max(0, Math.trunc(body.wrongMunches)), 999)
+          : 0,
+      correct: result.correct,
+      fast: result.fast,
+      responseMs,
+      answeredAt: now,
+    },
+    workingState: learningChanged ? { sessionId, json: JSON.stringify(ws) } : undefined,
+  });
 
   // Caught up = today's work done: nothing due to review AND nothing still
   // being learned, among the *enabled* facts (DESIGN.md §4.10). Scoped so a

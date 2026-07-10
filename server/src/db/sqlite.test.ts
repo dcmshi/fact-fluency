@@ -253,6 +253,53 @@ describe('sessions', () => {
     expect((await db.getProfileReward(profile.id)).coins).toBe(0);
   });
 
+  it('recordAnswer writes progress + stat + attempt + working state atomically', async () => {
+    const { profile } = await makeAccountAndProfile();
+    await db.createSession(make('s1', profile.id, 1));
+    const progress = {
+      profileId: profile.id,
+      factId: 'add:2+3',
+      box: 1 as const,
+      state: 'review' as const,
+      dueAt: 100,
+      lastSeenAt: 50,
+      reps: 1,
+      fastCorrect: 1,
+      correctStreak: 1,
+      accuracyEwma: 1,
+      medianMsEwma: 1500,
+    };
+    const attempt = {
+      id: 'a1',
+      sessionId: 's1',
+      profileId: profile.id,
+      factId: 'add:2+3',
+      given: 0,
+      correct: true,
+      fast: true,
+      responseMs: 1500,
+      answeredAt: 60,
+    };
+    await db.recordAnswer({
+      progress,
+      stat: { profileId: profile.id, operation: 'add', medianMsEwma: 1500, correctSamples: 1 },
+      attempt,
+      workingState: { sessionId: 's1', json: '{"learning":{"add:2+3":1}}' },
+    });
+    expect((await db.getProgressForFact(profile.id, 'add:2+3'))?.box).toBe(1);
+    expect((await db.getOperationStat(profile.id, 'add'))?.correctSamples).toBe(1);
+    expect(await db.listSessionAttempts('s1')).toHaveLength(1);
+    expect((await db.getSession('s1'))?.workingState).toBe('{"learning":{"add:2+3":1}}');
+
+    // Atomicity: a failing write (duplicate attempt id) rolls back the whole
+    // set — the progress update must not survive without its attempt row.
+    await expect(
+      db.recordAnswer({ progress: { ...progress, box: 2, reps: 2 }, attempt }),
+    ).rejects.toThrow();
+    expect((await db.getProgressForFact(profile.id, 'add:2+3'))?.box).toBe(1); // unchanged
+    expect(await db.listSessionAttempts('s1')).toHaveLength(1);
+  });
+
   it('listProfileAttempts filters by since and orders oldest-first', async () => {
     const { profile } = await makeAccountAndProfile();
     await db.createSession(make('s1', profile.id, 0));

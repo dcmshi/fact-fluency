@@ -8,13 +8,12 @@
  *
  * Each successful navigation refreshes the cached '/' shell, so the offline
  * fallback tracks the latest deployed app instead of being pinned to the
- * first-install version. Bump CACHE when this file changes to evict the prior
- * cache (the activate handler deletes any other-named cache). Fully automatic
- * per-deploy eviction would need a build-time hash stamped into CACHE — a
- * deferred follow-up; content-hashed asset names mean stale assets are inert,
- * only unbounded growth remains.
+ * first-install version. The cache-name placeholder below is stamped with a
+ * per-build id at build time (the emit-stamped-sw plugin in vite.config.ts),
+ * so every deploy gets a fresh cache and the activate handler evicts the
+ * previous one — no manual bumps, no unbounded growth from stale assets.
  */
-const CACHE = 'ff-shell-v2';
+const CACHE = 'ff-shell-__BUILD__';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

@@ -179,6 +179,52 @@ describe('PostgresDb (pg-mem)', () => {
     // adapter in rewards.test.ts instead. Real Postgres rolls back correctly.
   });
 
+  it('recordAnswer persists the whole per-answer write set', async () => {
+    const { profile } = await accountAndProfile();
+    await db.createSession({
+      id: 's1',
+      profileId: profile.id,
+      startedAt: 1,
+      completedAt: null,
+      plannedCount: 3,
+      workingState: '{}',
+    });
+    await db.recordAnswer({
+      progress: {
+        profileId: profile.id,
+        factId: 'add:2+3',
+        box: 1,
+        state: 'review',
+        dueAt: 100,
+        lastSeenAt: 50,
+        reps: 1,
+        fastCorrect: 1,
+        correctStreak: 1,
+        accuracyEwma: 1,
+        medianMsEwma: 1500,
+      },
+      stat: { profileId: profile.id, operation: 'add', medianMsEwma: 1500, correctSamples: 1 },
+      attempt: {
+        id: 'a1',
+        sessionId: 's1',
+        profileId: profile.id,
+        factId: 'add:2+3',
+        given: 0,
+        correct: true,
+        fast: true,
+        responseMs: 1500,
+        answeredAt: 60,
+      },
+      workingState: { sessionId: 's1', json: '{"learning":{}}' },
+    });
+    expect((await db.getProgressForFact(profile.id, 'add:2+3'))?.box).toBe(1);
+    expect((await db.getOperationStat(profile.id, 'add'))?.correctSamples).toBe(1);
+    expect(await db.listSessionAttempts('s1')).toHaveLength(1);
+    expect((await db.getSession('s1'))?.workingState).toBe('{"learning":{}}');
+    // (Rollback-on-failure is asserted on the SQLite adapter — pg-mem's pooled
+    // client doesn't honor ROLLBACK; real Postgres does.)
+  });
+
   it('completeSessionAndAward transitions once and credits once', async () => {
     const { profile } = await accountAndProfile();
     await db.createSession({

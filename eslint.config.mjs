@@ -13,7 +13,7 @@ export default tseslint.config(
     ignores: [
       '**/dist/**',
       '**/node_modules/**',
-      'client/public/sw.js', // service-worker globals; not part of the TS build
+      'client/src/sw.js', // service-worker globals; not part of the TS build
     ],
   },
   js.configs.recommended,

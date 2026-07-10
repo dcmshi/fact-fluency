@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import type { FactProgress, Operation, OperationStat, Profile, ProfileSettings } from '@shared';
-import type { AttemptRecord, Db, SessionRecord } from './index';
+import type { AnswerWrite, AttemptRecord, Db, SessionRecord } from './index';
 import { ADDITIVE_COLUMNS, SCHEMA } from './schema';
 
 interface ProfileRow {
@@ -510,7 +510,7 @@ export class SqliteDb implements Db {
     return row.n;
   }
 
-  async upsertProgress(p: FactProgress): Promise<void> {
+  private runUpsertProgress(p: FactProgress): void {
     this.db
       .prepare(
         `INSERT INTO fact_progress
@@ -524,6 +524,10 @@ export class SqliteDb implements Db {
            accuracy_ewma=@accuracyEwma, median_ms_ewma=@medianMsEwma`,
       )
       .run(p);
+  }
+
+  async upsertProgress(p: FactProgress): Promise<void> {
+    this.runUpsertProgress(p);
   }
 
   async getOperationStats(profileId: string): Promise<OperationStat[]> {
@@ -540,7 +544,7 @@ export class SqliteDb implements Db {
     return row ? toOperationStat(row) : null;
   }
 
-  async upsertOperationStat(s: OperationStat): Promise<void> {
+  private runUpsertOperationStat(s: OperationStat): void {
     this.db
       .prepare(
         `INSERT INTO operation_stat (profile_id, operation, median_ms_ewma, correct_samples)
@@ -549,6 +553,10 @@ export class SqliteDb implements Db {
            median_ms_ewma=@medianMsEwma, correct_samples=@correctSamples`,
       )
       .run(s);
+  }
+
+  async upsertOperationStat(s: OperationStat): Promise<void> {
+    this.runUpsertOperationStat(s);
   }
 
   // --- sessions & attempts ---
@@ -612,13 +620,34 @@ export class SqliteDb implements Db {
     return tx();
   }
 
-  async appendAttempt(a: AttemptRecord): Promise<void> {
+  private runAppendAttempt(a: AttemptRecord): void {
     this.db
       .prepare(
         `INSERT INTO attempt (id, session_id, profile_id, fact_id, given, correct, fast, response_ms, answered_at)
          VALUES (@id, @sessionId, @profileId, @factId, @given, @correct, @fast, @responseMs, @answeredAt)`,
       )
       .run({ ...a, correct: a.correct ? 1 : 0, fast: a.fast ? 1 : 0 });
+  }
+
+  async appendAttempt(a: AttemptRecord): Promise<void> {
+    this.runAppendAttempt(a);
+  }
+
+  async recordAnswer(w: AnswerWrite): Promise<void> {
+    // One transaction for the whole per-answer write set — a single WAL commit
+    // instead of 4-5, and progress can never persist without its attempt row.
+    const tx = this.db.transaction(() => {
+      this.runUpsertProgress(w.progress);
+      if (w.stat) this.runUpsertOperationStat(w.stat);
+      if (w.siblingProgress) this.runUpsertProgress(w.siblingProgress);
+      this.runAppendAttempt(w.attempt);
+      if (w.workingState) {
+        this.db
+          .prepare('UPDATE session SET working_state = ? WHERE id = ?')
+          .run(w.workingState.json, w.workingState.sessionId);
+      }
+    });
+    tx();
   }
 
   async listSessionAttempts(sessionId: string): Promise<AttemptRecord[]> {

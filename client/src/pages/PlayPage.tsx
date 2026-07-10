@@ -5,6 +5,7 @@ import type { Card, SessionResponse, SessionSummary } from '@shared';
 import { api, ApiError, qk } from '../api';
 import { Confetti } from '../components/Confetti';
 import { MunchBoard, type RoundResult } from '../components/MunchBoard';
+import { spliceInject } from '../injects';
 import { onInteractive } from '../keys';
 import { OP_CLASS, OP_SYMBOL } from '../ops';
 import { isMuted, playComplete, playCorrect, playFast, playWrong, setMuted } from '../sound';
@@ -44,10 +45,24 @@ export function PlayPage() {
 
   const sessionStart = useRef(0);
   const sessionRef = useRef<SessionResponse | null>(null);
+  // Live mirrors of `queue`/`played` state, so the async answer-response
+  // handler (which lands between renders) always sees the current values, and
+  // all queue updates compose instead of clobbering each other.
+  const queueRef = useRef<Card[]>([]);
+  const playedRef = useRef(0);
+  // Answer POSTs in flight — play no longer blocks on them, but completion
+  // must wait for them so the server scores a full attempt log.
+  const inflightRef = useRef<Set<Promise<void>>>(new Set());
 
   useTheme(session?.theme);
 
   const current = queue[0] ?? null;
+
+  /** All queue changes go through here so the ref and state never diverge. */
+  const applyQueue = useCallback((fn: (q: Card[]) => Card[]) => {
+    queueRef.current = fn(queueRef.current);
+    setQueue(queueRef.current);
+  }, []);
 
   // Begin a munch round for the current card (fresh MunchBoard via roundNonce).
   const startRound = useCallback(() => {
@@ -64,6 +79,11 @@ export function PlayPage() {
       if (nextQueue.length === 0 || timeUp) {
         const sid = sessionRef.current!.sessionId;
         try {
+          // Rounds don't block on their answer POSTs, so the last few may
+          // still be in flight — wait for them to land (or fail into the
+          // offline queue) before completing, or the server would score an
+          // incomplete attempt log.
+          await Promise.allSettled([...inflightRef.current]);
           // flushAnswers returns false (it doesn't throw) when answers are
           // still queued. Completing anyway would have the server score an
           // incomplete attempt log and 409 the late replays — so a partial
@@ -84,7 +104,7 @@ export function PlayPage() {
         setPhase('done');
         return;
       }
-      setQueue(nextQueue);
+      applyQueue(() => nextQueue);
       if (nextQueue[0].isNew) {
         const f = nextQueue[0].fact;
         setAnnounce(
@@ -96,15 +116,17 @@ export function PlayPage() {
         startRound();
       }
     },
-    [startRound, queryClient, profileId],
+    [startRound, queryClient, profileId, applyQueue],
   );
 
   const start = useCallback(async () => {
     setPhase('loading');
+    playedRef.current = 0;
     setPlayed(0);
     setSummary(null);
     setCaughtUp(false);
     setOfflineFinish(false);
+    inflightRef.current = new Set();
     try {
       const s = await api.startSession(profileId);
       sessionRef.current = s;
@@ -137,7 +159,8 @@ export function PlayPage() {
     async (r: RoundResult) => {
       const s = sessionRef.current;
       if (!current || !s) return;
-      setPlayed((n) => n + 1);
+      playedRef.current += 1;
+      setPlayed(playedRef.current);
       navigator.vibrate?.(r.correct ? 18 : [40, 50, 40]);
 
       const body = {
@@ -159,31 +182,38 @@ export function PlayPage() {
             : 'All munched!'
           : 'All done — nice effort! Keep going.',
       );
-      let injects: { factId: string; afterOffset: number }[] = [];
-      try {
-        const resp = await api.answer(s.sessionId, body);
-        injects = resp.injects ?? [];
-        if (resp.caughtUp) setCaughtUp(true);
-      } catch {
-        // Offline (or a blip): queue the report; it replays on reconnect.
-        enqueueAnswer(s.sessionId, body);
-      }
 
-      let next = queue.slice(1);
-      for (const inj of injects) {
-        const card = s.deck.find((c) => c.fact.id === inj.factId);
-        if (!card) continue;
-        const at = Math.min(inj.afterOffset, next.length);
-        // at === 0 only when the queue is empty (the missed card was last):
-        // splicing here would re-show the same fact immediately, which §4.4
-        // forbids ("never the same fact twice back-to-back"). Skip the
-        // in-session rehearsal — its demoted box schedule resurfaces it.
-        if (at === 0) continue;
-        next = [...next.slice(0, at), { ...card, isNew: false }, ...next.slice(at)];
-      }
-      await goNext(next);
+      // Don't block the next card on the answer round trip (200-800ms of dead
+      // time per card on a slow link, ~20x a session): advance immediately and
+      // reconcile when the response lands — injects splice into the *live*
+      // queue with the position adjusted for rounds played meanwhile
+      // (spliceInject), and caughtUp just flips state. Completion waits on
+      // `inflightRef` so the attempt log is whole before the session is scored.
+      const playedAtPost = playedRef.current;
+      const report: Promise<void> = api
+        .answer(s.sessionId, body)
+        .then((resp) => {
+          if (resp.caughtUp) setCaughtUp(true);
+          for (const inj of resp.injects ?? []) {
+            const injectCard = s.deck.find((c) => c.fact.id === inj.factId);
+            if (!injectCard) continue;
+            applyQueue((q) =>
+              spliceInject(q, injectCard, inj.afterOffset, playedRef.current - playedAtPost),
+            );
+          }
+        })
+        .catch(() => {
+          // Offline (or a blip): queue the report; it replays on reconnect.
+          enqueueAnswer(s.sessionId, body);
+        })
+        .finally(() => {
+          inflightRef.current.delete(report);
+        });
+      inflightRef.current.add(report);
+
+      await goNext(queueRef.current.slice(1));
     },
-    [current, queue, goNext],
+    [current, goNext, applyQueue],
   );
 
   // Study card: Enter/Space dismisses to start the round.

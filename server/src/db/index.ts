@@ -16,6 +16,19 @@ export interface SessionRecord {
   workingState: string;
 }
 
+/** Everything one graded answer writes — applied atomically by `recordAnswer`. */
+export interface AnswerWrite {
+  progress: FactProgress;
+  /** Updated per-op stat; omitted when the answer was wrong (stats track
+   *  correct-answer speed only). */
+  stat?: OperationStat;
+  /** A family-transfer seed for the inverse sibling (rare; DESIGN.md §9). */
+  siblingProgress?: FactProgress;
+  attempt: AttemptRecord;
+  /** New working-state JSON, only when the learning map changed. */
+  workingState?: { sessionId: string; json: string };
+}
+
 /** An append-only attempt log row (DESIGN.md §6). */
 export interface AttemptRecord {
   id: string;
@@ -153,6 +166,12 @@ export interface Db {
     coinDelta: number,
   ): Promise<boolean>;
   appendAttempt(a: AttemptRecord): Promise<void>;
+  /** Persist one graded answer atomically: the fact's progress row, the
+   *  (optional) per-op stat, the (optional) family-transfer sibling seed, the
+   *  attempt-log row, and the (optional) working-state rewrite — one
+   *  transaction instead of 4-5 separate commits/round-trips on the hottest
+   *  path, and a crash can't persist progress without its attempt row. */
+  recordAnswer(w: AnswerWrite): Promise<void>;
   listSessionAttempts(sessionId: string): Promise<AttemptRecord[]>;
   /** All of a profile's attempts at/after `since` (epoch ms), oldest first —
    *  backs the dashboard trends (DESIGN.md §7). */
