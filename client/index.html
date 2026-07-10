@@ -4,11 +4,67 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#FFF7EC" />
+
+    <!-- SEO: the title is the strongest on-page signal we control; the
+         description drives result click-through (not ranking). Keep both in
+         sync with the OG/Twitter tags below and the landing-page copy. -->
+    <title>Fact Fluency — Free Math Facts Practice Game for Kids</title>
+    <meta
+      name="description"
+      content="A free math fact fluency game for kids. Master addition, subtraction, multiplication, and division facts with short, fun Number Munchers–style sessions built on spaced repetition. No ads, no account needed to try."
+    />
+    <link rel="canonical" href="https://fact-fluency.onrender.com/" />
+
+    <!-- Social cards (Open Graph + Twitter) — used by Messages/Slack/etc. too. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Fact Fluency" />
+    <meta property="og:title" content="Fact Fluency — Free Math Facts Practice Game for Kids" />
+    <meta
+      property="og:description"
+      content="Master addition, subtraction, multiplication, and division facts with short, fun game sessions built on spaced repetition. Free, no ads."
+    />
+    <meta property="og:url" content="https://fact-fluency.onrender.com/" />
+    <meta property="og:image" content="https://fact-fluency.onrender.com/icon-512.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Fact Fluency — Free Math Facts Practice Game for Kids" />
+    <meta
+      name="twitter:description"
+      content="Master addition, subtraction, multiplication, and division facts with short, fun game sessions built on spaced repetition. Free, no ads."
+    />
+    <meta name="twitter:image" content="https://fact-fluency.onrender.com/icon-512.png" />
+
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <!-- iOS ignores SVG touch icons — a real 180px PNG (gen-icons.mjs). -->
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <title>Fact Fluency</title>
+
+    <!-- Structured data: an educational web app. Helps rich results and lets
+         Google classify the page without executing the SPA bundle. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Fact Fluency",
+        "url": "https://fact-fluency.onrender.com/",
+        "description": "A free math fact fluency game for kids: addition, subtraction, multiplication, and division practice built on spaced repetition, wrapped in a Number Munchers–style grid game.",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Any (web browser)",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "audience": {
+          "@type": "EducationalAudience",
+          "educationalRole": "student"
+        },
+        "about": [
+          "math facts",
+          "times tables",
+          "addition practice",
+          "subtraction practice",
+          "multiplication practice",
+          "division practice",
+          "spaced repetition"
+        ]
+      }
+    </script>
     <!-- Fonts are self-hosted (bundled via @fontsource, imported in main.tsx) —
          no third-party CDN request. -->
   </head>

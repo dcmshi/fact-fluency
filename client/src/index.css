@@ -389,6 +389,34 @@ body[data-theme='midnight'] {
   border: 0;
 }
 
+/* Landing-page info section (AuthPage) — quiet, below-the-fold content. */
+.landing-info {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 2px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+.landing-info h2 {
+  color: var(--ink);
+  font-size: 1.05rem;
+  margin: 1rem 0 0.35rem;
+}
+.landing-info h2:first-child {
+  margin-top: 0;
+}
+.landing-info p {
+  margin: 0 0 0.4rem;
+}
+.landing-info ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+.landing-info li {
+  margin-bottom: 0.25rem;
+}
+
 /* Loading skeletons — shimmer placeholders shown while data loads. */
 .skeleton {
   background: linear-gradient(90deg, var(--paper-2) 25%, var(--line) 37%, var(--paper-2) 63%);

@@ -1,0 +1,9 @@
+User-agent: *
+# The app screens behind these paths are auth-gated SPA routes — nothing
+# indexable, so save the crawl budget for the landing page.
+Disallow: /play/
+Disallow: /progress/
+Disallow: /api/
+Allow: /
+
+Sitemap: https://fact-fluency.onrender.com/sitemap.xml

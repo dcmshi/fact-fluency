@@ -50,14 +50,17 @@ export function AuthPage() {
   return (
     <div className="screen center-y">
       <div className="stack rise">
-        <div className="brand" style={{ justifyContent: 'center', fontSize: '1.7rem' }}>
+        {/* The site's <h1>: the landing page is the only public route, so this
+            is what search engines index. Keep it in sync with index.html. */}
+        <h1 className="brand" style={{ justifyContent: 'center', fontSize: '1.7rem' }}>
           <span className="glyph" aria-hidden="true">
             ✦
           </span>
           Fact Fluency
-        </div>
+        </h1>
         <p className="muted" style={{ textAlign: 'center', marginTop: '-0.4rem' }}>
-          Practice math facts the fun way.
+          A free math facts practice game for kids — the fun way to master addition, subtraction,
+          multiplication, and division.
         </p>
 
         <button
@@ -123,6 +126,37 @@ export function AuthPage() {
             {mode === 'signup' ? 'I already have an account' : 'New here? Create an account'}
           </button>
         </form>
+
+        {/* Crawlable landing content — the only public page is this one, so
+            this section is what gives search engines something real to rank.
+            Plain semantic HTML, below the fold, honest copy (no keyword
+            stuffing). */}
+        <section className="landing-info">
+          <h2>What is Fact Fluency?</h2>
+          <p>
+            Fact Fluency helps kids build real automaticity with their math facts — addition,
+            subtraction, multiplication, and division (including times tables up to 12) — through
+            short, game-like practice sessions. Each round plays like the classic Number Munchers:
+            steer a cute muncher around a grid and eat every number that matches the fact.
+          </p>
+
+          <h2>Built on spaced repetition</h2>
+          <p>
+            Behind the game is a spaced-repetition engine: facts a child knows come back less often,
+            tricky ones come back sooner, and a fact only counts as mastered when it&rsquo;s
+            answered both correctly <em>and</em> quickly — true fluency, not just accuracy. New
+            facts trickle in a few at a time, and sessions stay around three minutes so practice
+            never turns into a grind.
+          </p>
+
+          <h2>Made for families</h2>
+          <ul>
+            <li>One grown-up account, a profile for each kid — kids just tap and play.</li>
+            <li>A parent dashboard with accuracy trends, trickiest facts, and weekly recaps.</li>
+            <li>Coins, unlockable characters, themes, and streaks keep motivation up.</li>
+            <li>Free to use, no ads — and you can try it instantly without an account.</li>
+          </ul>
+        </section>
       </div>
     </div>
   );

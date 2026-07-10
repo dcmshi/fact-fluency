@@ -1121,6 +1121,27 @@ posture from earlier passes all re-verified sound. New, verified findings below
       pass, inviting `--no-verify` habits. Add `.gitattributes`
       (`* text=auto eol=lf`, binaries marked) and normalize the working tree.
 
+## SEO pass (2026-07-10)
+
+On-page SEO for the live site. Expectation-setting: metadata mostly improves
+result presentation/CTR and social shares; ranking comes from content,
+performance, and links — the free-tier cold start (~50s) remains the biggest
+technical handicap, and a custom domain would beat the shared-reputation
+`onrender.com` subdomain if this ever gets serious.
+
+- [x] Keyword-relevant `<title>` + meta description; canonical URL.
+- [x] Open Graph + Twitter card tags (og:image = the 512 icon).
+- [x] JSON-LD structured data (`WebApplication`, EducationalApplication,
+      price 0) readable without executing the SPA bundle.
+- [x] `robots.txt` (auth-gated /play, /progress, /api disallowed) +
+      `sitemap.xml` (the landing page is the only public URL).
+- [x] Crawlable landing content — the auth page (the one public route) gained
+      an `<h1>` and a below-the-fold semantic section (what it is, spaced
+      repetition, made-for-families) so search engines have real text to rank.
+- Not done (bigger levers, deliberate): SSR/prerender (Google renders JS fine
+  at this scale), a custom domain, paid tier for cold starts, and off-page
+  links. Submit the site in Google Search Console to start indexing.
+
 ## Audit pass 9 (2026-07-10) — coverage check after the P4–P7 clear
 
 A targeted audit of what the big batch left untested. Three service-level gaps
