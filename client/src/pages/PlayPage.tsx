@@ -7,7 +7,7 @@ import { Confetti } from '../components/Confetti';
 import { MunchBoard, type RoundResult } from '../components/MunchBoard';
 import { onInteractive } from '../keys';
 import { OP_CLASS, OP_SYMBOL } from '../ops';
-import { isMuted, playComplete, playCorrect, playWrong, setMuted } from '../sound';
+import { isMuted, playComplete, playCorrect, playFast, playWrong, setMuted } from '../sound';
 import { enqueueAnswer, flushAnswers, markPendingComplete } from '../syncQueue';
 import { useTheme } from '../useTheme';
 import './PlayPage.css';
@@ -151,6 +151,7 @@ export function PlayPage() {
       // an offline kid still hears "super fast!". The server recomputes `fast`
       // authoritatively for scheduling; this copy is presentation-only.
       const fast = r.correct && r.responseMs <= s.thresholds[current.fact.operation];
+      if (fast) playFast(); // the fluency win gets its sparkle (sound.ts)
       setAnnounce(
         r.correct
           ? fast

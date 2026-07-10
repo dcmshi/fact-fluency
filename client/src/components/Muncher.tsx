@@ -1,8 +1,11 @@
 import { memo } from 'react';
 import './Muncher.css';
 
-/** Animation state for a muncher character. */
-export type MuncherState = 'idle' | 'chomp' | 'happy' | 'bleh';
+/** Animation state for a muncher character. `still` renders the resting pose
+ *  with no animation — use it in scrolling lists (e.g. the rewards shop):
+ *  an infinite composited transform animation inside an overflow scroller can
+ *  desync from the scroll in Chrome, leaving the rig floating outside its tile. */
+export type MuncherState = 'idle' | 'chomp' | 'happy' | 'bleh' | 'still';
 
 const INK = '#3a3350';
 const BLUSH = '#ff8fae';

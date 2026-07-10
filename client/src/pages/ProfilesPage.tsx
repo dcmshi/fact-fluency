@@ -475,7 +475,11 @@ function RewardTile({
     >
       <div className="reward-preview">
         {item.kind === 'avatar' && <span className="reward-emoji">{item.value}</span>}
-        {item.kind === 'muncher' && <Muncher animal={item.value} state="idle" size={44} />}
+        {/* `still`, not `idle`: the idle bob is an infinite composited
+            animation, and inside the modal's scroll container Chrome can
+            desync that layer from the scroll — munchers float off their
+            tiles. A static preview can't. */}
+        {item.kind === 'muncher' && <Muncher animal={item.value} state="still" size={44} />}
         {item.kind === 'effect' && (
           <span className="reward-emoji">{EFFECT_ICON[item.value] ?? '🎉'}</span>
         )}
