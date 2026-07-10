@@ -35,19 +35,26 @@ muncher you drive by keyboard or tap (shown here in the unlockable _Ocean_ theme
 
 - **Spaced-repetition + fluency engine** — Leitner boxes for the across-session
   schedule, an in-session rehearsal queue, and a per-kid adaptive speed
-  threshold. All pure, framework-free, and the most-tested code in the repo.
-- **Number Munchers play mode** — a 5×5 grid; munch everything equal to / less
-  than / greater than the fact's answer. Calm and non-punitive (no chasing
-  enemies, no on-screen countdown).
-- **Adult dashboard** — 14-day accuracy & speed trends, a mastery summary, and a
-  "suggested next set to enable".
-- **Rewards** — coins earned per session unlock avatars and palette themes.
-- **Fact grid, daily streaks, fact-family framing** (e.g. `7 × 8 = 56` framing
-  `56 ÷ 7`).
-- **PWA + offline-resilient sync** — installable; a flaky connection never loses
-  practice (answers queue locally and replay on reconnect).
-- **Accessible & friendly** — screen-reader announcements, sound effects with a
-  mute toggle, loading skeletons.
+  threshold that also throttles new-fact intake when recent accuracy dips. All
+  pure, framework-free, and the most-tested code in the repo (constants are
+  env-tunable for calibration).
+- **Number Munchers play mode** — a 5×5 grid; munch everything equal to /
+  smaller than / bigger than the fact's answer. Calm and non-punitive (no
+  chasing enemies, no on-screen countdown); K–1 profiles start equality-only.
+- **Adult dashboard** — 14-day accuracy & speed trends, a mastery summary, a
+  "This week" recap, the trickiest facts right now, and a one-tap "Enable now"
+  next-set suggestion. Fully-mastered operations get a printable certificate.
+- **Rewards** — coins earned per session unlock munchers, celebration effects,
+  avatars (some seasonal), palette themes, and a streak-shield power-up that
+  saves a streak across one missed day.
+- **Fact grid, daily streaks, fact-family transfer** (mastering `56 ÷ 7` seeds
+  and nudges `7 × 8` on the review schedule).
+- **PWA + offline-resilient sync** — installable (real maskable/apple icons); a
+  flaky connection never loses practice (answers queue locally, replay on
+  reconnect, and missed facts still get their in-session re-show offline).
+- **Accessible & friendly** — screen-reader announcements (including per-munch
+  feedback), roving-tabindex keyboard play, sound effects with a mute toggle,
+  loading skeletons, theme-aware contrast.
 
 See **[DESIGN.md](DESIGN.md)** for the full product/architecture rationale and
 **[CLAUDE.md](CLAUDE.md)** for the quick operational reference.

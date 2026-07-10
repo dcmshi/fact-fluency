@@ -81,8 +81,13 @@ Per-workspace: append `-w server` / `-w client` / `-w shared` (e.g.
   deps left external. `tsc` is used only for `--noEmit` typechecking (setting
   `rootDir` would trip TS6059 on the cross-package type import).
 - **Config via env** (`.env.example`): `PORT`, `DATABASE_URL` (scheme selects
-  the DB adapter). No cookie secret — the session cookie is an unsigned opaque
-  token (auth/session.ts).
+  the DB adapter), optional `FF_FLUENCY_*` / `FF_CEILING_*` fluency-tuning
+  overrides (parsed once at boot in `config.ts`; engine defaults in
+  `engine/threshold.ts`). No cookie secret — the session cookie is an unsigned
+  opaque token (auth/session.ts).
+- The service worker source lives at `client/src/sw.js` (NOT public/) — the
+  build emits it with a per-build cache name (`emit-stamped-sw` plugin in
+  vite.config.ts), so each deploy evicts the previous SW cache.
 - Dev-only `npm audit` warnings come from the esbuild/vite/vitest chain
   (GHSA-67mh-4wv8-2f99); they don't affect the production server/static bundle.
 
@@ -109,10 +114,18 @@ otherwise skip the devDependencies the build needs.
 ## Conventions
 
 - **TypeScript everywhere**, `strict` on. Shared types live in `/shared`, not
-  duplicated across client/server.
+  duplicated across client/server. `shared` must stay **type-only** — never
+  export a runtime value from it (server-side runtime lists live in e.g.
+  `server/src/engine/operations.ts`).
 - Prefer small pure functions for anything in `engine/`; side effects live at the
   edges (api/db).
-- Test the engine in isolation before wiring it to HTTP/DB.
+- Test the engine in isolation before wiring it to HTTP/DB. The DB adapters
+  share a behavioral contract suite (`db/contract.test.ts`) run against both
+  SQLite and pg-mem — add adapter methods there, not just per-adapter tests.
+- Route handlers use the shared `handle()` wrapper (`api/handle.ts`) and throw
+  `HttpError` (`httpError.ts`) — no hand-rolled try/catch in routers.
+- Profile-scoped routes use the `loadOwnedProfile` middleware; services take
+  the loaded `Profile`, not `(accountId, profileId)` pairs.
 - Keep response-time handling honest: capture `responseMs` on the client, but
   treat the server as source of truth for scheduling decisions.
 

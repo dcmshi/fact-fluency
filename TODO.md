@@ -1,8 +1,10 @@
 # TODO
 
-Where things stand and what's left. v1 (DESIGN.md §9) is complete: auth, all four
-operations, the scheduling/fluency engine, the session player, the fact grid,
-daily streaks, and Render deploy (SQLite + Postgres). 233 tests passing.
+Where things stand and what's left. v1 (DESIGN.md §9) is complete — auth, all
+four operations, the scheduling/fluency engine, the session player, the fact
+grid, daily streaks, Render deploy (SQLite + Postgres) — and the P4–P7 backlog
+(perf, UI/a11y, refactoring, features) is fully cleared as of 2026-07-10.
+275 tests passing.
 
 This is a backlog, not a commitment — pick from it as needed.
 

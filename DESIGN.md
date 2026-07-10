@@ -218,14 +218,21 @@ Each session is assembled by a pure `SessionPlanner`:
   known facts, then again further out.
 - **Recency guard:** never the same fact twice back-to-back.
 - **Target success rate ≈ 80%** — the planner caps how many hard/new facts ride
-  in one session to protect this.
+  in one session to protect this, and adapts the new-fact intake to recent
+  accuracy (`newFactAllotment`): under 75% over the last week's attempts, cold
+  intros pause entirely (review does the repair work); 75–85% halves the
+  allotment; at/above 85% (or with no recent data) the full allotment flows.
+- **Presentation ceiling:** past ~30 attempts in one session the server stops
+  emitting in-session re-shows — a miss-loop can't grind on; the demoted box
+  schedule resurfaces the fact tomorrow instead.
 
 **Edge case — nothing (or little) is due (pinned):** never block a kid from
 playing. The planner fills in this priority order: (1) due review facts, (2)
 soonest-upcoming review facts pulled forward, (3) extra **new** facts beyond the
-normal 2–4 cap, (4) if a set is fully mastered, light review of mastered facts.
-A "you've mastered everything here — ask a grown-up to add more!" state is shown
-only when _all_ enabled sets are fully mastered.
+normal 2–4 cap (the accuracy throttle applies here too), (4) if a set is fully
+mastered, light review of mastered facts. A "you've mastered everything here —
+ask a grown-up to add more!" state is shown only when _all_ enabled sets are
+fully mastered.
 
 ### 4.5 Adaptive fluency threshold (pinned)
 
@@ -246,6 +253,10 @@ they _compute_ (counting up, etc.) runs slower. Anchoring to their own median
 distinguishes the two and tightens automatically as they speed up — fair to
 beginners, demanding of the fluent. **All constants (`K`, floor, ceiling, sample
 threshold) are tuning knobs** to be calibrated against real `Attempt` data.
+They bundle as a `FluencyTuning` the engine takes as input; the edge builds one
+from env (`FF_FLUENCY_K`, `FF_FLUENCY_FLOOR_MS`, `FF_FLUENCY_COLD_START`,
+`FF_CEILING_ADD/_SUB/_MUL/_DIV` — see `.env.example`), so a calibration run's
+suggestions (`npm run calibrate -w server`) apply without redeploying code.
 
 ### 4.6 New-fact introduction — study-first (pinned)
 
@@ -323,6 +334,11 @@ server stays authoritative over persisted state and reactive re-shows:
 - **Streak = consecutive days with ≥ 1 _completed_ session** — rewards showing
   up, _not_ perfectly clearing the queue (non-punitive, per the design ethos).
   Hitting "all caught up" is a same-day celebration, never a streak gate.
+- **Streak shield (perk):** the one hard-reset mechanic left is softened by a
+  coin-purchasable consumable — an owned shield absorbs exactly one missed day
+  (consumed atomically when it saves the streak; never stretches two). It's
+  also the coin economy's first real sink, alongside seasonal catalog items
+  (month-windowed avatars via a pure `activeRewardCatalog(now)`).
 
 ---
 
@@ -457,10 +473,13 @@ GET  /api/profiles/:id/progress  -> fact grid + trends for the dashboard
 
 **Later**
 
-- Calibrate engine constants (§4.5) from `Attempt` history
-- Offline play with sync
-- Lightweight classroom mode (many profiles, quick switch)
-- Fact-family framing (link `7×8` ↔ `56÷7`) for transfer
+- ~~Calibrate engine constants (§4.5) from `Attempt` history~~ — tooling +
+  env-driven tuning shipped; the actual re-tune still waits on real usage data
+- ~~Offline play with sync~~ — shipped (PWA shell, sync queue, local rehearsal)
+- Lightweight classroom mode (many profiles, quick switch) — deferred; home
+  users only for now
+- ~~Fact-family framing (link `7×8` ↔ `56÷7`) for transfer~~ — shipped
+  (study-card framing, mastery seeding, and the in-progress sibling nudge)
 
 ---
 
@@ -491,7 +510,8 @@ These were resolved to keep implementation unambiguous; revisit if needed:
 - **Answers in payload:** cards embed their answer for instant client feedback;
   kids aren't an adversarial threat model (§4.7). Server stays sole state writer.
 - **Config via env:** `PORT`, `DATABASE_URL` (`sqlite:` path vs `postgres:` URL
-  selects the adapter); DB seeding runs as part of migrate. No cookie secret —
+  selects the adapter), optional `FF_FLUENCY_*` / `FF_CEILING_*` fluency-tuning
+  overrides (§4.5); DB seeding runs as part of migrate. No cookie secret —
   the session cookie is an unsigned random opaque token (its entropy is the
   secret; the server-side session row is the source of truth).
 - **Fact grid:** one 2-D grid per operation (operand A × operand B), cells
@@ -503,10 +523,13 @@ These were resolved to keep implementation unambiguous; revisit if needed:
 ## 11. Open Questions (still genuinely open)
 
 - Exact tuning of fluency constants (`K`, floor, ceiling, cold-start sample
-  count) — needs a first pass then calibration on real data.
-- Starting fact-set defaults per typical grade band.
-- How aggressively to raise `newPerSession` for a kid racing ahead (auto-bump vs
-  adult-controlled).
+  count) — the knobs are env-overridable now (§4.5), but the actual values
+  still need calibration on real data.
+- How aggressively to raise `newPerSession` for a kid racing ahead (the
+  accuracy throttle only lowers intake; auto-bump vs adult-controlled is open).
+- (Resolved) Starting fact-set defaults per grade band — `GRADE_BANDS` in the
+  catalog; K–1 additionally starts with equality-only munch rounds
+  (`comparisons: false`, an adult-editable setting).
 
 ## 12. Addendum — Number Munchers interaction (supersedes §4.6 step 2, §4.7)
 
