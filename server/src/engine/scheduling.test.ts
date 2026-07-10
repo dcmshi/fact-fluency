@@ -1,13 +1,43 @@
 import { describe, expect, it } from 'vitest';
 import {
   BOX_INTERVAL_DAYS,
+  dayInTz,
   dueAtForBox,
+  previousDay,
   stateForBox,
   stepLearning,
   transitionReview,
 } from './scheduling';
 
 const DAY = 24 * 60 * 60 * 1000;
+
+describe('dayInTz', () => {
+  it('gives the calendar day in the requested zone', () => {
+    const t = Date.parse('2026-01-01T23:30:00Z');
+    expect(dayInTz('UTC', t)).toBe('2026-01-01');
+    expect(dayInTz('Asia/Tokyo', t)).toBe('2026-01-02'); // UTC+9 already rolled over
+    expect(dayInTz('America/New_York', t)).toBe('2026-01-01');
+  });
+
+  it('handles the DST-transition day itself', () => {
+    // 2026-03-08 06:30Z is 01:30 EST, still 03-08 in New York.
+    expect(dayInTz('America/New_York', Date.parse('2026-03-08T06:30:00Z'))).toBe('2026-03-08');
+  });
+
+  it('falls back to the machine calendar for an unrecognized zone', () => {
+    expect(() => dayInTz('Not/A_Zone', Date.now())).not.toThrow();
+    expect(dayInTz('Not/A_Zone', Date.now())).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe('previousDay (DST-proof calendar arithmetic)', () => {
+  it('steps back across normal, month, year, and leap boundaries', () => {
+    expect(previousDay('2026-03-09')).toBe('2026-03-08'); // day after US spring-forward
+    expect(previousDay('2026-03-01')).toBe('2026-02-28');
+    expect(previousDay('2024-03-01')).toBe('2024-02-29'); // leap year
+    expect(previousDay('2026-01-01')).toBe('2025-12-31');
+  });
+});
 
 describe('stateForBox', () => {
   it('maps boxes to states', () => {

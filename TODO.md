@@ -476,40 +476,52 @@ _All done (2026-07-10)._
 
 ### P6 — Refactoring
 
-- [ ] **Extract shared `db/rows.ts`** — row interfaces, mappers, and
-      `PROFILE_SELECT` are duplicated verbatim across the adapters (~120 lines)
-      with drift already present (SQLite `createProfile` omits the streak column
-      PG inserts).
-- [ ] **Shared Db contract test suite** — one `describeDbContract()` run against
-      both adapters; today the PG suite never exercises `upgradeGuestAccount`,
-      `completeSessionAndAward`, cascades, or equipped-reward reads.
-- [ ] **Use `handle()` in all routers** — 17 handlers in `auth/routes.ts` +
-      `api/profiles.ts` hand-roll try/catch around a wrapper that already exists
-      in `api/index.ts`; move it to a shared module and rename `SessionError` →
-      `HttpError` (it's used by rewards/progress/export/dashboard).
-- [ ] **Delete `shared`'s runtime `OPERATIONS` export** — un-importable (all
-      imports are `import type`), re-declared in three server files, and exactly
-      the hazard CLAUDE.md's type-only note warns about. One server-side module.
-- [ ] **Wire `Transition.fraction` into `gradeAnswer`** (or delete the field) —
-      the half-interval rule is encoded twice in the engine; tuning one copy
-      does nothing.
-- [ ] **Unify ownership on `loadOwnedProfile`** — apply the middleware to the
-      `/profiles/:id/*` routes in `api/index.ts` and pass `req.profile` into the
-      services (drops a redundant `getProfile` per request); keep
-      `requireOwnedProfile` only where the id comes from the session row.
-- [ ] **Single source for `DEFAULT_SETTINGS` / `SETTING_BOUNDS`** — duplicated
-      server×2 (profiles router + auth routes) and client×1; one server
-      constants module, and serve bounds via `/catalog` for the client.
-- [ ] **Split `ProfilesPage.tsx` (919 lines, 8 components)** — extract the
-      reusable a11y `Modal` to `components/`, an `AvatarPicker` (duplicated JSX
-      in two modals), and per-modal files.
-- [ ] **Drive both `ADDITIVE_COLUMNS` lists from one declaration**
-      (`{table, column, sqliteDecl, pgDecl}`).
-- [ ] **Client error-message map + query-key hygiene** — auth error strings
-      copied in three maps; `qk.me` is dead while `auth.tsx` re-declares
-      `ME_KEY` and AccountModal uses a raw `['account']` key.
-- [ ] **Move `dayInTz` into the engine** beside `localYMD` (near-duplicate
-      idiom), unit-test it directly (DST day, bad-zone fallback).
+_All done (2026-07-10)._
+
+- [x] **Extract shared `db/rows.ts`** — row interfaces, mappers, and
+      `PROFILE_SELECT` now live once; the drift (SQLite `createProfile`
+      omitted the streak column PG inserts) is fixed with an explicit insert.
+- [x] **Shared Db contract test suite** — `db/contract.test.ts` runs one
+      behavioral spec against SQLite _and_ pg-mem (guest upgrade + prune,
+      slide throttle, conditional session award, scoped caught-up counts,
+      equipped defaults, profile/account cascades). Adapter quirks stay in the
+      per-adapter files.
+- [x] **Use `handle()` in all routers** — 15 hand-rolled try/catch handlers in
+      `auth/routes.ts` + `api/profiles.ts` now use the shared wrapper
+      (`api/handle.ts`); `SessionError` renamed to `HttpError` in its own
+      module (it was never session-specific).
+- [x] **Delete `shared`'s runtime `OPERATIONS` export** — `shared` is truly
+      type-only again; one `engine/operations.ts` list (also the curriculum
+      order) replaces four server re-declarations.
+- [x] **Wire `Transition.fraction` into `gradeAnswer`** — the half-interval
+      rule now lives only in `transitionReview`; grade.ts consumes it instead
+      of re-deriving it.
+- [x] **Unify ownership on `loadOwnedProfile`** — the middleware now guards
+      every `/profiles/:id/*` route (session, progress, dashboard, export,
+      rewards×3) and services take the loaded `Profile` (one fewer
+      `getProfile` per request); `requireOwnedProfile` remains only where the
+      id comes from the session row (answer/complete). Foreign-profile 404s
+      covered by one HTTP test over all seven routes.
+- [x] **Single source for `DEFAULT_SETTINGS` / `SETTING_BOUNDS`** —
+      `data/settings.ts`; `/catalog` serves the bounds and the client's
+      SettingsModal reads them from there (with an offline fallback).
+- [x] **Split `ProfilesPage.tsx`** — page is ~210 lines; the a11y `Modal` and
+      an `AvatarPicker` moved to `components/` (with their CSS), and each
+      modal (Account, Rewards, Settings, AddProfile, FactSets, Upgrade) to
+      `pages/profiles/`.
+- [x] **Drive both `ADDITIVE_COLUMNS` lists from one declaration** —
+      `db/additiveColumns.ts` (`{table, column, sqliteDecl, pgDecl}`).
+- [x] **Client error-message map + query-key hygiene** — shared
+      `messages.ts` (auth + edit maps with per-screen overrides); `qk.me` is
+      used by auth.tsx (ME_KEY deleted), AccountModal uses a new `qk.account`,
+      and both catalog consumers share one full-payload query with `select`.
+- [x] **Move `dayInTz` into the engine** — beside `localYMD` (which now
+      reuses it) along with `previousDay`; both unit-tested directly (DST day,
+      bad-zone fallback, leap/month/year boundaries).
+- [x] _(pass-8 follow-up)_ **Test-only Db methods removed** — `setCoins` and
+      `addUnlock` are gone from the contract (tests unlock via the atomic
+      `spendAndUnlock`); `addCoins` stays as the legitimate seeding/award
+      primitive.
 
 ### P7 — Features (spec gaps + new ideas)
 

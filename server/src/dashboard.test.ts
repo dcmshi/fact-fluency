@@ -48,16 +48,12 @@ function masteredRow(profileId: string, factId: string): FactProgress {
 }
 
 describe('getDashboardView', () => {
-  it('404s for another account', async () => {
-    const { profile } = await setup();
-    await expect(getDashboardView(db, 'nope', profile.id, NOW)).rejects.toMatchObject({
-      status: 404,
-    });
-  });
+  // Ownership (a foreign profile 404s) is enforced by the loadOwnedProfile
+  // route middleware and covered at the HTTP level in api.test.ts.
 
   it('summarizes mastery over the enabled facts and a 14-day window', async () => {
-    const { accountId, profile } = await setup(['add-0-5']);
-    const view = await getDashboardView(db, accountId, profile.id, NOW);
+    const { profile } = await setup(['add-0-5']);
+    const view = await getDashboardView(db, profile, NOW);
     expect(view.displayName).toBe('Kid');
     expect(view.windowDays).toBe(14);
     expect(view.trends).toHaveLength(14);
@@ -66,14 +62,14 @@ describe('getDashboardView', () => {
   });
 
   it('counts a mastered fact in the summary', async () => {
-    const { accountId, profile } = await setup(['add-0-5']);
+    const { profile } = await setup(['add-0-5']);
     await db.upsertProgress(masteredRow(profile.id, factsOf('add-0-5')[0].id));
-    const view = await getDashboardView(db, accountId, profile.id, NOW);
+    const view = await getDashboardView(db, profile, NOW);
     expect(view.summary.mastered).toBe(1);
   });
 
   it('reflects today’s attempts in the trends + accuracy', async () => {
-    const { accountId, profile } = await setup(['add-0-5']);
+    const { profile } = await setup(['add-0-5']);
     const fact = factsOf('add-0-5')[0];
     await db.createSession({
       id: 's1',
@@ -97,7 +93,7 @@ describe('getDashboardView', () => {
     await db.appendAttempt(attempt(true, true));
     await db.appendAttempt(attempt(false, false));
 
-    const view = await getDashboardView(db, accountId, profile.id, NOW);
+    const view = await getDashboardView(db, profile, NOW);
     expect(view.summary.attempts).toBe(2);
     expect(view.summary.accuracy).toBeCloseTo(0.5);
     expect(view.summary.daysActive).toBe(1);

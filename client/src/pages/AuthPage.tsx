@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ApiError } from '../api';
 import { useAuth } from '../auth';
+import { AUTH_ERROR_MESSAGES } from '../messages';
 
 const MESSAGES: Record<string, string> = {
-  invalid_email: 'That email doesn’t look right.',
-  weak_password: 'Password needs at least 8 characters.',
+  ...AUTH_ERROR_MESSAGES,
   email_taken: 'That email already has an account — try logging in.',
   invalid_credentials: 'Email or password is incorrect.',
 };

@@ -6,8 +6,22 @@
  */
 import { randomUUID } from 'node:crypto';
 import type { FactProgress, Operation, OperationStat, Profile, ProfileSettings } from '@shared';
+import { ADDITIVE_COLUMNS } from './additiveColumns';
 import type { AnswerWrite, AttemptRecord, Db, SessionRecord } from './index';
-import { ADDITIVE_COLUMNS_PG, SCHEMA_PG } from './schema.pg';
+import {
+  PROFILE_SELECT,
+  toAttempt,
+  toOperationStat,
+  toProfile,
+  toProgress,
+  toSession,
+  type AttemptRow,
+  type OperationStatRow,
+  type ProfileRow,
+  type ProgressRow,
+  type SessionRow,
+} from './rows';
+import { SCHEMA_PG } from './schema.pg';
 
 /** A single checked-out connection — what `pool.connect()` returns. Needed for
  *  multi-statement transactions (a bare pool may route each query to a
@@ -47,7 +61,9 @@ export class PostgresDb implements Db {
     // Self-heal additive columns on a DB created before the column existed —
     // CREATE TABLE IF NOT EXISTS can't add columns to an existing table. Each is
     // idempotent (ADD COLUMN IF NOT EXISTS), so this is safe to run every boot.
-    for (const ddl of ADDITIVE_COLUMNS_PG) await this.pool.query(ddl);
+    for (const { table, column, pgDecl } of ADDITIVE_COLUMNS) {
+      await this.pool.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${column} ${pgDecl}`);
+    }
   }
 
   private async rows<T = Record<string, unknown>>(
@@ -296,14 +312,6 @@ export class PostgresDb implements Db {
     );
   }
 
-  async setCoins(profileId: string, coins: number): Promise<void> {
-    await this.pool.query(
-      `INSERT INTO profile_reward (profile_id, coins) VALUES ($1,$2)
-       ON CONFLICT (profile_id) DO UPDATE SET coins = EXCLUDED.coins`,
-      [profileId, coins],
-    );
-  }
-
   async setProfileTheme(profileId: string, theme: string): Promise<void> {
     await this.pool.query(
       `INSERT INTO profile_reward (profile_id, theme) VALUES ($1,$2)
@@ -351,13 +359,6 @@ export class PostgresDb implements Db {
         [profileId],
       )
     ).map((r) => r.item_id);
-  }
-
-  async addUnlock(profileId: string, itemId: string): Promise<void> {
-    await this.pool.query(
-      'INSERT INTO profile_unlock (profile_id, item_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
-      [profileId, itemId],
-    );
   }
 
   async spendAndUnlock(
@@ -667,126 +668,4 @@ export class PostgresDb implements Db {
   async close(): Promise<void> {
     await this.pool.end();
   }
-}
-
-// --- row mappers (snake_case → domain) ---
-
-interface ProfileRow {
-  id: string;
-  account_id: string;
-  display_name: string;
-  avatar: string;
-  settings: string;
-  streak: number;
-  coins: number;
-  theme: string;
-  created_at: number;
-}
-
-/** Profile columns joined with the (optional) reward row, defaulted. */
-const PROFILE_SELECT = `
-  SELECT p.id, p.account_id, p.display_name, p.avatar, p.settings, p.streak,
-         p.created_at, COALESCE(r.coins, 0) AS coins,
-         COALESCE(r.theme, 'classic') AS theme
-  FROM profile p LEFT JOIN profile_reward r ON r.profile_id = p.id`;
-interface ProgressRow {
-  profile_id: string;
-  fact_id: string;
-  box: number;
-  state: string;
-  due_at: number;
-  last_seen_at: number;
-  reps: number;
-  fast_correct: number;
-  correct_streak: number;
-  accuracy_ewma: number;
-  median_ms_ewma: number;
-}
-interface OperationStatRow {
-  profile_id: string;
-  operation: string;
-  median_ms_ewma: number;
-  correct_samples: number;
-}
-interface SessionRow {
-  id: string;
-  profile_id: string;
-  started_at: number;
-  completed_at: number | null;
-  planned_count: number;
-  working_state: string;
-}
-
-interface AttemptRow {
-  id: string;
-  session_id: string;
-  profile_id: string;
-  fact_id: string;
-  given: number;
-  correct: number;
-  fast: number;
-  response_ms: number;
-  answered_at: number;
-}
-
-function toAttempt(r: AttemptRow): AttemptRecord {
-  return {
-    id: r.id,
-    sessionId: r.session_id,
-    profileId: r.profile_id,
-    factId: r.fact_id,
-    given: r.given,
-    correct: !!r.correct,
-    fast: !!r.fast,
-    responseMs: r.response_ms,
-    answeredAt: Number(r.answered_at),
-  };
-}
-
-function toSession(r: SessionRow): SessionRecord {
-  return {
-    id: r.id,
-    profileId: r.profile_id,
-    startedAt: Number(r.started_at),
-    completedAt: r.completed_at === null ? null : Number(r.completed_at),
-    plannedCount: r.planned_count,
-    workingState: r.working_state,
-  };
-}
-
-function toProfile(r: ProfileRow): Profile {
-  return {
-    id: r.id,
-    accountId: r.account_id,
-    displayName: r.display_name,
-    avatar: r.avatar,
-    settings: JSON.parse(r.settings) as ProfileSettings,
-    streak: r.streak,
-    coins: Number(r.coins),
-    theme: r.theme,
-    createdAt: Number(r.created_at),
-  };
-}
-function toProgress(r: ProgressRow): FactProgress {
-  return {
-    profileId: r.profile_id,
-    factId: r.fact_id,
-    box: r.box as FactProgress['box'],
-    state: r.state as FactProgress['state'],
-    dueAt: Number(r.due_at),
-    lastSeenAt: Number(r.last_seen_at),
-    reps: r.reps,
-    fastCorrect: r.fast_correct,
-    correctStreak: r.correct_streak,
-    accuracyEwma: r.accuracy_ewma,
-    medianMsEwma: r.median_ms_ewma,
-  };
-}
-function toOperationStat(r: OperationStatRow): OperationStat {
-  return {
-    profileId: r.profile_id,
-    operation: r.operation as Operation,
-    medianMsEwma: r.median_ms_ewma,
-    correctSamples: r.correct_samples,
-  };
 }

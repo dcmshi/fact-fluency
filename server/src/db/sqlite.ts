@@ -8,94 +8,22 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import type { FactProgress, Operation, OperationStat, Profile, ProfileSettings } from '@shared';
+import { ADDITIVE_COLUMNS } from './additiveColumns';
 import type { AnswerWrite, AttemptRecord, Db, SessionRecord } from './index';
-import { ADDITIVE_COLUMNS, SCHEMA } from './schema';
-
-interface ProfileRow {
-  id: string;
-  account_id: string;
-  display_name: string;
-  avatar: string;
-  settings: string;
-  streak: number;
-  coins: number;
-  theme: string;
-  created_at: number;
-}
-
-/** Profile columns joined with the (optional) reward row, defaulted. */
-const PROFILE_SELECT = `
-  SELECT p.id, p.account_id, p.display_name, p.avatar, p.settings, p.streak,
-         p.created_at, COALESCE(r.coins, 0) AS coins,
-         COALESCE(r.theme, 'classic') AS theme
-  FROM profile p LEFT JOIN profile_reward r ON r.profile_id = p.id`;
-
-interface ProgressRow {
-  profile_id: string;
-  fact_id: string;
-  box: number;
-  state: string;
-  due_at: number;
-  last_seen_at: number;
-  reps: number;
-  fast_correct: number;
-  correct_streak: number;
-  accuracy_ewma: number;
-  median_ms_ewma: number;
-}
-
-interface OperationStatRow {
-  profile_id: string;
-  operation: string;
-  median_ms_ewma: number;
-  correct_samples: number;
-}
-
-interface SessionRow {
-  id: string;
-  profile_id: string;
-  started_at: number;
-  completed_at: number | null;
-  planned_count: number;
-  working_state: string;
-}
-
-interface AttemptRow {
-  id: string;
-  session_id: string;
-  profile_id: string;
-  fact_id: string;
-  given: number;
-  correct: number;
-  fast: number;
-  response_ms: number;
-  answered_at: number;
-}
-
-function toAttempt(r: AttemptRow): AttemptRecord {
-  return {
-    id: r.id,
-    sessionId: r.session_id,
-    profileId: r.profile_id,
-    factId: r.fact_id,
-    given: r.given,
-    correct: !!r.correct,
-    fast: !!r.fast,
-    responseMs: r.response_ms,
-    answeredAt: r.answered_at,
-  };
-}
-
-function toSession(r: SessionRow): SessionRecord {
-  return {
-    id: r.id,
-    profileId: r.profile_id,
-    startedAt: r.started_at,
-    completedAt: r.completed_at,
-    plannedCount: r.planned_count,
-    workingState: r.working_state,
-  };
-}
+import {
+  PROFILE_SELECT,
+  toAttempt,
+  toOperationStat,
+  toProfile,
+  toProgress,
+  toSession,
+  type AttemptRow,
+  type OperationStatRow,
+  type ProfileRow,
+  type ProgressRow,
+  type SessionRow,
+} from './rows';
+import { SCHEMA } from './schema';
 
 export class SqliteDb implements Db {
   private readonly db: Database.Database;
@@ -119,10 +47,10 @@ export class SqliteDb implements Db {
     this.db.exec(SCHEMA);
     // Backfill additive columns on a DB predating them (SQLite has no
     // ADD COLUMN IF NOT EXISTS, so check the table's columns first).
-    for (const { table, column, decl } of ADDITIVE_COLUMNS) {
+    for (const { table, column, sqliteDecl } of ADDITIVE_COLUMNS) {
       const cols = this.db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
       if (!cols.some((c) => c.name === column)) {
-        this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${decl}`);
+        this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${sqliteDecl}`);
       }
     }
   }
@@ -301,7 +229,7 @@ export class SqliteDb implements Db {
     };
     this.db
       .prepare(
-        'INSERT INTO profile (id, account_id, display_name, avatar, settings, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO profile (id, account_id, display_name, avatar, settings, streak, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
       )
       .run(
         profile.id,
@@ -309,6 +237,7 @@ export class SqliteDb implements Db {
         profile.displayName,
         profile.avatar,
         JSON.stringify(profile.settings),
+        profile.streak,
         profile.createdAt,
       );
     return profile;
@@ -343,15 +272,6 @@ export class SqliteDb implements Db {
          ON CONFLICT(profile_id) DO UPDATE SET coins = coins + excluded.coins`,
       )
       .run(profileId, delta);
-  }
-
-  async setCoins(profileId: string, coins: number): Promise<void> {
-    this.db
-      .prepare(
-        `INSERT INTO profile_reward (profile_id, coins) VALUES (?, ?)
-         ON CONFLICT(profile_id) DO UPDATE SET coins = excluded.coins`,
-      )
-      .run(profileId, coins);
   }
 
   async setProfileTheme(profileId: string, theme: string): Promise<void> {
@@ -400,12 +320,6 @@ export class SqliteDb implements Db {
       .prepare('SELECT item_id FROM profile_unlock WHERE profile_id = ?')
       .all(profileId) as { item_id: string }[];
     return rows.map((r) => r.item_id);
-  }
-
-  async addUnlock(profileId: string, itemId: string): Promise<void> {
-    this.db
-      .prepare('INSERT OR IGNORE INTO profile_unlock (profile_id, item_id) VALUES (?, ?)')
-      .run(profileId, itemId);
   }
 
   async spendAndUnlock(
@@ -676,43 +590,4 @@ export class SqliteDb implements Db {
   async close(): Promise<void> {
     this.db.close();
   }
-}
-
-function toOperationStat(r: OperationStatRow): OperationStat {
-  return {
-    profileId: r.profile_id,
-    operation: r.operation as Operation,
-    medianMsEwma: r.median_ms_ewma,
-    correctSamples: r.correct_samples,
-  };
-}
-
-function toProfile(r: ProfileRow): Profile {
-  return {
-    id: r.id,
-    accountId: r.account_id,
-    displayName: r.display_name,
-    avatar: r.avatar,
-    settings: JSON.parse(r.settings) as ProfileSettings,
-    streak: r.streak,
-    coins: r.coins,
-    theme: r.theme,
-    createdAt: r.created_at,
-  };
-}
-
-function toProgress(r: ProgressRow): FactProgress {
-  return {
-    profileId: r.profile_id,
-    factId: r.fact_id,
-    box: r.box as FactProgress['box'],
-    state: r.state as FactProgress['state'],
-    dueAt: r.due_at,
-    lastSeenAt: r.last_seen_at,
-    reps: r.reps,
-    fastCorrect: r.fast_correct,
-    correctStreak: r.correct_streak,
-    accuracyEwma: r.accuracy_ewma,
-    medianMsEwma: r.median_ms_ewma,
-  };
 }

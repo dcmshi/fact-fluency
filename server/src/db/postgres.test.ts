@@ -142,14 +142,20 @@ describe('PostgresDb (pg-mem)', () => {
     await db.addCoins(profile.id, 40);
     await db.addCoins(profile.id, 10);
     expect((await db.getProfileReward(profile.id)).coins).toBe(50);
-    await db.setCoins(profile.id, 25);
     await db.setProfileTheme(profile.id, 'candy');
     const reward = await db.getProfileReward(profile.id);
-    expect(reward).toEqual({ coins: 25, theme: 'candy' });
+    expect(reward).toEqual({ coins: 50, theme: 'candy' });
     expect((await db.getProfile(profile.id))?.theme).toBe('candy');
 
-    await db.addUnlock(profile.id, 'theme-candy');
-    await db.addUnlock(profile.id, 'theme-candy');
+    // Unlocks are recorded through the atomic spend (theme-candy costs 80).
+    await db.addCoins(profile.id, 30);
+    expect(await db.spendAndUnlock(profile.id, 'theme-candy', 80)).toEqual({
+      status: 'ok',
+      coins: 0,
+    });
+    expect(await db.spendAndUnlock(profile.id, 'theme-candy', 80)).toEqual({
+      status: 'already_owned',
+    });
     expect(await db.listUnlocks(profile.id)).toEqual(['theme-candy']);
   });
 

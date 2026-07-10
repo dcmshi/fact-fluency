@@ -333,20 +333,25 @@ describe('rewards', () => {
     await db.addCoins(profile.id, 30);
     await db.addCoins(profile.id, 15);
     expect((await db.getProfileReward(profile.id)).coins).toBe(45);
-    await db.setCoins(profile.id, 10);
-    expect((await db.getProfileReward(profile.id)).coins).toBe(10);
 
     await db.setProfileTheme(profile.id, 'ocean');
     expect((await db.getProfile(profile.id))?.theme).toBe('ocean');
-    expect((await db.getProfileReward(profile.id)).coins).toBe(10); // coins survive theme change
+    expect((await db.getProfileReward(profile.id)).coins).toBe(45); // coins survive theme change
 
-    await db.addUnlock(profile.id, 'avatar-dragon');
-    await db.addUnlock(profile.id, 'avatar-dragon'); // idempotent
+    // Unlocks land through the atomic spend; a repeat is already_owned.
+    await db.addCoins(profile.id, 15); // 60 total — avatar-dragon costs 60
+    expect(await db.spendAndUnlock(profile.id, 'avatar-dragon', 60)).toEqual({
+      status: 'ok',
+      coins: 0,
+    });
+    expect(await db.spendAndUnlock(profile.id, 'avatar-dragon', 60)).toEqual({
+      status: 'already_owned',
+    });
     expect(await db.listUnlocks(profile.id)).toEqual(['avatar-dragon']);
 
     await db.updateProfileAvatar(profile.id, '🐉');
     const listed = (await db.listProfiles(accountId))[0];
-    expect(listed).toMatchObject({ avatar: '🐉', coins: 10, theme: 'ocean' });
+    expect(listed).toMatchObject({ avatar: '🐉', coins: 0, theme: 'ocean' });
   });
 
   it('defaults and updates the equipped muncher', async () => {

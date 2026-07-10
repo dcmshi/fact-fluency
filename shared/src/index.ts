@@ -8,8 +8,6 @@
 
 export type Operation = 'add' | 'sub' | 'mul' | 'div';
 
-export const OPERATIONS: readonly Operation[] = ['add', 'sub', 'mul', 'div'];
-
 /** A 2-D operand range; interpreted per operation — see DESIGN.md §3.1. */
 export interface RangeSpec {
   aMin: number;

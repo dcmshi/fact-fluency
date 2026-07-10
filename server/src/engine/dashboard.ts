@@ -6,8 +6,7 @@
  */
 import type { Operation } from '@shared';
 
-/** Stable operation order — also the curriculum order for cross-op intros. */
-const OP_ORDER: Operation[] = ['add', 'sub', 'mul', 'div'];
+import { OPERATIONS } from './operations';
 
 const OP_NOUN: Record<Operation, string> = {
   add: 'addition',
@@ -105,7 +104,7 @@ export function suggestNextSet(sets: SetMastery[], threshold = 0.8): SuggestionR
   const candidates: { op: Operation; frac: number; fromLabel: string; next: SetMastery }[] = [];
   let ready = false; // mastered ≥threshold of some operation's largest enabled set
 
-  for (const op of OP_ORDER) {
+  for (const op of OPERATIONS) {
     const inOp = sets.filter((s) => s.operation === op);
     const enabled = inOp.filter((s) => s.enabled);
     if (enabled.length === 0) continue;
@@ -123,7 +122,9 @@ export function suggestNextSet(sets: SetMastery[], threshold = 0.8): SuggestionR
 
   // (1) Within-operation advancement wins — finish the current ladder.
   if (candidates.length > 0) {
-    candidates.sort((a, b) => b.frac - a.frac || OP_ORDER.indexOf(a.op) - OP_ORDER.indexOf(b.op));
+    candidates.sort(
+      (a, b) => b.frac - a.frac || OPERATIONS.indexOf(a.op) - OPERATIONS.indexOf(b.op),
+    );
     const { frac, fromLabel, next } = candidates[0];
     return {
       setId: next.setId,
@@ -135,7 +136,7 @@ export function suggestNextSet(sets: SetMastery[], threshold = 0.8): SuggestionR
 
   // (2) Cross-operation introduction — only once they've proven ready somewhere.
   if (!ready) return null;
-  for (const op of OP_ORDER) {
+  for (const op of OPERATIONS) {
     const inOp = sets.filter((s) => s.operation === op);
     if (inOp.length === 0 || inOp.some((s) => s.enabled)) continue; // not in catalog / already started
     const easiest = inOp.reduce((a, b) => (b.aMax < a.aMax ? b : a));

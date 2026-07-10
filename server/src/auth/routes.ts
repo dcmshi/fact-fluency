@@ -4,6 +4,8 @@
 import { Router } from 'express';
 import type { Db } from '../db';
 import { DEFAULT_ENABLED_SET_IDS } from '../data/catalog';
+import { DEFAULT_SETTINGS } from '../data/settings';
+import { handle } from '../api/handle';
 import { rateLimit } from '../rateLimit';
 import { requireAuth } from './middleware';
 import { hashPassword, verifyPassword } from './password';
@@ -32,9 +34,6 @@ const SIGNUP_WINDOW_MS = 60 * MINUTE;
 const SIGNUP_MAX = 6;
 const GUEST_WINDOW_MS = 60 * MINUTE;
 const GUEST_MAX = 30; // each mints an anonymous account row; cap the spam surface
-
-/** Default per-profile session settings (mirrors the profiles router). */
-const DEFAULT_SETTINGS = { sessionCards: 20, sessionSeconds: 180, newPerSession: 3 };
 
 export function createAuthRouter(db: Db, isProd: boolean): Router {
   const router = Router();
@@ -72,8 +71,10 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
     setSessionCookie(res, token, isProd);
   }
 
-  router.post('/signup', signupLimit, async (req, res, next) => {
-    try {
+  router.post(
+    '/signup',
+    signupLimit,
+    handle(async (req, res) => {
       const { email, password, timezone } = req.body ?? {};
       if (typeof email !== 'string' || !EMAIL_RE.test(email)) {
         return res.status(400).json({ error: 'invalid_email' });
@@ -94,17 +95,17 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
       if (accountId === null) return res.status(409).json({ error: 'email_taken' });
       await startSession(accountId, res);
       return res.status(201).json({ accountId, email: normEmail });
-    } catch (err) {
-      return next(err);
-    }
-  });
+    }),
+  );
 
   // "Play for fun" — no signup. Mints an anonymous account + one default
   // profile and drops a session cookie, so the kid can play immediately. The
   // account is disposable: clearing the cookie strands it, and the guest prune
   // (index.ts) reclaims stranded guests.
-  router.post('/guest', guestLimit, async (req, res, next) => {
-    try {
+  router.post(
+    '/guest',
+    guestLimit,
+    handle(async (req, res) => {
       const { timezone } = req.body ?? {};
       const tz = typeof timezone === 'string' && timezone ? timezone : 'UTC';
       const accountId = await db.createGuestAccount(tz);
@@ -117,15 +118,16 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
       await db.setEnabledSetIds(profile.id, DEFAULT_ENABLED_SET_IDS);
       await startSession(accountId, res);
       return res.status(201).json({ accountId, profileId: profile.id, guest: true });
-    } catch (err) {
-      return next(err);
-    }
-  });
+    }),
+  );
 
   // Upgrade a guest in place: attach real credentials so their existing profile
   // and progress carry over (same account id + session — nothing is migrated).
-  router.post('/upgrade', requireAuth, upgradeLimit, async (req, res, next) => {
-    try {
+  router.post(
+    '/upgrade',
+    requireAuth,
+    upgradeLimit,
+    handle(async (req, res) => {
       const { email, password } = req.body ?? {};
       if (typeof email !== 'string' || !EMAIL_RE.test(email)) {
         return res.status(400).json({ error: 'invalid_email' });
@@ -144,13 +146,13 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
       if (upgraded === null) return res.status(409).json({ error: 'email_taken' });
       if (!upgraded) return res.status(409).json({ error: 'not_a_guest' });
       return res.json({ accountId: req.accountId, email: normEmail });
-    } catch (err) {
-      return next(err);
-    }
-  });
+    }),
+  );
 
-  router.post('/login', loginLimit, async (req, res, next) => {
-    try {
+  router.post(
+    '/login',
+    loginLimit,
+    handle(async (req, res) => {
       const { email, password } = req.body ?? {};
       if (typeof email !== 'string' || typeof password !== 'string') {
         return res.status(400).json({ error: 'invalid_credentials' });
@@ -165,25 +167,26 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
       }
       await startSession(account.id, res);
       return res.json({ accountId: account.id, email: normEmail });
-    } catch (err) {
-      return next(err);
-    }
-  });
+    }),
+  );
 
   // Current account fields (for the account screen). No password hash.
-  router.get('/account', requireAuth, async (req, res, next) => {
-    try {
+  router.get(
+    '/account',
+    requireAuth,
+    handle(async (req, res) => {
       const account = await db.getAccount(req.accountId!);
       if (!account) return res.status(404).json({ error: 'not_found' });
       return res.json(account);
-    } catch (err) {
-      return next(err);
-    }
-  });
+    }),
+  );
 
   // Edit account: any of email / password / timezone.
-  router.patch('/account', requireAuth, accountLimit, async (req, res, next) => {
-    try {
+  router.patch(
+    '/account',
+    requireAuth,
+    accountLimit,
+    handle(async (req, res) => {
       const body = req.body ?? {};
       const { email, password, timezone } = body;
       const editsEmail = 'email' in body;
@@ -231,44 +234,41 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
         await db.updateAccountTimezone(req.accountId!, timezone);
       }
       return res.json(await db.getAccount(req.accountId!));
-    } catch (err) {
-      return next(err);
-    }
-  });
+    }),
+  );
 
   // Right-to-erasure: delete the account and all kids' data (cascades), then
   // clear the cookie. The session row is gone with the account.
-  router.delete('/account', requireAuth, async (req, res, next) => {
-    try {
+  router.delete(
+    '/account',
+    requireAuth,
+    handle(async (req, res) => {
       await db.deleteAccount(req.accountId!);
       clearSessionCookie(res, isProd);
       return res.status(204).end();
-    } catch (err) {
-      return next(err);
-    }
-  });
+    }),
+  );
 
-  router.post('/logout', async (req, res, next) => {
-    try {
+  router.post(
+    '/logout',
+    handle(async (req, res) => {
       const token = req.cookies?.[COOKIE_NAME] as string | undefined;
       if (token) await db.deleteAuthSession(token);
       clearSessionCookie(res, isProd);
       return res.status(204).end();
-    } catch (err) {
-      return next(err);
-    }
-  });
+    }),
+  );
 
-  router.get('/me', requireAuth, async (req, res, next) => {
-    try {
+  router.get(
+    '/me',
+    requireAuth,
+    handle(async (req, res) => {
       return res.json({
         accountId: req.accountId,
         guest: await db.isGuestAccount(req.accountId!),
       });
-    } catch (err) {
-      return next(err);
-    }
-  });
+    }),
+  );
 
   return router;
 }

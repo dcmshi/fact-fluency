@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, ApiError } from './api';
+import { api, ApiError, qk } from './api';
 
 interface AuthState {
   accountId: string | null;
@@ -27,9 +27,6 @@ interface Me {
   guest: boolean;
 }
 
-/** Cache key for the current adult session. */
-export const ME_KEY = ['me'] as const;
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
 
@@ -37,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // it to `null` rather than letting it surface as an error (and retry: false
   // keeps it from re-firing — see main.tsx for the global 4xx rule).
   const { data: me = null, isLoading } = useQuery<Me | null>({
-    queryKey: ME_KEY,
+    queryKey: qk.me,
     queryFn: async () => {
       try {
         return await api.me();
@@ -56,15 +53,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
       return api.signup(email, password, tz);
     },
-    onSuccess: (r) =>
-      queryClient.setQueryData<Me>(ME_KEY, { accountId: r.accountId, guest: false }),
+    onSuccess: (r) => queryClient.setQueryData<Me>(qk.me, { accountId: r.accountId, guest: false }),
   });
 
   const loginMut = useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       api.login(email, password),
-    onSuccess: (r) =>
-      queryClient.setQueryData<Me>(ME_KEY, { accountId: r.accountId, guest: false }),
+    onSuccess: (r) => queryClient.setQueryData<Me>(qk.me, { accountId: r.accountId, guest: false }),
   });
 
   const guestMut = useMutation({
@@ -72,14 +67,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
       return api.guest(tz);
     },
-    onSuccess: (r) => queryClient.setQueryData<Me>(ME_KEY, { accountId: r.accountId, guest: true }),
+    onSuccess: (r) => queryClient.setQueryData<Me>(qk.me, { accountId: r.accountId, guest: true }),
   });
 
   const upgradeMut = useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       api.upgrade(email, password),
-    onSuccess: (r) =>
-      queryClient.setQueryData<Me>(ME_KEY, { accountId: r.accountId, guest: false }),
+    onSuccess: (r) => queryClient.setQueryData<Me>(qk.me, { accountId: r.accountId, guest: false }),
   });
 
   const logoutMut = useMutation({
@@ -88,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Drop every cached query so the next adult can't see the prior one's
       // profiles/progress, then mark logged out.
       queryClient.clear();
-      queryClient.setQueryData(ME_KEY, null);
+      queryClient.setQueryData(qk.me, null);
     },
   });
 
@@ -96,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: () => api.deleteAccount(),
     onSuccess: () => {
       queryClient.clear();
-      queryClient.setQueryData(ME_KEY, null);
+      queryClient.setQueryData(qk.me, null);
     },
   });
 

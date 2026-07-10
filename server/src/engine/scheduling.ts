@@ -59,15 +59,29 @@ export function tzOffsetMinutes(timeZone: string, atMs: number): number {
   }
 }
 
+/** Calendar day (YYYY-MM-DD) for an instant in an IANA zone. en-CA yields ISO;
+ *  an unrecognized zone falls back to the machine's local calendar. */
+export function dayInTz(timeZone: string, atMs: number): string {
+  try {
+    return new Date(atMs).toLocaleDateString('en-CA', { timeZone });
+  } catch {
+    return new Date(atMs).toLocaleDateString('en-CA');
+  }
+}
+
+/** The calendar day (YYYY-MM-DD) before `ymd`. Pure string/date arithmetic, so
+ *  it's DST-proof — `now - 24h` lands two days back the morning after
+ *  spring-forward (a 23-hour day), which would wrongly reset a real streak. */
+export function previousDay(ymd: string): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() - 1);
+  return dt.toISOString().slice(0, 10);
+}
+
 /** The local calendar date (y, m, d) of an instant in a zone. */
 function localYMD(timeZone: string, atMs: number): { y: number; m: number; d: number } {
-  let iso: string;
-  try {
-    iso = new Date(atMs).toLocaleDateString('en-CA', { timeZone }); // YYYY-MM-DD
-  } catch {
-    iso = new Date(atMs).toISOString().slice(0, 10);
-  }
-  const [y, m, d] = iso.split('-').map(Number);
+  const [y, m, d] = dayInTz(timeZone, atMs).split('-').map(Number);
   return { y, m, d };
 }
 

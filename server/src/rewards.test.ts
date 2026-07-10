@@ -23,8 +23,8 @@ async function setup() {
 
 describe('getRewards', () => {
   it('exposes the catalog, free items, and equipped defaults', async () => {
-    const { accountId, profile } = await setup();
-    const view = await getRewards(db, accountId, profile.id);
+    const { profile } = await setup();
+    const view = await getRewards(db, profile);
     expect(view.coins).toBe(0);
     expect(view.catalog.length).toBeGreaterThan(0);
     // Every cost-0 item is owned without an unlock row.
@@ -36,17 +36,15 @@ describe('getRewards', () => {
     expect(view.equippedTheme).toBe('classic');
   });
 
-  it('404s for another account', async () => {
-    const { profile } = await setup();
-    await expect(getRewards(db, 'nope', profile.id)).rejects.toMatchObject({ status: 404 });
-  });
+  // Ownership (a foreign profile 404s) is enforced by the loadOwnedProfile
+  // route middleware and covered at the HTTP level in api.test.ts.
 });
 
 describe('unlockReward', () => {
   it('rejects an unaffordable item without spending', async () => {
-    const { accountId, profile } = await setup();
+    const { profile } = await setup();
     await db.addCoins(profile.id, 10); // muncher-fox costs 40
-    await expect(unlockReward(db, accountId, profile.id, 'muncher-fox')).rejects.toMatchObject({
+    await expect(unlockReward(db, profile, 'muncher-fox')).rejects.toMatchObject({
       status: 400,
       code: 'insufficient_coins',
     });
@@ -56,37 +54,37 @@ describe('unlockReward', () => {
   });
 
   it('rejects a free item and an unknown item', async () => {
-    const { accountId, profile } = await setup();
-    await expect(unlockReward(db, accountId, profile.id, 'muncher-cat')).rejects.toMatchObject({
+    const { profile } = await setup();
+    await expect(unlockReward(db, profile, 'muncher-cat')).rejects.toMatchObject({
       code: 'item_free',
     });
-    await expect(unlockReward(db, accountId, profile.id, 'nope')).rejects.toMatchObject({
+    await expect(unlockReward(db, profile, 'nope')).rejects.toMatchObject({
       code: 'unknown_item',
     });
   });
 
   it('deducts coins, records ownership, and rejects a repeat unlock', async () => {
-    const { accountId, profile } = await setup();
+    const { profile } = await setup();
     await db.addCoins(profile.id, 100);
-    const r = await unlockReward(db, accountId, profile.id, 'muncher-fox'); // cost 40
+    const r = await unlockReward(db, profile, 'muncher-fox'); // cost 40
     expect(r.coins).toBe(60);
     expect(r.owned).toContain('muncher-fox');
     expect((await db.getProfileReward(profile.id)).coins).toBe(60);
 
-    await expect(unlockReward(db, accountId, profile.id, 'muncher-fox')).rejects.toMatchObject({
+    await expect(unlockReward(db, profile, 'muncher-fox')).rejects.toMatchObject({
       status: 409,
       code: 'already_owned',
     });
   });
 
   it('does not double-spend when the same item is unlocked concurrently', async () => {
-    const { accountId, profile } = await setup();
+    const { profile } = await setup();
     await db.addCoins(profile.id, 100);
     // Two near-simultaneous unlocks of muncher-fox (cost 40): exactly one wins;
     // the loser is rejected, and only one debit lands.
     const results = await Promise.allSettled([
-      unlockReward(db, accountId, profile.id, 'muncher-fox'),
-      unlockReward(db, accountId, profile.id, 'muncher-fox'),
+      unlockReward(db, profile, 'muncher-fox'),
+      unlockReward(db, profile, 'muncher-fox'),
     ]);
     const ok = results.filter((r) => r.status === 'fulfilled');
     expect(ok).toHaveLength(1);
@@ -94,11 +92,11 @@ describe('unlockReward', () => {
   });
 
   it('does not clobber a coin award that lands mid-spend (relative debit)', async () => {
-    const { accountId, profile } = await setup();
+    const { profile } = await setup();
     await db.addCoins(profile.id, 100);
     // A session award is credited between an unlock's start and finish; because
     // the debit is relative (coins = coins - cost), the award survives.
-    const unlock = unlockReward(db, accountId, profile.id, 'muncher-fox'); // cost 40
+    const unlock = unlockReward(db, profile, 'muncher-fox'); // cost 40
     await db.addCoins(profile.id, 25);
     await unlock;
     expect((await db.getProfileReward(profile.id)).coins).toBe(85); // 100 - 40 + 25
@@ -107,25 +105,25 @@ describe('unlockReward', () => {
 
 describe('equipReward', () => {
   it('equips an owned free item', async () => {
-    const { accountId, profile } = await setup();
-    const r = await equipReward(db, accountId, profile.id, 'muncher-dog'); // free
+    const { profile } = await setup();
+    const r = await equipReward(db, profile, 'muncher-dog'); // free
     expect(r.equippedMuncher).toBe('dog');
     expect(await db.getEquippedMuncher(profile.id)).toBe('dog');
   });
 
   it('refuses to equip an unowned premium item', async () => {
-    const { accountId, profile } = await setup();
-    await expect(equipReward(db, accountId, profile.id, 'muncher-fox')).rejects.toMatchObject({
+    const { profile } = await setup();
+    await expect(equipReward(db, profile, 'muncher-fox')).rejects.toMatchObject({
       status: 403,
       code: 'not_owned',
     });
   });
 
   it('equips a premium item once unlocked, updating the right slot', async () => {
-    const { accountId, profile } = await setup();
+    const { profile } = await setup();
     await db.addCoins(profile.id, 100);
-    await unlockReward(db, accountId, profile.id, 'avatar-dragon'); // cost 60
-    const r = await equipReward(db, accountId, profile.id, 'avatar-dragon');
+    await unlockReward(db, profile, 'avatar-dragon'); // cost 60
+    const r = await equipReward(db, profile, 'avatar-dragon');
     expect(r.equippedAvatar).toBe('🐉');
     expect((await db.getProfile(profile.id))?.avatar).toBe('🐉');
   });

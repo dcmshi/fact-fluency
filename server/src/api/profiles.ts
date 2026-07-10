@@ -8,6 +8,8 @@ import type { ProfileSettings } from '@shared';
 import type { Db } from '../db';
 import { loadOwnedProfile, requireAuth } from '../auth/middleware';
 import { DEFAULT_ENABLED_SET_IDS, gradeBandById, SEED_CATALOG } from '../data/catalog';
+import { DEFAULT_SETTINGS, SETTING_BOUNDS } from '../data/settings';
+import { handle } from './handle';
 import { rateLimit } from '../rateLimit';
 
 /** Profile creation is a rare adult action; cap it so a logged-in client can't
@@ -16,20 +18,7 @@ import { rateLimit } from '../rateLimit';
 const CREATE_PROFILE_WINDOW_MS = 60 * 60 * 1000;
 const CREATE_PROFILE_MAX = 20;
 
-const DEFAULT_SETTINGS: ProfileSettings = {
-  sessionCards: 20,
-  sessionSeconds: 180,
-  newPerSession: 3,
-};
-
 const CATALOG_IDS = new Set(SEED_CATALOG.map((s) => s.id));
-
-/** Inclusive bounds for each editable setting (DESIGN.md §4.4). */
-const SETTING_BOUNDS: Record<keyof ProfileSettings, [min: number, max: number]> = {
-  sessionCards: [5, 50],
-  sessionSeconds: [30, 600],
-  newPerSession: [0, 10],
-};
 
 /** Returns the first invalid field name, or null if every field is in range. */
 function invalidSetting(s: ProfileSettings): keyof ProfileSettings | null {
@@ -46,13 +35,12 @@ export function createProfileRouter(db: Db): Router {
   router.use(requireAuth);
   const owned = loadOwnedProfile(db);
 
-  router.get('/', async (req, res, next) => {
-    try {
+  router.get(
+    '/',
+    handle(async (req, res) => {
       return res.json({ profiles: await db.listProfiles(req.accountId!) });
-    } catch (err) {
-      return next(err);
-    }
-  });
+    }),
+  );
 
   const createLimit = rateLimit({
     windowMs: CREATE_PROFILE_WINDOW_MS,
@@ -60,8 +48,10 @@ export function createProfileRouter(db: Db): Router {
     keyPrefix: 'profile-create:',
   });
 
-  router.post('/', createLimit, async (req, res, next) => {
-    try {
+  router.post(
+    '/',
+    createLimit,
+    handle(async (req, res) => {
       const { displayName, avatar, gradeBand } = req.body ?? {};
       if (typeof displayName !== 'string' || !displayName.trim()) {
         return res.status(400).json({ error: 'invalid_display_name' });
@@ -82,17 +72,17 @@ export function createProfileRouter(db: Db): Router {
       const band = typeof gradeBand === 'string' ? gradeBandById(gradeBand) : undefined;
       await db.setEnabledSetIds(profile.id, band ? band.setIds : DEFAULT_ENABLED_SET_IDS);
       return res.status(201).json({ profile });
-    } catch (err) {
-      return next(err);
-    }
-  });
+    }),
+  );
 
   // Edit per-profile session settings (DESIGN.md §8). Partial PATCH: provided
   // fields override, the rest keep their current value; the merged result is
   // validated as a whole.
   // Partial profile edit: any of displayName / avatar / settings.
-  router.patch('/:id', owned, async (req, res, next) => {
-    try {
+  router.patch(
+    '/:id',
+    owned,
+    handle(async (req, res) => {
       const profile = req.profile!;
       const body = req.body ?? {};
       const editsName = 'displayName' in body;
@@ -133,33 +123,33 @@ export function createProfileRouter(db: Db): Router {
       if (editsAvatar) await db.updateProfileAvatar(profile.id, body.avatar);
       if (merged) await db.updateProfileSettings(profile.id, merged);
       return res.json({ profile: await db.getProfile(profile.id) });
-    } catch (err) {
-      return next(err);
-    }
-  });
+    }),
+  );
 
   // Delete a kid profile and all its data (cascades). Ownership-checked by
   // `owned`; 404 for a foreign/missing profile.
-  router.delete('/:id', owned, async (req, res, next) => {
-    try {
+  router.delete(
+    '/:id',
+    owned,
+    handle(async (req, res) => {
       await db.deleteProfile(req.params.id);
       return res.status(204).end();
-    } catch (err) {
-      return next(err);
-    }
-  });
+    }),
+  );
 
-  router.get('/:id/factsets', owned, async (req, res, next) => {
-    try {
+  router.get(
+    '/:id/factsets',
+    owned,
+    handle(async (req, res) => {
       const enabledIds = await db.listEnabledSetIds(req.params.id);
       return res.json({ catalog: SEED_CATALOG, enabledIds });
-    } catch (err) {
-      return next(err);
-    }
-  });
+    }),
+  );
 
-  router.put('/:id/factsets', owned, async (req, res, next) => {
-    try {
+  router.put(
+    '/:id/factsets',
+    owned,
+    handle(async (req, res) => {
       const { enabledIds } = req.body ?? {};
       if (!Array.isArray(enabledIds) || enabledIds.some((id) => !CATALOG_IDS.has(id))) {
         return res.status(400).json({ error: 'invalid_set_ids' });
@@ -170,10 +160,8 @@ export function createProfileRouter(db: Db): Router {
       const unique = [...new Set(enabledIds as string[])];
       await db.setEnabledSetIds(req.params.id, unique);
       return res.json({ enabledIds: unique });
-    } catch (err) {
-      return next(err);
-    }
-  });
+    }),
+  );
 
   return router;
 }

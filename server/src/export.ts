@@ -3,8 +3,8 @@
  * a kid's full attempt log + current progress — for a tutor, a records archive,
  * or peace of mind. Read-only; the IO is here, CSV shaping is a pure helper.
  */
+import type { Profile } from '@shared';
 import type { AttemptRecord, Db } from './db';
-import { requireOwnedProfile } from './session/service';
 
 export interface ProfileExport {
   profile: { id: string; displayName: string };
@@ -13,17 +13,11 @@ export interface ProfileExport {
   attempts: AttemptRecord[];
 }
 
-/** Gather everything stored for a profile (ownership-checked). */
-export async function buildExport(
-  db: Db,
-  accountId: string,
-  profileId: string,
-  now: number,
-): Promise<ProfileExport> {
-  const profile = await requireOwnedProfile(db, accountId, profileId);
+/** Gather everything stored for a profile (ownership checked by middleware). */
+export async function buildExport(db: Db, profile: Profile, now: number): Promise<ProfileExport> {
   const [progress, attempts] = await Promise.all([
-    db.getProgress(profileId),
-    db.listProfileAttempts(profileId, 0), // since epoch 0 = all time
+    db.getProgress(profile.id),
+    db.listProfileAttempts(profile.id, 0), // since epoch 0 = all time
   ]);
   return {
     profile: { id: profile.id, displayName: profile.displayName },

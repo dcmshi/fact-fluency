@@ -3,12 +3,12 @@
  * log plus a "what to enable next" suggestion. The IO lives here; the actual
  * aggregation/heuristic is pure and unit-tested in engine/dashboard.ts.
  */
-import type { DashboardView, DayTrend, Operation } from '@shared';
+import type { DashboardView, DayTrend, Operation, Profile } from '@shared';
 import { SEED_CATALOG } from './data/catalog';
 import type { Db } from './db';
 import { buildTrends, suggestNextSet, type SetMastery } from './engine/dashboard';
 import { generateFactsForSets } from './engine/facts';
-import { dayInTz, requireOwnedProfile } from './session/service';
+import { dayInTz } from './engine/scheduling';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WINDOW_DAYS = 14;
@@ -25,12 +25,11 @@ function recentDayKeys(timezone: string, now: number, days: number): string[] {
 
 export async function getDashboardView(
   db: Db,
-  accountId: string,
-  profileId: string,
+  profile: Profile,
   now: number,
 ): Promise<DashboardView> {
-  const profile = await requireOwnedProfile(db, accountId, profileId);
-  const timezone = (await db.getAccountTimezone(accountId)) ?? 'UTC';
+  const profileId = profile.id; // ownership checked by the route middleware
+  const timezone = (await db.getAccountTimezone(profile.accountId)) ?? 'UTC';
 
   const enabledIds = new Set(await db.listEnabledSetIds(profileId));
   const progress = await db.getProgress(profileId);

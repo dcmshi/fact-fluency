@@ -44,16 +44,12 @@ function masteredRow(profileId: string, factId: string): FactProgress {
 }
 
 describe('getProgressView', () => {
-  it('404s a profile that belongs to another account', async () => {
-    const { profile } = await setup();
-    await expect(getProgressView(db, 'someone-else', profile.id)).rejects.toMatchObject({
-      status: 404,
-    });
-  });
+  // Ownership (a foreign profile 404s) is enforced by the loadOwnedProfile
+  // route middleware and covered at the HTTP level in api.test.ts.
 
   it('returns one grid per enabled operation, all cells unseen initially', async () => {
-    const { accountId, profile } = await setup(['add-0-5']);
-    const view = await getProgressView(db, accountId, profile.id);
+    const { profile } = await setup(['add-0-5']);
+    const view = await getProgressView(db, profile);
     expect(view.grids).toHaveLength(1);
     expect(view.grids[0].operation).toBe('add');
     expect(view.grids[0].cells.length).toBe(factsOf('add-0-5').length);
@@ -61,11 +57,11 @@ describe('getProgressView', () => {
   });
 
   it('overlays seeded progress onto the matching cell', async () => {
-    const { accountId, profile } = await setup(['add-0-5']);
+    const { profile } = await setup(['add-0-5']);
     const fact = factsOf('add-0-5')[0];
     await db.upsertProgress(masteredRow(profile.id, fact.id));
 
-    const view = await getProgressView(db, accountId, profile.id);
+    const view = await getProgressView(db, profile);
     const cell = view.grids[0].cells.find(
       (c) => c.operandA === fact.operandA && c.operandB === fact.operandB,
     );
@@ -73,7 +69,7 @@ describe('getProgressView', () => {
   });
 
   it('returns no grids when no sets are enabled', async () => {
-    const { accountId, profile } = await setup([]);
-    expect((await getProgressView(db, accountId, profile.id)).grids).toHaveLength(0);
+    const { profile } = await setup([]);
+    expect((await getProgressView(db, profile)).grids).toHaveLength(0);
   });
 });

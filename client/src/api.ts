@@ -62,7 +62,14 @@ export const api = {
   logout: () => req<void>('POST', '/auth/logout'),
 
   // catalog (public)
-  catalog: () => req<{ sets: FactSet[]; gradeBands: GradeBand[] }>('GET', '/catalog'),
+  catalog: () =>
+    req<{
+      sets: FactSet[];
+      gradeBands: GradeBand[];
+      /** Inclusive [min, max] per editable profile setting — the server's own
+       *  validation bounds, so the settings form can't drift from them. */
+      settingBounds: Record<keyof ProfileSettings, [number, number]>;
+    }>('GET', '/catalog'),
 
   // profiles
   listProfiles: () => req<{ profiles: Profile[] }>('GET', '/profiles'),
@@ -109,6 +116,7 @@ export const api = {
  *  them never drift apart. */
 export const qk = {
   me: ['me'] as const,
+  account: ['account'] as const,
   profiles: ['profiles'] as const,
   catalog: ['catalog'] as const,
   rewards: (profileId: string) => ['rewards', profileId] as const,

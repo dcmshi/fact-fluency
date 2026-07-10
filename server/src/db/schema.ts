@@ -126,14 +126,3 @@ CREATE TABLE IF NOT EXISTS profile_effect (
   effect     TEXT NOT NULL DEFAULT 'confetti'
 );
 `;
-
-/**
- * Additive columns to ensure on a DB created before the column existed.
- * `CREATE TABLE IF NOT EXISTS` can't add a column to an existing table, and
- * SQLite has no `ADD COLUMN IF NOT EXISTS`, so the adapter checks
- * `PRAGMA table_info` before adding each. Append here when adding a column to an
- * existing table (mirror it in schema.pg.ts's ADDITIVE_COLUMNS_PG).
- */
-export const ADDITIVE_COLUMNS: { table: string; column: string; decl: string }[] = [
-  { table: 'account', column: 'is_guest', decl: 'INTEGER NOT NULL DEFAULT 0' },
-];

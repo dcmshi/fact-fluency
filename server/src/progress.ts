@@ -3,20 +3,14 @@
  * FactProgress onto the full candidate universe of their enabled sets, so
  * never-seen facts show up as `unseen` cells.
  */
-import type { Operation, ProgressCell, ProgressView } from '@shared';
+import type { Operation, Profile, ProgressCell, ProgressView } from '@shared';
 import { SEED_CATALOG } from './data/catalog';
 import type { Db } from './db';
 import { generateFactsForSets } from './engine/facts';
-import { requireOwnedProfile } from './session/service';
+import { OPERATIONS } from './engine/operations';
 
-const OPERATIONS: Operation[] = ['add', 'sub', 'mul', 'div'];
-
-export async function getProgressView(
-  db: Db,
-  accountId: string,
-  profileId: string,
-): Promise<ProgressView> {
-  await requireOwnedProfile(db, accountId, profileId);
+export async function getProgressView(db: Db, profile: Profile): Promise<ProgressView> {
+  const profileId = profile.id; // ownership checked by the route middleware
 
   const enabled = new Set(await db.listEnabledSetIds(profileId));
   const sets = SEED_CATALOG.filter((s) => enabled.has(s.id));

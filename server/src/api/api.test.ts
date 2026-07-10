@@ -503,6 +503,28 @@ describe('profiles', () => {
     await b.post('/api/auth/signup').send({ ...CREDS, email: 'other@home.test' });
     expect((await b.get(`/api/profiles/${body.profile.id}/factsets`)).status).toBe(404);
   });
+
+  it('404s every profile-scoped route for a foreign profile (loadOwnedProfile)', async () => {
+    // Ownership for these routes lives in one middleware; this is the coverage
+    // for the service-level checks that moved out of dashboard/progress/rewards.
+    const a = await authed();
+    const { body } = await a.post('/api/profiles').send({ displayName: 'Kid', avatar: '🦊' });
+    const id = body.profile.id;
+
+    const b = request.agent(app);
+    await b.post('/api/auth/signup').send({ ...CREDS, email: 'intruder@home.test' });
+    expect((await b.post(`/api/profiles/${id}/session`)).status).toBe(404);
+    expect((await b.get(`/api/profiles/${id}/progress`)).status).toBe(404);
+    expect((await b.get(`/api/profiles/${id}/dashboard`)).status).toBe(404);
+    expect((await b.get(`/api/profiles/${id}/export`)).status).toBe(404);
+    expect((await b.get(`/api/profiles/${id}/rewards`)).status).toBe(404);
+    expect(
+      (await b.post(`/api/profiles/${id}/rewards/unlock`).send({ itemId: 'muncher-fox' })).status,
+    ).toBe(404);
+    expect(
+      (await b.post(`/api/profiles/${id}/rewards/equip`).send({ itemId: 'muncher-dog' })).status,
+    ).toBe(404);
+  });
 });
 
 describe('input limits', () => {

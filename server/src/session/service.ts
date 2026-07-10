@@ -12,19 +12,21 @@ import type {
   FactProgress,
   Operation,
   OperationStat,
+  Profile,
   SessionResponse,
   SessionSummary,
   Thresholds,
 } from '@shared';
 import { SEED_CATALOG } from '../data/catalog';
 import type { Db, SessionRecord } from '../db';
+import { HttpError } from '../httpError';
 import { familyHint, familyTransfer, generateFactsForSets, siblingFactId } from '../engine/facts';
 import { gradeAnswer } from '../engine/grade';
 import { buildBoard, makeRng, pickRelation, seedFrom } from '../engine/munch';
 import { planSession } from '../engine/planner';
+import { OPERATIONS } from '../engine/operations';
+import { dayInTz, previousDay } from '../engine/scheduling';
 import { fluencyThreshold } from '../engine/threshold';
-
-const OPERATIONS: Operation[] = ['add', 'sub', 'mul', 'div'];
 
 /** How many cards later a missed/learning fact is re-shown (incremental
  *  rehearsal, DESIGN.md §4.4). */
@@ -41,41 +43,12 @@ interface WorkingState {
   learning: Record<string, number>;
 }
 
-/** A service-level error carrying the HTTP status the handler should return. */
-export class SessionError extends Error {
-  constructor(
-    readonly status: number,
-    readonly code: string,
-  ) {
-    super(code);
-  }
-}
-
 const zeroStat = (profileId: string, operation: Operation): OperationStat => ({
   profileId,
   operation,
   medianMsEwma: 0,
   correctSamples: 0,
 });
-
-/** Calendar day (YYYY-MM-DD) for an instant in a timezone. en-CA yields ISO. */
-export function dayInTz(timeZone: string, atMs: number): string {
-  try {
-    return new Date(atMs).toLocaleDateString('en-CA', { timeZone });
-  } catch {
-    return new Date(atMs).toLocaleDateString('en-CA');
-  }
-}
-
-/** The calendar day (YYYY-MM-DD) before `ymd`. Pure string/date arithmetic, so
- *  it's DST-proof — `now - 24h` lands two days back the morning after
- *  spring-forward (a 23-hour day), which would wrongly reset a real streak. */
-export function previousDay(ymd: string): string {
-  const [y, m, d] = ymd.split('-').map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  dt.setUTCDate(dt.getUTCDate() - 1);
-  return dt.toISOString().slice(0, 10);
-}
 
 /**
  * Update the day streak on session completion (DESIGN.md §4.10): same day → no
@@ -134,7 +107,7 @@ async function closeAndAward(
 export async function requireOwnedProfile(db: Db, accountId: string, profileId: string) {
   const profile = await db.getProfile(profileId);
   if (!profile || profile.accountId !== accountId) {
-    throw new SessionError(404, 'profile_not_found');
+    throw new HttpError(404, 'profile_not_found');
   }
   return profile;
 }
@@ -178,14 +151,13 @@ async function buildResumeDeck(db: Db, session: SessionRecord, profileId: string
 
 export async function startSession(
   db: Db,
-  accountId: string,
-  profileId: string,
+  profile: Profile,
   now: number,
   retried = false,
 ): Promise<SessionResponse> {
-  const profile = await requireOwnedProfile(db, accountId, profileId);
+  const { id: profileId, accountId } = profile;
 
-  // After the ownership gate these reads are all independent — fetch them in
+  // Ownership was checked by the route middleware; these reads are independent — fetch them in
   // one round-trip batch rather than serially (matters most on Render Postgres,
   // where each await is a network hop). The response fields shared by both the
   // resume and fresh-plan branches come from here.
@@ -199,7 +171,7 @@ export async function startSession(
   ]);
   const timezone = accountTz ?? 'UTC';
   const sets = SEED_CATALOG.filter((s) => enabledSetIds.includes(s.id));
-  if (sets.length === 0) throw new SessionError(400, 'no_enabled_sets');
+  if (sets.length === 0) throw new HttpError(400, 'no_enabled_sets');
 
   const common = {
     thresholds,
@@ -256,7 +228,7 @@ export async function startSession(
     // A concurrent start (double-tap / two tabs) won the race and created the
     // one allowed open session (idx_session_one_open). Re-enter once to resume
     // *that* session instead of surfacing a raw 500. The guard prevents loops.
-    if (!retried) return startSession(db, accountId, profileId, now, true);
+    if (!retried) return startSession(db, profile, now, true);
     throw err;
   }
 
@@ -277,7 +249,7 @@ export async function answer(
     !Number.isFinite(body.responseMs) ||
     body.responseMs < 0
   ) {
-    throw new SessionError(400, 'invalid_answer');
+    throw new HttpError(400, 'invalid_answer');
   }
   // Clamp the client-reported latency before it feeds the per-op median EWMA
   // (DESIGN.md §4.5). A buggy/hostile client sending a huge value shouldn't be
@@ -288,13 +260,13 @@ export async function answer(
   const responseMs = Math.round(Math.min(body.responseMs, MAX_RESPONSE_MS));
 
   const session = await db.getSession(sessionId);
-  if (!session) throw new SessionError(404, 'session_not_found');
+  if (!session) throw new HttpError(404, 'session_not_found');
   await requireOwnedProfile(db, accountId, session.profileId);
-  if (session.completedAt) throw new SessionError(409, 'session_completed');
+  if (session.completedAt) throw new HttpError(409, 'session_completed');
 
   const ws: WorkingState = JSON.parse(session.workingState);
   const card = ws.deck.find((c) => c.fact.id === body.factId);
-  if (!card) throw new SessionError(400, 'fact_not_in_session');
+  if (!card) throw new HttpError(400, 'fact_not_in_session');
 
   const { fact } = card;
   const { profileId } = session;
@@ -416,7 +388,7 @@ export async function complete(
   now: number,
 ): Promise<SessionSummary> {
   const session = await db.getSession(sessionId);
-  if (!session) throw new SessionError(404, 'session_not_found');
+  if (!session) throw new HttpError(404, 'session_not_found');
   await requireOwnedProfile(db, accountId, session.profileId);
   const firstCompletion = !session.completedAt;
 

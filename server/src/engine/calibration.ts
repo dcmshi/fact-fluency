@@ -12,9 +12,8 @@
  *    of a kid's own recall times.
  */
 import type { Operation } from '@shared';
+import { OPERATIONS } from './operations';
 import { CEILING_MS, COLD_START_SAMPLES, FLOOR_MS, K } from './threshold';
-
-const OPERATIONS: Operation[] = ['add', 'sub', 'mul', 'div'];
 
 /** Minimum correct samples before per-op recommendations are offered. */
 export const MIN_CALIBRATION_SAMPLES = 30;

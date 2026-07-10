@@ -160,8 +160,8 @@ describe('session loop', () => {
 
     const yesterday = Date.UTC(2026, 5, 3, 12);
     const today = Date.UTC(2026, 5, 4, 12);
-    const first = await sessions.startSession(db, accountId, profile.id, yesterday);
-    const second = await sessions.startSession(db, accountId, profile.id, today);
+    const first = await sessions.startSession(db, profile, yesterday);
+    const second = await sessions.startSession(db, profile, today);
 
     expect(second.sessionId).not.toBe(first.sessionId);
     // The stale one is closed; only the fresh session is open.

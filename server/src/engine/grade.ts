@@ -62,6 +62,11 @@ export function gradeAnswer(input: GradeInput): GradeResult {
   let box = prev.box;
   let requeue: boolean;
   let inSessionCorrect = input.inSessionCorrect;
+  // Interval fraction for dueAt — owned by the transition (0.5 on a
+  // correct-but-slow review answer), so the half-interval rule lives in
+  // exactly one place (scheduling.ts). Graduation out of learning uses the
+  // full interval.
+  let fraction = 1;
 
   if (prev.box === 0) {
     const step = stepLearning(inSessionCorrect, correct);
@@ -72,13 +77,13 @@ export function gradeAnswer(input: GradeInput): GradeResult {
     const t = transitionReview(prev.box, correct, fast);
     box = t.box;
     requeue = t.requeue;
+    fraction = t.fraction;
     // A demotion back to box 0 restarts learning; reset the in-session counter.
     if (box === 0) inSessionCorrect = 0;
   }
 
   // dueAt: box 0 is in-session ("next session"); boxes ≥ 1 use their interval,
-  // halved on a correct-but-slow answer to bring it forward.
-  const fraction = prev.box >= 1 && correct && !fast ? 0.5 : 1;
+  // brought forward by the transition's fraction.
   const dueAt = box === 0 ? now : dueAtForBox(box, now, timeZone, fraction);
 
   const nextStat = correct ? updateOperationStat(stat, responseMs) : stat;
