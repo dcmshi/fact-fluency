@@ -9,6 +9,7 @@ import type { Db } from '../db';
 import { loadOwnedProfile, requireAuth } from '../auth/middleware';
 import { DEFAULT_ENABLED_SET_IDS, gradeBandById, SEED_CATALOG } from '../data/catalog';
 import { DEFAULT_SETTINGS, SETTING_BOUNDS } from '../data/settings';
+import { generateFactsForSets } from '../engine/facts';
 import { handle } from './handle';
 import { rateLimit } from '../rateLimit';
 
@@ -38,7 +39,24 @@ export function createProfileRouter(db: Db): Router {
   router.get(
     '/',
     handle(async (req, res) => {
-      return res.json({ profiles: await db.listProfiles(req.accountId!) });
+      const profiles = await db.listProfiles(req.accountId!);
+      const now = Date.now();
+      // "N to review!" chip data: due review + still-learning counts, scoped
+      // to each kid's enabled sets (a disabled set's rows never count).
+      const withDue = await Promise.all(
+        profiles.map(async (p) => {
+          const enabled = await db.listEnabledSetIds(p.id);
+          const ids = generateFactsForSets(SEED_CATALOG.filter((s) => enabled.includes(s.id))).map(
+            (f) => f.id,
+          );
+          const [due, learning] = await Promise.all([
+            db.countDueReview(p.id, now, ids),
+            db.countLearning(p.id, ids),
+          ]);
+          return { ...p, dueToday: due + learning };
+        }),
+      );
+      return res.json({ profiles: withDue });
     }),
   );
 

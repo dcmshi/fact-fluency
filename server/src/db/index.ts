@@ -110,6 +110,9 @@ export interface Db {
   getEquippedEffect(profileId: string): Promise<string>;
   setEquippedEffect(profileId: string, effect: string): Promise<void>;
   listUnlocks(profileId: string): Promise<string[]>;
+  /** Remove an unlock row (consumes a perk, e.g. the spent streak shield);
+   *  returns whether a row existed. */
+  removeUnlock(profileId: string, itemId: string): Promise<boolean>;
   /** Atomically claim an item and debit `cost` coins in one transaction.
    *  Prevents a concurrent coin award being clobbered (vs read-modify-write
    *  setCoins) and a double-spend from two concurrent unlocks of one item. */

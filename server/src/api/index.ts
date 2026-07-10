@@ -107,7 +107,7 @@ export function createApiRouter(db: Db, isProd: boolean): Router {
     requireAuth,
     owned,
     handle(async (req, res) => {
-      res.json(await getRewards(db, req.profile!));
+      res.json(await getRewards(db, req.profile!, Date.now()));
     }),
   );
 
@@ -116,7 +116,7 @@ export function createApiRouter(db: Db, isProd: boolean): Router {
     requireAuth,
     owned,
     handle(async (req, res) => {
-      res.json(await unlockReward(db, req.profile!, req.body?.itemId));
+      res.json(await unlockReward(db, req.profile!, req.body?.itemId, Date.now()));
     }),
   );
 

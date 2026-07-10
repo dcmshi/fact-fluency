@@ -361,6 +361,14 @@ export class PostgresDb implements Db {
     ).map((r) => r.item_id);
   }
 
+  async removeUnlock(profileId: string, itemId: string): Promise<boolean> {
+    const { rows } = await this.pool.query(
+      'DELETE FROM profile_unlock WHERE profile_id = $1 AND item_id = $2 RETURNING item_id',
+      [profileId, itemId],
+    );
+    return rows.length > 0;
+  }
+
   async spendAndUnlock(
     profileId: string,
     itemId: string,

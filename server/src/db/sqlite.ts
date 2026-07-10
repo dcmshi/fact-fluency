@@ -322,6 +322,13 @@ export class SqliteDb implements Db {
     return rows.map((r) => r.item_id);
   }
 
+  async removeUnlock(profileId: string, itemId: string): Promise<boolean> {
+    const info = this.db
+      .prepare('DELETE FROM profile_unlock WHERE profile_id = ? AND item_id = ?')
+      .run(profileId, itemId);
+    return info.changes > 0;
+  }
+
   async spendAndUnlock(
     profileId: string,
     itemId: string,

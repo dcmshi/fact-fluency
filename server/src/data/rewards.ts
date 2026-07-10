@@ -19,6 +19,58 @@ const FREE_AVATAR_ITEMS: RewardItem[] = FREE_AVATARS.map((emoji, i) => ({
   value: emoji,
 }));
 
+// Seasonal avatars (months 1-12): a fresh goal every few weeks so a dedicated
+// kid doesn't own everything forever. Availability is a pure function of the
+// date (activeRewardCatalog); owned items stay owned out of season.
+const SEASONAL_AVATARS: RewardItem[] = [
+  {
+    id: 'avatar-snowman',
+    kind: 'avatar',
+    label: 'Snowman',
+    cost: 100,
+    value: '⛄',
+    months: [12, 1, 2],
+  },
+  {
+    id: 'avatar-blossom',
+    kind: 'avatar',
+    label: 'Blossom',
+    cost: 100,
+    value: '🌸',
+    months: [3, 4, 5],
+  },
+  {
+    id: 'avatar-beach',
+    kind: 'avatar',
+    label: 'Beach day',
+    cost: 100,
+    value: '🏖️',
+    months: [6, 7, 8],
+  },
+  {
+    id: 'avatar-maple',
+    kind: 'avatar',
+    label: 'Maple leaf',
+    cost: 100,
+    value: '🍁',
+    months: [9, 10, 11],
+  },
+];
+
+// Perks — consumables with a game effect rather than a look. The streak
+// shield is spent automatically when it saves a streak (DESIGN.md §4.8's
+// anti-punitive principle applied to the one hard reset left), after which it
+// can be bought again — the coin economy's first real sink.
+const PERKS: RewardItem[] = [
+  {
+    id: 'perk-streak-shield',
+    kind: 'perk',
+    label: 'Streak shield',
+    cost: 60,
+    value: 'streak-shield',
+  },
+];
+
 const PREMIUM_AVATARS: RewardItem[] = [
   { id: 'avatar-butterfly', kind: 'avatar', label: 'Butterfly', cost: 40, value: '🦋' },
   { id: 'avatar-dragon', kind: 'avatar', label: 'Dragon', cost: 60, value: '🐉' },
@@ -111,16 +163,32 @@ export const DEFAULT_EFFECT = 'confetti';
 export const REWARD_CATALOG: RewardItem[] = [
   ...FREE_AVATAR_ITEMS,
   ...PREMIUM_AVATARS,
+  ...SEASONAL_AVATARS,
   ...MUNCHERS,
   ...EFFECTS,
   ...THEMES,
+  ...PERKS,
 ];
 
 const BY_ID = new Map(REWARD_CATALOG.map((r) => [r.id, r]));
 
+/** Lookup over the FULL catalog — owned out-of-season items must still resolve. */
 export function rewardById(id: string): RewardItem | undefined {
   return BY_ID.get(id);
 }
+
+/** Whether an item is purchasable at `now` (seasonal windows). */
+export function rewardAvailable(item: RewardItem, now: number): boolean {
+  return !item.months || item.months.includes(new Date(now).getUTCMonth() + 1);
+}
+
+/** The catalog as shown/sold right now — seasonal items filtered by month. */
+export function activeRewardCatalog(now: number): RewardItem[] {
+  return REWARD_CATALOG.filter((r) => rewardAvailable(r, now));
+}
+
+/** The consumable that saves a streak across exactly one missed day. */
+export const STREAK_SHIELD_ID = 'perk-streak-shield';
 
 /** Item ids owned by default (every cost-0 item). */
 export const FREE_ITEM_IDS: string[] = REWARD_CATALOG.filter((r) => r.cost === 0).map((r) => r.id);

@@ -3,7 +3,7 @@
  * log plus a "what to enable next" suggestion. The IO lives here; the actual
  * aggregation/heuristic is pure and unit-tested in engine/dashboard.ts.
  */
-import type { DashboardView, DayTrend, Operation, Profile } from '@shared';
+import type { DashboardView, DayTrend, Operation, Profile, TrickyFact, WeeklyRecap } from '@shared';
 import { SEED_CATALOG } from './data/catalog';
 import type { Db } from './db';
 import { buildTrends, suggestNextSet, type SetMastery } from './engine/dashboard';
@@ -76,6 +76,45 @@ export async function getDashboardView(
   const windowAttempts = trends.reduce((n, t) => n + t.attempts, 0);
   const windowCorrect = trends.reduce((n, t) => n + t.correct, 0);
 
+  // Trickiest facts (top 5): seen enough to judge (reps >= 3), not yet
+  // mastered, ranked worst-accuracy first, slowest breaking ties — the single
+  // most actionable parent insight.
+  const trickiest: TrickyFact[] = enabledFacts
+    .map((f) => ({ f, p: progressByFactId.get(f.id) }))
+    .filter((x): x is { f: (typeof enabledFacts)[number]; p: NonNullable<typeof x.p> } =>
+      Boolean(x.p && x.p.reps >= 3 && x.p.box < 5),
+    )
+    .sort((a, b) => a.p.accuracyEwma - b.p.accuracyEwma || b.p.medianMsEwma - a.p.medianMsEwma)
+    .slice(0, 5)
+    .map(({ f, p }) => ({
+      operandA: f.operandA,
+      operandB: f.operandB,
+      operation: f.operation,
+      answer: f.answer,
+      accuracy: p.accuracyEwma,
+      medianMs: p.medianMsEwma,
+    }));
+
+  // "This week" recap vs the week before, straight from the attempt log (the
+  // 14-day window already fetched covers both halves). `mastered` counts box-5
+  // facts touched this week — a fact reviewed at its 21-day interval counts
+  // too, which reads as "re-confirmed" and is fine for a recap.
+  const weekAgo = now - 7 * DAY_MS;
+  const thisWeek = attempts.filter((a) => a.answeredAt >= weekAgo);
+  const priorWeek = attempts.filter((a) => a.answeredAt < weekAgo);
+  const accuracyOf = (list: typeof attempts) =>
+    list.length ? list.filter((a) => a.correct).length / list.length : null;
+  const weekAccuracy = accuracyOf(thisWeek);
+  const priorAccuracy = accuracyOf(priorWeek);
+  const weekly: WeeklyRecap = {
+    sessions: new Set(thisWeek.map((a) => a.sessionId)).size,
+    attempts: thisWeek.length,
+    accuracy: weekAccuracy,
+    accuracyDelta:
+      weekAccuracy != null && priorAccuracy != null ? weekAccuracy - priorAccuracy : null,
+    mastered: progress.filter((p) => p.box === 5 && p.lastSeenAt >= weekAgo).length,
+  };
+
   return {
     displayName: profile.displayName,
     streak: profile.streak,
@@ -92,5 +131,7 @@ export async function getDashboardView(
       daysActive: trends.filter((t) => t.attempts > 0).length,
     },
     suggestion,
+    trickiest,
+    weekly,
   };
 }

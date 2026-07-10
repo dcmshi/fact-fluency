@@ -309,6 +309,13 @@ describe('profiles', () => {
     return agent;
   }
 
+  it('lists profiles with a dueToday count for the picker badge', async () => {
+    const agent = await authed();
+    await agent.post('/api/profiles').send({ displayName: 'Kid', avatar: '🦊' });
+    const list = await agent.get('/api/profiles');
+    expect(list.body.profiles[0].dueToday).toBe(0); // brand new — nothing due
+  });
+
   it('requires auth', async () => {
     expect((await request(app).get('/api/profiles')).status).toBe(401);
   });

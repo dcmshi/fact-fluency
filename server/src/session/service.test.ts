@@ -3,6 +3,7 @@
  * layer fixes to Date.now()): the cross-day reconciliation paths.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { Profile } from '@shared';
 import { SqliteDb } from '../db/sqlite';
 import { answer, complete, startSession } from './service';
 
@@ -159,5 +160,51 @@ describe('caught-up is scoped to the enabled sets', () => {
       ),
     ).toBe(0);
     expect(lastCaughtUp).toBe(true);
+  });
+});
+
+describe('streak shield (perk)', () => {
+  async function playAndComplete(accountId: string, profile: Profile, day: number) {
+    const session = await startSession(db, profile, day);
+    await answer(
+      db,
+      accountId,
+      session.sessionId,
+      { factId: session.deck[0].fact.id, correct: true, responseMs: 900 },
+      day,
+    );
+    return complete(db, accountId, session.sessionId, day);
+  }
+
+  it('one owned shield absorbs exactly one missed day, then is consumed', async () => {
+    const { accountId, profile, profileId } = await makeProfile();
+    await db.addCoins(profileId, 60);
+    expect(await db.spendAndUnlock(profileId, 'perk-streak-shield', 60)).toMatchObject({
+      status: 'ok',
+    });
+
+    const day1 = Date.UTC(2026, 0, 1, 9);
+    expect((await playAndComplete(accountId, profile, day1)).streak).toBe(1);
+    // Day 2 is skipped; day 3's completion would normally reset to 1.
+    const day3 = day1 + 2 * DAY_MS;
+    expect((await playAndComplete(accountId, profile, day3)).streak).toBe(2);
+    expect(await db.listUnlocks(profileId)).not.toContain('perk-streak-shield'); // spent
+
+    // Without a shield the next gap resets as before.
+    const day5 = day3 + 2 * DAY_MS;
+    expect((await playAndComplete(accountId, profile, day5)).streak).toBe(1);
+  });
+
+  it('a shield does not stretch across two or more missed days', async () => {
+    const { accountId, profile, profileId } = await makeProfile();
+    await db.addCoins(profileId, 60);
+    await db.spendAndUnlock(profileId, 'perk-streak-shield', 60);
+
+    const day1 = Date.UTC(2026, 0, 1, 9);
+    await playAndComplete(accountId, profile, day1);
+    const day4 = day1 + 3 * DAY_MS; // two missed days
+    expect((await playAndComplete(accountId, profile, day4)).streak).toBe(1);
+    // The shield only spends on the exactly-one-missed-day path.
+    expect(await db.listUnlocks(profileId)).toContain('perk-streak-shield');
   });
 });

@@ -18,6 +18,7 @@ import type {
   Thresholds,
 } from '@shared';
 import { FLUENCY_TUNING } from '../config';
+import { STREAK_SHIELD_ID } from '../data/rewards';
 import { SEED_CATALOG } from '../data/catalog';
 import type { Db, SessionRecord } from '../db';
 import { HttpError } from '../httpError';
@@ -84,7 +85,21 @@ async function bumpStreak(
   const today = dayInTz(timezone, now);
   const { streak, lastPlayedDay } = await db.getProfileStreak(profileId);
   if (lastPlayedDay === today) return streak;
-  const next = lastPlayedDay === previousDay(today) ? streak + 1 : 1;
+  let next: number;
+  if (lastPlayedDay === previousDay(today)) {
+    next = streak + 1;
+  } else if (
+    // Exactly one missed day and the kid owns a streak shield: consume it and
+    // keep the streak alive (§4.8 — soften the one hard-reset mechanic left).
+    // removeUnlock returns whether a shield actually existed, so the check
+    // and the consumption are one atomic delete.
+    lastPlayedDay === previousDay(previousDay(today)) &&
+    (await db.removeUnlock(profileId, STREAK_SHIELD_ID))
+  ) {
+    next = streak + 1;
+  } else {
+    next = 1;
+  }
   await db.setProfileStreak(profileId, next, today);
   return next;
 }
@@ -469,10 +484,6 @@ export async function complete(
   const progressByFact = new Map(
     (await db.getProgress(session.profileId)).map((p) => [p.factId, p]),
   );
-  let mastered = 0;
-  for (const factId of new Set(attempts.map((a) => a.factId))) {
-    if (progressByFact.get(factId)?.box === 5) mastered++;
-  }
 
   // "Nothing left here" — every fact across the kid's enabled sets is mastered
   // (DESIGN.md §4.4). Drives the "ask a grown-up to add more" end screen.
@@ -481,14 +492,22 @@ export async function complete(
   const allMastered =
     enabledFacts.length > 0 && enabledFacts.every((f) => progressByFact.get(f.id)?.box === 5);
 
+  // The facts that reached box 5 among this session's attempts — named on the
+  // summary as celebration chips, not just a count.
+  const attemptedIds = new Set(attempts.map((a) => a.factId));
+  const masteredFacts = enabledFacts.filter(
+    (f) => attemptedIds.has(f.id) && progressByFact.get(f.id)?.box === 5,
+  );
+
   return {
     cardsPlayed: attempts.length,
     correct,
     fastCorrect,
-    mastered,
+    mastered: masteredFacts.length,
     pointsEarned,
     streak,
     coins,
     allMastered,
+    masteredFacts,
   };
 }

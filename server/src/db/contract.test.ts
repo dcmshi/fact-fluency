@@ -126,6 +126,15 @@ function describeDbContract(name: string, makeDb: () => Promise<Db>) {
       expect(await db.countLearning(profile.id, [])).toBe(0);
     });
 
+    it('removes an unlock exactly once (perk consumption)', async () => {
+      const { profile } = await seedProfile();
+      await db.addCoins(profile.id, 60);
+      await db.spendAndUnlock(profile.id, 'perk-streak-shield', 60);
+      expect(await db.removeUnlock(profile.id, 'perk-streak-shield')).toBe(true);
+      expect(await db.removeUnlock(profile.id, 'perk-streak-shield')).toBe(false);
+      expect(await db.listUnlocks(profile.id)).toEqual([]);
+    });
+
     it('cascades a profile delete to its data', async () => {
       const { accountId, profile } = await seedProfile();
       await db.setEnabledSetIds(profile.id, ['add-0-10']);

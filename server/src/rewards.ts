@@ -6,7 +6,7 @@
  */
 import type { Profile, RewardsView } from '@shared';
 import type { Db } from './db';
-import { FREE_ITEM_IDS, REWARD_CATALOG, rewardById } from './data/rewards';
+import { activeRewardCatalog, FREE_ITEM_IDS, rewardAvailable, rewardById } from './data/rewards';
 import { HttpError } from './httpError';
 
 /** All item ids a profile owns: every free item plus its unlocked ones. */
@@ -14,11 +14,13 @@ async function ownedIds(db: Db, profileId: string): Promise<string[]> {
   return [...new Set([...FREE_ITEM_IDS, ...(await db.listUnlocks(profileId))])];
 }
 
-export async function getRewards(db: Db, profile: Profile): Promise<RewardsView> {
+export async function getRewards(db: Db, profile: Profile, now: number): Promise<RewardsView> {
   const profileId = profile.id; // ownership checked by the route middleware
   return {
     coins: profile.coins,
-    catalog: REWARD_CATALOG,
+    // Seasonal items appear only in their window (a pure function of the
+    // date); anything already owned stays owned/equipped out of season.
+    catalog: activeRewardCatalog(now),
     owned: await ownedIds(db, profileId),
     equippedAvatar: profile.avatar,
     equippedTheme: profile.theme,
@@ -31,11 +33,13 @@ export async function unlockReward(
   db: Db,
   profile: Profile,
   itemId: string,
+  now: number,
 ): Promise<{ coins: number; owned: string[] }> {
   const profileId = profile.id; // ownership checked by the route middleware
   const item = rewardById(itemId);
   if (!item) throw new HttpError(400, 'unknown_item');
   if (item.cost === 0) throw new HttpError(400, 'item_free'); // already owned
+  if (!rewardAvailable(item, now)) throw new HttpError(400, 'item_unavailable'); // out of season
 
   // Claim + debit atomically (no read-modify-write on coins): a session coin
   // award racing this spend can't be lost, and two concurrent unlocks of the
@@ -59,6 +63,9 @@ export async function equipReward(
   const profileId = profile.id; // ownership checked by the route middleware
   const item = rewardById(itemId);
   if (!item) throw new HttpError(400, 'unknown_item');
+  // Perks aren't a look — they act on their own (the streak shield spends
+  // itself); there's nothing to equip.
+  if (item.kind === 'perk') throw new HttpError(400, 'not_equippable');
   const owned = item.cost === 0 || (await db.listUnlocks(profileId)).includes(itemId);
   if (!owned) throw new HttpError(403, 'not_owned');
 

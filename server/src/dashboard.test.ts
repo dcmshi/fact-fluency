@@ -100,3 +100,63 @@ describe('getDashboardView', () => {
     expect(view.trends[view.trends.length - 1].attempts).toBe(2);
   });
 });
+
+describe('trickiest facts + weekly recap', () => {
+  it('ranks judgeable, unmastered facts worst-first and fills the recap', async () => {
+    const { profile } = await setup(['add-0-5']);
+    const facts = factsOf('add-0-5');
+    const row = (factId: string, accuracy: number, ms: number, reps = 4) => ({
+      profileId: profile.id,
+      factId,
+      box: 2 as const,
+      state: 'review' as const,
+      dueAt: NOW,
+      lastSeenAt: NOW,
+      reps,
+      fastCorrect: 1,
+      correctStreak: 0,
+      accuracyEwma: accuracy,
+      medianMsEwma: ms,
+    });
+    await db.upsertProgress(row(facts[0].id, 0.9, 2000)); // fine
+    await db.upsertProgress(row(facts[1].id, 0.4, 3000)); // worst accuracy
+    await db.upsertProgress(row(facts[2].id, 0.6, 5000)); // middling, slow
+    await db.upsertProgress(row(facts[3].id, 0.6, 2000)); // middling, quicker
+    await db.upsertProgress(row(facts[4].id, 0.2, 1000, 2)); // too few reps — excluded
+    await db.upsertProgress(masteredRow(profile.id, facts[5].id)); // mastered — excluded
+
+    const view = await getDashboardView(db, profile, NOW);
+    const ids = view.trickiest.map((t) => `${t.operandA}+${t.operandB}`);
+    expect(view.trickiest[0].accuracy).toBeCloseTo(0.4); // worst first
+    expect(view.trickiest[1].medianMs).toBe(5000); // slow breaks the tie
+    expect(ids).toHaveLength(4); // excluded: low-reps + mastered
+
+    // Weekly recap: one session, two attempts today; no prior week → no delta.
+    await db.createSession({
+      id: 'w1',
+      profileId: profile.id,
+      startedAt: NOW,
+      completedAt: NOW,
+      plannedCount: 2,
+      workingState: '{}',
+    });
+    const attempt = (id: string, correct: boolean) => ({
+      id,
+      sessionId: 'w1',
+      profileId: profile.id,
+      factId: facts[0].id,
+      given: 0,
+      correct,
+      fast: false,
+      responseMs: 1500,
+      answeredAt: NOW,
+    });
+    await db.appendAttempt(attempt('wa1', true));
+    await db.appendAttempt(attempt('wa2', false));
+
+    const view2 = await getDashboardView(db, profile, NOW);
+    expect(view2.weekly).toMatchObject({ sessions: 1, attempts: 2, accuracyDelta: null });
+    expect(view2.weekly.accuracy).toBeCloseTo(0.5);
+    expect(view2.weekly.mastered).toBe(0); // the mastered row's lastSeenAt is 0 (not this week)
+  });
+});

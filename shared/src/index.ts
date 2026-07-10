@@ -91,13 +91,16 @@ export interface Profile {
   /** Currently-equipped theme id (palette); 'classic' is the default look. */
   theme: string;
   createdAt: number;
+  /** Facts due/learning today across enabled sets — filled by GET /profiles
+   *  for the picker's "N to review!" chip; absent elsewhere. */
+  dueToday?: number;
 }
 
 // ---------------------------------------------------------------------------
 // Rewards — unlockable avatars/themes bought with earned points (roadmap v1.1)
 // ---------------------------------------------------------------------------
 
-export type RewardKind = 'avatar' | 'theme' | 'muncher' | 'effect';
+export type RewardKind = 'avatar' | 'theme' | 'muncher' | 'effect' | 'perk';
 
 /** A catalog entry a kid can unlock and equip. Cost 0 = free / starter item. */
 export interface RewardItem {
@@ -111,6 +114,9 @@ export interface RewardItem {
   value: string;
   /** Theme preview swatch colors (hex); omitted for the others. */
   swatches?: string[];
+  /** Months (1-12) the item is purchasable — omitted = always. Seasonal items
+   *  a kid already owns stay owned/equipped out of season. */
+  months?: number[];
 }
 
 export interface RewardsView {
@@ -220,6 +226,8 @@ export interface SessionSummary {
   /** Every fact in the kid's enabled sets is mastered — there's nothing left to
    *  practice here until a grown-up enables more (DESIGN.md §4.4). */
   allMastered: boolean;
+  /** The facts that reached mastery *this session* — celebration chips. */
+  masteredFacts: Fact[];
 }
 
 // ---------------------------------------------------------------------------
@@ -285,6 +293,29 @@ export interface SetSuggestion {
   reason: string;
 }
 
+/** One hard fact for the "trickiest facts" panel (reps >= 3, not mastered). */
+export interface TrickyFact {
+  operandA: number;
+  operandB: number;
+  operation: Operation;
+  answer: number;
+  /** Rolling accuracy 0..1 and typical correct-answer speed (ms). */
+  accuracy: number;
+  medianMs: number;
+}
+
+/** "This week" recap vs the week before (from the attempt log). */
+export interface WeeklyRecap {
+  sessions: number;
+  attempts: number;
+  /** Accuracy 0..1 this week, or null with no attempts. */
+  accuracy: number | null;
+  /** accuracy minus last week's, or null when either week is empty. */
+  accuracyDelta: number | null;
+  /** Facts at box 5 touched this week (~newly or re-confirmed mastered). */
+  mastered: number;
+}
+
 export interface DashboardView {
   displayName: string;
   streak: number;
@@ -292,4 +323,6 @@ export interface DashboardView {
   trends: DayTrend[];
   summary: DashboardSummary;
   suggestion: SetSuggestion | null;
+  trickiest: TrickyFact[];
+  weekly: WeeklyRecap;
 }
