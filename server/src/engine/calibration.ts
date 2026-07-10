@@ -13,7 +13,7 @@
  */
 import type { Operation } from '@shared';
 import { OPERATIONS } from './operations';
-import { CEILING_MS, COLD_START_SAMPLES, FLOOR_MS, K } from './threshold';
+import { DEFAULT_TUNING, type FluencyTuning } from './threshold';
 
 /** Minimum correct samples before per-op recommendations are offered. */
 export const MIN_CALIBRATION_SAMPLES = 30;
@@ -68,7 +68,10 @@ function operationOf(factId: string): Operation | null {
   return (OPERATIONS as string[]).includes(op) ? (op as Operation) : null;
 }
 
-export function analyzeCalibration(attempts: AttemptLike[]): CalibrationReport {
+export function analyzeCalibration(
+  attempts: AttemptLike[],
+  tuning: FluencyTuning = DEFAULT_TUNING,
+): CalibrationReport {
   const byOp = new Map<Operation, AttemptLike[]>();
   for (const op of OPERATIONS) byOp.set(op, []);
   for (const a of attempts) {
@@ -83,7 +86,7 @@ export function analyzeCalibration(attempts: AttemptLike[]): CalibrationReport {
     const p50 = percentile(times, 0.5);
     const p75 = percentile(times, 0.75);
     const p90 = percentile(times, 0.9);
-    const ceiling = CEILING_MS[operation];
+    const ceiling = tuning.ceilings[operation];
     const enoughData = correct.length >= MIN_CALIBRATION_SAMPLES;
 
     return {
@@ -107,7 +110,11 @@ export function analyzeCalibration(attempts: AttemptLike[]): CalibrationReport {
 
   return {
     totalAttempts: attempts.length,
-    currentConstants: { K, floorMs: FLOOR_MS, coldStartSamples: COLD_START_SAMPLES },
+    currentConstants: {
+      K: tuning.K,
+      floorMs: tuning.floorMs,
+      coldStartSamples: tuning.coldStartSamples,
+    },
     perOperation,
   };
 }

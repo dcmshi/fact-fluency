@@ -35,6 +35,23 @@ export function ewma(prev: number, sample: number, alpha = EWMA_ALPHA): number {
   return prev + alpha * (sample - prev);
 }
 
+/** The calibratable knobs, bundled so the edge (config.ts) can override them
+ *  from env without redeploying constants — the engine stays pure and takes
+ *  the tuning as input. */
+export interface FluencyTuning {
+  K: number;
+  floorMs: number;
+  ceilings: Record<Operation, number>;
+  coldStartSamples: number;
+}
+
+export const DEFAULT_TUNING: FluencyTuning = {
+  K,
+  floorMs: FLOOR_MS,
+  ceilings: CEILING_MS,
+  coldStartSamples: COLD_START_SAMPLES,
+};
+
 export interface OperationStatLike {
   medianMsEwma: number;
   correctSamples: number;
@@ -42,13 +59,17 @@ export interface OperationStatLike {
 
 /**
  * The "fast" cutoff (ms) for an operation given the kid's current stats.
- * Cold start (< COLD_START_SAMPLES correct) → lenient ceiling.
- * Warm → clamp(K · median, FLOOR, ceiling).
+ * Cold start (< coldStartSamples correct) → lenient ceiling.
+ * Warm → clamp(K · median, floor, ceiling).
  */
-export function fluencyThreshold(operation: Operation, stat: OperationStatLike): number {
-  const ceiling = CEILING_MS[operation];
-  if (stat.correctSamples < COLD_START_SAMPLES) return ceiling;
-  return clamp(K * stat.medianMsEwma, FLOOR_MS, ceiling);
+export function fluencyThreshold(
+  operation: Operation,
+  stat: OperationStatLike,
+  tuning: FluencyTuning = DEFAULT_TUNING,
+): number {
+  const ceiling = tuning.ceilings[operation];
+  if (stat.correctSamples < tuning.coldStartSamples) return ceiling;
+  return clamp(tuning.K * stat.medianMsEwma, tuning.floorMs, ceiling);
 }
 
 export function isFast(responseMs: number, threshold: number): boolean {

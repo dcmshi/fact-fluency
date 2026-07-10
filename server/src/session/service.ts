@@ -17,6 +17,7 @@ import type {
   SessionSummary,
   Thresholds,
 } from '@shared';
+import { FLUENCY_TUNING } from '../config';
 import { SEED_CATALOG } from '../data/catalog';
 import type { Db, SessionRecord } from '../db';
 import { HttpError } from '../httpError';
@@ -35,6 +36,26 @@ const REHEARSAL_GAP = 3;
 /** Upper bound on a single reported response time (ms). Anything slower is
  *  capped before it feeds stats — see `answer()`. */
 const MAX_RESPONSE_MS = 60_000;
+
+/** Hard ceiling on presentations in one session (DESIGN.md §10): past it the
+ *  server stops emitting in-session re-shows, so a miss-loop can't grind on
+ *  forever — the demoted box schedule takes over. */
+const SESSION_PRESENTATION_CEILING = 30;
+
+/** Window + floor for the recent-accuracy sample behind the new-fact throttle
+ *  (§4.4): the last week's attempts, requiring a minimum sample before the
+ *  throttle trusts it. */
+const ACCURACY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const ACCURACY_MIN_SAMPLE = 10;
+const ACCURACY_MAX_SAMPLE = 20;
+
+/** Accuracy (0..1) over the profile's most recent attempts, or null when there
+ *  isn't enough recent data to judge. */
+function recentAccuracyOf(attempts: { correct: boolean }[]): number | null {
+  const recent = attempts.slice(-ACCURACY_MAX_SAMPLE);
+  if (recent.length < ACCURACY_MIN_SAMPLE) return null;
+  return recent.filter((a) => a.correct).length / recent.length;
+}
 
 /** Opaque per-session working state persisted as JSON (DESIGN.md §4.9). */
 interface WorkingState {
@@ -118,7 +139,11 @@ async function computeThresholds(db: Db, profileId: string): Promise<Thresholds>
   const statByOp = new Map(stats.map((s) => [s.operation, s]));
   const thresholds = {} as Thresholds;
   for (const op of OPERATIONS) {
-    thresholds[op] = fluencyThreshold(op, statByOp.get(op) ?? zeroStat(profileId, op));
+    thresholds[op] = fluencyThreshold(
+      op,
+      statByOp.get(op) ?? zeroStat(profileId, op),
+      FLUENCY_TUNING,
+    );
   }
   return thresholds;
 }
@@ -161,14 +186,16 @@ export async function startSession(
   // one round-trip batch rather than serially (matters most on Render Postgres,
   // where each await is a network hop). The response fields shared by both the
   // resume and fresh-plan branches come from here.
-  const [enabledSetIds, accountTz, open, thresholds, muncher, effect] = await Promise.all([
-    db.listEnabledSetIds(profileId),
-    db.getAccountTimezone(accountId),
-    db.getOpenSession(profileId),
-    computeThresholds(db, profileId),
-    db.getEquippedMuncher(profileId),
-    db.getEquippedEffect(profileId),
-  ]);
+  const [enabledSetIds, accountTz, open, thresholds, muncher, effect, recentAttempts] =
+    await Promise.all([
+      db.listEnabledSetIds(profileId),
+      db.getAccountTimezone(accountId),
+      db.getOpenSession(profileId),
+      computeThresholds(db, profileId),
+      db.getEquippedMuncher(profileId),
+      db.getEquippedEffect(profileId),
+      db.listProfileAttempts(profileId, now - ACCURACY_WINDOW_MS),
+    ]);
   const timezone = accountTz ?? 'UTC';
   const sets = SEED_CATALOG.filter((s) => enabledSetIds.includes(s.id));
   if (sets.length === 0) throw new HttpError(400, 'no_enabled_sets');
@@ -203,6 +230,8 @@ export async function startSession(
     now,
     sessionCards: profile.settings.sessionCards,
     newPerSession: profile.settings.newPerSession,
+    // Adaptive throttle (§4.4): struggling recent accuracy pauses cold intros.
+    recentAccuracy: recentAccuracyOf(recentAttempts),
   }).map((card, i) => {
     // Frame a new sub/div intro with its known inverse sibling (DESIGN.md §9).
     const hint = card.isNew ? familyHint(card.fact) : null;
@@ -297,6 +326,7 @@ export async function answer(
     stat,
     inSessionCorrect: ws.learning[body.factId] ?? 0,
     timeZone: timezone,
+    tuning: FLUENCY_TUNING,
   });
 
   // Fact-family scheduling transfer (DESIGN.md §9): when a sub/div fact is
@@ -372,11 +402,22 @@ export async function answer(
     db.countLearning(profileId, enabledIds),
   ]);
 
+  // In-session re-shows stop past the presentation ceiling (§10): a miss-loop
+  // must not grind past ~30 rounds — the demoted box schedule resurfaces the
+  // fact tomorrow instead. Counted only on the requeue path (it needs a read).
+  let injects: { factId: string; afterOffset: number }[] | undefined;
+  if (result.requeue) {
+    const presented = (await db.listSessionAttempts(sessionId)).length;
+    if (presented < SESSION_PRESENTATION_CEILING) {
+      injects = [{ factId: body.factId, afterOffset: REHEARSAL_GAP }];
+    }
+  }
+
   return {
     correct: result.correct,
     fast: result.fast,
     updatedProgress: result.progress,
-    injects: result.requeue ? [{ factId: body.factId, afterOffset: REHEARSAL_GAP }] : undefined,
+    injects,
     caughtUp: dueReview === 0 && learning === 0,
   };
 }

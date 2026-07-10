@@ -5,7 +5,13 @@
  */
 import type { Fact, FactProgress, OperationStat } from '@shared';
 import { dueAtForBox, stateForBox, stepLearning, transitionReview } from './scheduling';
-import { ewma, fluencyThreshold, isFast, updateOperationStat } from './threshold';
+import {
+  ewma,
+  fluencyThreshold,
+  isFast,
+  updateOperationStat,
+  type FluencyTuning,
+} from './threshold';
 
 export interface GradeInput {
   fact: Fact;
@@ -22,6 +28,8 @@ export interface GradeInput {
   inSessionCorrect: number;
   /** Account IANA timezone — day-interval dueAts snap to its calendar (§4.2). */
   timeZone: string;
+  /** Fluency knobs; defaults to the engine constants (env overrides at the edge). */
+  tuning?: FluencyTuning;
 }
 
 export interface GradeResult {
@@ -54,7 +62,7 @@ export function gradeAnswer(input: GradeInput): GradeResult {
   const { fact, correct, responseMs, now, stat, timeZone } = input;
   const prev = input.progress ?? baseProgress(stat.profileId, fact.id);
 
-  const threshold = fluencyThreshold(fact.operation, stat);
+  const threshold = fluencyThreshold(fact.operation, stat, input.tuning);
   const fast = correct && isFast(responseMs, threshold);
 
   // Decide the next box. Box 0 (or a brand-new fact) is in the learning phase

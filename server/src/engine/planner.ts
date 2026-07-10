@@ -16,6 +16,23 @@ import type { Card, Fact, FactProgress } from '@shared';
  */
 export const DEFAULT_MAX_NEW_PER_SESSION = 6;
 
+/** Recent-accuracy bands for the adaptive new-fact throttle (DESIGN.md §4.4 —
+ *  the ~80% success target). Below the low bar the kid is struggling: pause
+ *  new material and let review recover; between the bars, halve the intake;
+ *  at/above the high bar (or with no recent data) the full allotment flows. */
+export const THROTTLE_LOW_ACCURACY = 0.75;
+export const THROTTLE_HIGH_ACCURACY = 0.85;
+
+/**
+ * The session's new-fact allotment given the configured `newPerSession` and
+ * the kid's recent accuracy (0..1, or null when there's no recent data).
+ */
+export function newFactAllotment(newPerSession: number, recentAccuracy: number | null): number {
+  if (recentAccuracy == null || recentAccuracy >= THROTTLE_HIGH_ACCURACY) return newPerSession;
+  if (recentAccuracy < THROTTLE_LOW_ACCURACY) return 0;
+  return Math.ceil(newPerSession / 2);
+}
+
 export interface PlannerInput {
   /** Candidate universe from the kid's enabled sets, easiest-first. */
   facts: Fact[];
@@ -25,6 +42,8 @@ export interface PlannerInput {
   newPerSession: number;
   /** Optional override for the per-session new-fact cap (see the constant). */
   maxNewPerSession?: number;
+  /** Recent accuracy (0..1) for the new-fact throttle; null/omitted = no data. */
+  recentAccuracy?: number | null;
 }
 
 interface Buckets {
@@ -102,15 +121,21 @@ const toCard = (fact: Fact, isNew: boolean): Card => ({ fact, answer: fact.answe
 export function planSession(input: PlannerInput): Card[] {
   const { due, upcoming, mastered, unseen } = bucket(input);
   const target = Math.max(0, input.sessionCards);
+  // Struggling kids get fewer (or zero) cold intros until accuracy recovers
+  // (§4.4's ~80% success target) — review does the repair work.
+  const recentAccuracy = input.recentAccuracy ?? null;
+  const allotment = newFactAllotment(input.newPerSession, recentAccuracy);
   // Total new facts this session is capped so a quiet queue can't flood a
-  // beginner with cold intros (§4.4). Never below the adult's newPerSession.
-  const maxNew = Math.max(
-    input.newPerSession,
-    input.maxNewPerSession ?? DEFAULT_MAX_NEW_PER_SESSION,
+  // beginner with cold intros (§4.4). The throttle applies to the padding cap
+  // too — otherwise a short review queue would refill with the very cold
+  // intros the throttle is holding back.
+  const maxNew = newFactAllotment(
+    Math.max(input.newPerSession, input.maxNewPerSession ?? DEFAULT_MAX_NEW_PER_SESSION),
+    recentAccuracy,
   );
 
   // New facts: the normal small allotment, easiest-first.
-  const newCount = Math.min(input.newPerSession, unseen.length, target);
+  const newCount = Math.min(allotment, unseen.length, target);
   const freshFacts = unseen.slice(0, newCount);
 
   // Review facts fill the rest, in fill-priority order.

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { Box, Fact, FactProgress } from '@shared';
-import { DEFAULT_MAX_NEW_PER_SESSION, planSession, type PlannerInput } from './planner';
+import {
+  DEFAULT_MAX_NEW_PER_SESSION,
+  newFactAllotment,
+  planSession,
+  type PlannerInput,
+} from './planner';
 
 const NOW = 1_000_000;
 
@@ -134,5 +139,45 @@ describe('planSession — scheduling buckets', () => {
       input({ facts: [due, masteredFact], progressByFactId, newPerSession: 0, sessionCards: 1 }),
     );
     expect(ids(deck)).toEqual(['mul:1']);
+  });
+});
+
+describe('accuracy-aware new-fact throttle (§4.4)', () => {
+  it('bands the allotment by recent accuracy', () => {
+    expect(newFactAllotment(4, null)).toBe(4); // no data — full flow
+    expect(newFactAllotment(4, 0.9)).toBe(4); // doing great
+    expect(newFactAllotment(4, 0.85)).toBe(4); // at the high bar
+    expect(newFactAllotment(4, 0.8)).toBe(2); // middling — halved
+    expect(newFactAllotment(3, 0.8)).toBe(2); // ceil of half
+    expect(newFactAllotment(4, 0.7)).toBe(0); // struggling — pause intros
+  });
+
+  it('pauses cold intros entirely when the kid is struggling', () => {
+    const facts = Array.from({ length: 12 }, (_, n) => fact(n));
+    const deck = planSession({
+      facts,
+      progressByFactId: new Map(),
+      now: NOW,
+      sessionCards: 10,
+      newPerSession: 3,
+      recentAccuracy: 0.6,
+    });
+    // Nothing due, nothing upcoming, and new facts are throttled to zero —
+    // including the short-deck padding, which must not refill with intros.
+    expect(deck).toHaveLength(0);
+  });
+
+  it('halves the allotment in the middle accuracy band', () => {
+    const facts = Array.from({ length: 12 }, (_, n) => fact(n));
+    const deck = planSession({
+      facts,
+      progressByFactId: new Map(),
+      now: NOW,
+      sessionCards: 10,
+      newPerSession: 4,
+      recentAccuracy: 0.8,
+    });
+    // Allotment 2, and the padding cap is halved too (6 -> 3).
+    expect(deck.filter((c) => c.isNew)).toHaveLength(3);
   });
 });

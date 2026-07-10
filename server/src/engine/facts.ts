@@ -161,13 +161,18 @@ export function siblingFactId(fact: Fact): string | null {
  *  start, never auto-mastery (box 5 must still be earned directly, §4.3). */
 export const FAMILY_TRANSFER_BOX: Box = 3;
 
+/** Highest box an in-progress sibling can be *nudged* into (one-box raise). */
+export const FAMILY_NUDGE_MAX_BOX: Box = 3;
+
 /**
  * Fact-family scheduling transfer (DESIGN.md §9). A sub/div fact is the inverse
  * of an add/mul one (§3.1), so mastering it is strong evidence the kid knows the
- * sibling too. When such a fact is *freshly* mastered, seed its sibling into
- * review at `FAMILY_TRANSFER_BOX` so it's met as review rather than cold — but
- * only if the sibling is still unseen (never demote/disturb a sibling already on
- * its own track, and never grant mastery the kid hasn't earned directly).
+ * sibling too. When such a fact is *freshly* mastered:
+ *   - an unseen sibling is seeded into review at `FAMILY_TRANSFER_BOX`, so the
+ *     kid meets it as review rather than cold;
+ *   - a sibling already early in review (boxes 1–2) gets a capped one-box
+ *     nudge, keeping its own track/stats — never auto-mastery, and a sibling
+ *     at box 3+ (or still in the learning phase) is left alone.
  *
  * Pure: the caller supplies the sibling's current progress and gets back the row
  * to upsert, or null when no transfer applies. One direction only (sub→add,
@@ -186,7 +191,20 @@ export function familyTransfer(args: {
   const siblingId = siblingFactId(args.fact);
   if (!siblingId) return null; // base op — nothing to seed
   if (!(args.newBox === 5 && args.prevBox < 5)) return null; // only on entering mastery
-  if (args.siblingProgress) return null; // only seed an unseen sibling
+
+  const sibling = args.siblingProgress;
+  if (sibling) {
+    // Nudge an early-review sibling one box (capped); leave the learning phase
+    // (box 0, graduation is in-session evidence) and boxes ≥ 3 undisturbed.
+    if (sibling.box < 1 || sibling.box >= FAMILY_NUDGE_MAX_BOX) return null;
+    const box = (sibling.box + 1) as Box;
+    return {
+      ...sibling,
+      box,
+      state: stateForBox(box),
+      dueAt: dueAtForBox(box, args.now, args.timeZone ?? 'UTC', 1),
+    };
+  }
 
   const box = FAMILY_TRANSFER_BOX;
   return {

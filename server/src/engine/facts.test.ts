@@ -139,7 +139,9 @@ describe('familyTransfer', () => {
     expect(familyTransfer({ ...base, fact: sub, prevBox: 3, newBox: 4 })).toBeNull(); // not mastered yet
   });
 
-  it('never disturbs a sibling already on its own track', () => {
+  it('nudges (not reseeds) a sibling already on its own track', () => {
+    // A box-1 sibling keeps its stats and gets a capped one-box raise —
+    // never re-seeded at FAMILY_TRANSFER_BOX, never auto-mastered.
     const siblingProgress = {
       profileId: 'p1',
       factId: 'add:7+8',
@@ -153,6 +155,63 @@ describe('familyTransfer', () => {
       accuracyEwma: 0.5,
       medianMsEwma: 3000,
     } satisfies FactProgress;
-    expect(familyTransfer({ ...base, fact: sub, siblingProgress })).toBeNull();
+    const nudged = familyTransfer({ ...base, fact: sub, siblingProgress });
+    expect(nudged).toMatchObject({ factId: 'add:7+8', box: 2, reps: 2, accuracyEwma: 0.5 });
+  });
+});
+
+describe('familyTransfer — in-progress sibling nudge', () => {
+  const subFact = generateFacts('sub', { aMin: 0, aMax: 10, bMin: 0, bMax: 10 }).find(
+    (f) => f.operandA === 9 && f.operandB === 4,
+  )!; // 9 - 4 = 5, sibling add:4+5
+
+  const siblingAt = (box: 1 | 2 | 3): FactProgress => ({
+    profileId: 'p1',
+    factId: 'add:4+5',
+    box,
+    state: box === 3 ? 'review' : 'review',
+    dueAt: 500,
+    lastSeenAt: 100,
+    reps: 2,
+    fastCorrect: 1,
+    correctStreak: 1,
+    accuracyEwma: 0.8,
+    medianMsEwma: 2000,
+  });
+
+  it('raises a box-1/2 sibling one box, keeping its stats', () => {
+    const nudged = familyTransfer({
+      fact: subFact,
+      prevBox: 4,
+      newBox: 5,
+      profileId: 'p1',
+      siblingProgress: siblingAt(2),
+      now: 1000,
+    });
+    expect(nudged).toMatchObject({ factId: 'add:4+5', box: 3, reps: 2, accuracyEwma: 0.8 });
+    expect(nudged!.dueAt).toBeGreaterThan(1000); // rescheduled at the new box
+  });
+
+  it('leaves a box-3+ sibling and a learning-phase sibling alone', () => {
+    expect(
+      familyTransfer({
+        fact: subFact,
+        prevBox: 4,
+        newBox: 5,
+        profileId: 'p1',
+        siblingProgress: siblingAt(3),
+        now: 1000,
+      }),
+    ).toBeNull();
+    expect(
+      familyTransfer({
+        fact: subFact,
+        prevBox: 4,
+        newBox: 5,
+        profileId: 'p1',
+        siblingProgress: { ...siblingAt(1), box: 0, state: 'learning' },
+        now: 1000,
+      }),
+    ).toBeNull();
   });
 });

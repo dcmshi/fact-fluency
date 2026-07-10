@@ -9,6 +9,7 @@
  * Reports nothing actionable until operations have ≥ MIN_CALIBRATION_SAMPLES
  * correct attempts — calibration only makes sense on real usage data.
  */
+import { FLUENCY_TUNING } from './config';
 import { analyzeCalibration } from './engine/calibration';
 import { createDb } from './db';
 
@@ -22,7 +23,7 @@ async function main() {
   const attempts = await db.listAllAttempts(0);
   await db.close();
 
-  const report = analyzeCalibration(attempts);
+  const report = analyzeCalibration(attempts, FLUENCY_TUNING);
 
   // eslint-disable-next-line no-console
   const log = console.log;
