@@ -706,6 +706,16 @@ posture from earlier passes all re-verified sound. New, verified findings below
 
 ## Deployment / ops
 
+- [!] **Free Render Postgres expires every ~30 days.** The original
+  `fact-fluency-db` was suspended on 2026-07-04 (Render's free-tier limit),
+  which crash-looped the service (`migrate()` can't reach the DB, boot
+  exits 1) and failed the 2026-07-09 deploy. Resolved 2026-07-10 by deleting
+  the suspended DB and re-syncing the Blueprint (fresh free instance; the
+  schema self-applies via `migrate()`; prior data was discarded — user count
+  negligible). **The clock restarts each time: expect the next suspension
+  around 2026-08-09.** Either repeat the delete + Blueprint re-sync then, or
+  upgrade the DB to a paid instance to end the cycle. Render emails two
+  warnings before suspending.
 - [x] **Self-healing migrations.** `migrate()` now backfills additive columns
       on a DB created before the column existed (`CREATE TABLE IF NOT EXISTS`
       can't add columns): Postgres via idempotent `ADD COLUMN IF NOT EXISTS`
