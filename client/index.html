@@ -6,7 +6,8 @@
     <meta name="theme-color" content="#FFF7EC" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-    <link rel="apple-touch-icon" href="/icon.svg" />
+    <!-- iOS ignores SVG touch icons — a real 180px PNG (gen-icons.mjs). -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Fact Fluency</title>
     <!-- Fonts are self-hosted (bundled via @fontsource, imported in main.tsx) —
          no third-party CDN request. -->

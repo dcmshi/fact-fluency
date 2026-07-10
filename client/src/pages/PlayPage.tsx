@@ -240,8 +240,10 @@ export function PlayPage() {
   return (
     <div className={`screen play ${opClass}`}>
       <header className="play-header">
-        <button className="btn ghost" onClick={() => navigate('/')} aria-label="Back">
-          ← Quit
+        {/* No aria-label override: the accessible name must match the visible
+            "Quit" (WCAG 2.5.3, label in name). The arrow is decoration. */}
+        <button className="btn ghost" onClick={() => navigate('/')}>
+          <span aria-hidden="true">← </span>Quit
         </button>
         {phase !== 'done' && phase !== 'error' && (
           <div className="progress-track">
@@ -267,7 +269,9 @@ export function PlayPage() {
 
       {phase === 'error' && (
         <div className="play-center stack" style={{ textAlign: 'center' }}>
-          <div className="big-emoji">📚</div>
+          <div className="big-emoji" aria-hidden="true">
+            📚
+          </div>
           <h2>
             {errorCode === 'no_enabled_sets' ? 'No facts picked yet' : 'Something went wrong'}
           </h2>
@@ -330,7 +334,9 @@ export function PlayPage() {
 
       {phase === 'done' && !summary && offlineFinish && (
         <div className="play-center stack done-card rise" style={{ textAlign: 'center' }}>
-          <div className="big-emoji">📡</div>
+          <div className="big-emoji" aria-hidden="true">
+            📡
+          </div>
           <h1>Great practicing!</h1>
           <p className="muted">
             You’re offline right now — your work is saved. Your coins and streak will update as soon
@@ -345,7 +351,9 @@ export function PlayPage() {
       {phase === 'done' && summary && (
         <div className="play-center stack done-card rise" style={{ textAlign: 'center' }}>
           {(caughtUp || summary.allMastered) && <Confetti />}
-          <div className="big-emoji">{summary.allMastered ? '🏆' : caughtUp ? '🎉' : '🌟'}</div>
+          <div className="big-emoji" aria-hidden="true">
+            {summary.allMastered ? '🏆' : caughtUp ? '🎉' : '🌟'}
+          </div>
           <h1>
             {summary.allMastered
               ? 'You mastered it all!'
@@ -359,7 +367,9 @@ export function PlayPage() {
             </p>
           )}
           {summary.streak > 1 && (
-            <div className="streak-ribbon">🔥 {summary.streak}-day streak!</div>
+            <div className="streak-ribbon">
+              <span aria-hidden="true">🔥</span> {summary.streak}-day streak!
+            </div>
           )}
           <div className="summary-stats">
             <Stat label="Played" value={summary.cardsPlayed} />
@@ -367,10 +377,12 @@ export function PlayPage() {
             <Stat label="Mastered" value={summary.mastered} />
             <Stat label="Coins +" value={summary.pointsEarned} accent />
           </div>
-          <div className="coin-total">⭐ {summary.coins} coins to spend in Rewards</div>
+          <div className="coin-total">
+            <span aria-hidden="true">⭐</span> {summary.coins} coins to spend in Rewards
+          </div>
           {summary.coins > 0 && (
             <button className="btn ghost" onClick={() => navigate(`/?rewards=${profileId}`)}>
-              ⭐ Spend coins
+              <span aria-hidden="true">⭐</span> Spend coins
             </button>
           )}
           {summary.allMastered ? (

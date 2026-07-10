@@ -74,6 +74,7 @@
   border-style: dashed;
   border-color: var(--line);
   color: transparent;
+  cursor: default;
 }
 .muncher {
   position: absolute;
@@ -121,6 +122,19 @@
 .munch-hint {
   font-size: 0.78rem;
   text-align: center;
+}
+/* Show the keyboard hint only where a keyboard is plausible (mouse + hover);
+   tablets and phones just see "tap". */
+.munch-hint .hint-kbd {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .munch-hint .hint-kbd {
+    display: inline;
+  }
+  .munch-hint .hint-touch {
+    display: none;
+  }
 }
 
 /* The animated animal sits on the current cell, above its number. */

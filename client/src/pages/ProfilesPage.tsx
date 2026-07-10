@@ -51,7 +51,10 @@ export function ProfilesPage() {
     <div className="screen">
       <header className="hub-header">
         <div className="brand">
-          <span className="glyph">✦</span> Fact Fluency
+          <span className="glyph" aria-hidden="true">
+            ✦
+          </span>{' '}
+          Fact Fluency
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           {!guest && (
@@ -111,10 +114,18 @@ export function ProfilesPage() {
               key={p.id}
               style={{ animationDelay: `${i * 0.06}s` }}
             >
-              <div className="avatar">{p.avatar}</div>
+              <div className="avatar" aria-hidden="true">
+                {p.avatar}
+              </div>
               <div className="profile-name">{p.displayName}</div>
-              {p.streak > 1 && <div className="streak-badge">🔥 {p.streak}</div>}
-              <div className="coin-badge">⭐ {p.coins}</div>
+              {p.streak > 1 && (
+                <div className="streak-badge" role="img" aria-label={`${p.streak}-day streak`}>
+                  <span aria-hidden="true">🔥</span> {p.streak}
+                </div>
+              )}
+              <div className="coin-badge" role="img" aria-label={`${p.coins} coins`}>
+                <span aria-hidden="true">⭐</span> {p.coins}
+              </div>
               <button className="btn sun full" onClick={() => navigate(`/play/${p.id}`)}>
                 Play ▶
               </button>
@@ -137,7 +148,9 @@ export function ProfilesPage() {
 
           {profiles && (
             <button className="profile-tile add-tile rise" onClick={() => setAdding(true)}>
-              <div className="avatar plus">＋</div>
+              <div className="avatar plus" aria-hidden="true">
+                ＋
+              </div>
               <div className="profile-name">Add a kid</div>
             </button>
           )}
@@ -386,11 +399,14 @@ function RewardsModal({ profile, onClose }: { profile: Profile; onClose: () => v
     void queryClient.invalidateQueries({ queryKey: qk.profiles });
   }
 
+  const [goal, setGoal] = useState<string | null>(null);
+
   async function act(item: RewardItem) {
     const isOwned = owned.has(item.id);
     if (isEquipped(item)) return;
     setBusy(item.id);
     setError(null);
+    setGoal(null);
     try {
       if (isOwned) {
         await equip(item);
@@ -402,6 +418,10 @@ function RewardsModal({ profile, onClose }: { profile: Profile; onClose: () => v
         // Coins were spent — refresh the picker badge and the rewards cache.
         void queryClient.invalidateQueries({ queryKey: qk.profiles });
         void queryClient.invalidateQueries({ queryKey: qk.rewards(profile.id) });
+      } else {
+        // A locked tile is a goal, not a dead end (the strongest motivation
+        // loop): tapping it says how far away it is.
+        setGoal(`${item.label} needs ${item.cost - coins} more ⭐ — keep playing!`);
       }
     } catch {
       // Refresh from the server so the UI reflects true ownership/coins.
@@ -415,24 +435,34 @@ function RewardsModal({ profile, onClose }: { profile: Profile; onClose: () => v
   const byKind = (kind: RewardItem['kind']) => (catalog ?? []).filter((i) => i.kind === kind);
   const section = (title: string, kind: RewardItem['kind']) => (
     <RewardSection title={title}>
-      {byKind(kind).map((item) => (
-        <RewardTile
-          key={item.id}
-          item={item}
-          owned={owned.has(item.id)}
-          equipped={isEquipped(item)}
-          affordable={coins >= item.cost}
-          busy={busy === item.id}
-          onClick={() => act(item)}
-        />
-      ))}
+      {catalog === null
+        ? // Loading: tile-shaped shimmer instead of an empty section.
+          [0, 1, 2, 3].map((i) => <div key={`sk-${i}`} className="skeleton reward-skel" />)
+        : byKind(kind).map((item) => (
+            <RewardTile
+              key={item.id}
+              item={item}
+              owned={owned.has(item.id)}
+              equipped={isEquipped(item)}
+              coins={coins}
+              busy={busy === item.id}
+              onClick={() => act(item)}
+            />
+          ))}
     </RewardSection>
   );
 
   return (
     <Modal onClose={onClose} title={`${equippedAvatar} ${profile.displayName}'s rewards`}>
-      <div className="coin-balance">⭐ {coins} coins</div>
+      <div className="coin-balance" role="img" aria-label={`${coins} coins`}>
+        <span aria-hidden="true">⭐</span> {coins} coins
+      </div>
       {error && <div className="error-banner">{error}</div>}
+      {goal && (
+        <div className="notice-banner" role="status">
+          {goal}
+        </div>
+      )}
       {section('Munchers', 'muncher')}
       {section('Celebrations', 'effect')}
       {section('Avatars', 'avatar')}
@@ -454,22 +484,24 @@ function RewardTile({
   item,
   owned,
   equipped,
-  affordable,
+  coins,
   busy,
   onClick,
 }: {
   item: RewardItem;
   owned: boolean;
   equipped: boolean;
-  affordable: boolean;
+  coins: number;
   busy: boolean;
   onClick: () => void;
 }) {
-  const locked = !owned && !affordable;
+  const locked = !owned && coins < item.cost;
+  // Locked tiles stay tappable — the tap shows how many coins to go (a goal,
+  // not a dead control).
   return (
     <button
       className={`reward-tile ${equipped ? 'equipped' : ''} ${locked ? 'locked' : ''}`}
-      disabled={busy || equipped || locked}
+      disabled={busy || equipped}
       onClick={onClick}
       title={item.label}
     >
@@ -492,7 +524,22 @@ function RewardTile({
         )}
       </div>
       <div className="reward-label">{item.label}</div>
-      <div className="reward-status">{equipped ? '✓ On' : owned ? 'Use' : `⭐ ${item.cost}`}</div>
+      <div className="reward-status">
+        {equipped ? (
+          '✓ On'
+        ) : owned ? (
+          'Use'
+        ) : locked ? (
+          // Show the goal, not just the price: "⭐ 80 · 45 to go!"
+          <>
+            <span aria-hidden="true">⭐</span> {item.cost} · {item.cost - coins} to go!
+          </>
+        ) : (
+          <>
+            <span aria-hidden="true">⭐</span> {item.cost}
+          </>
+        )}
+      </div>
     </button>
   );
 }
@@ -597,6 +644,8 @@ function SettingsModal({
               key={a}
               className={`avatar-option ${a === avatar ? 'selected' : ''}`}
               onClick={() => setAvatar(a)}
+              aria-pressed={a === avatar}
+              aria-label={`Buddy ${a}`}
             >
               {a}
             </button>
@@ -666,22 +715,27 @@ function AddProfileModal({ onClose, onCreated }: { onClose: () => void; onCreate
     staleTime: Infinity, // the catalog is static
   });
 
+  const [error, setError] = useState<string | null>(null);
   const createMut = useMutation({
     mutationFn: () => api.createProfile(name.trim(), avatar, band || undefined),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: qk.profiles });
       onCreated();
     },
+    onError: (e) =>
+      setError(EDIT_MESSAGES[e instanceof ApiError ? e.code : ''] ?? 'Couldn’t save — try again.'),
   });
   const busy = createMut.isPending;
 
   function create() {
     if (!name.trim()) return;
+    setError(null);
     createMut.mutate();
   }
 
   return (
     <Modal onClose={onClose} title="Add a kid">
+      {error && <div className="error-banner">{error}</div>}
       <div className="field">
         <label htmlFor="kid-name">Name</label>
         <input id="kid-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
@@ -694,6 +748,8 @@ function AddProfileModal({ onClose, onCreated }: { onClose: () => void; onCreate
               key={a}
               className={`avatar-option ${a === avatar ? 'selected' : ''}`}
               onClick={() => setAvatar(a)}
+              aria-pressed={a === avatar}
+              aria-label={`Buddy ${a}`}
             >
               {a}
             </button>
@@ -703,7 +759,11 @@ function AddProfileModal({ onClose, onCreated }: { onClose: () => void; onCreate
       <div className="field">
         <label>Starting level</label>
         <div className="band-picker">
-          <button className={`set-pill ${band === '' ? 'on' : ''}`} onClick={() => setBand('')}>
+          <button
+            className={`set-pill ${band === '' ? 'on' : ''}`}
+            onClick={() => setBand('')}
+            aria-pressed={band === ''}
+          >
             Starter mix
           </button>
           {bands.map((b) => (
@@ -711,6 +771,7 @@ function AddProfileModal({ onClose, onCreated }: { onClose: () => void; onCreate
               key={b.id}
               className={`set-pill ${band === b.id ? 'on' : ''}`}
               onClick={() => setBand(b.id)}
+              aria-pressed={band === b.id}
             >
               {b.label}
             </button>
@@ -749,6 +810,7 @@ function FactSetsModal({ profile, onClose }: { profile: Profile; onClose: () => 
     });
   }
 
+  const [error, setError] = useState<string | null>(null);
   const saveMut = useMutation({
     mutationFn: () => api.setFactSets(profile.id, [...enabled]),
     onSuccess: () => {
@@ -758,10 +820,12 @@ function FactSetsModal({ profile, onClose }: { profile: Profile; onClose: () => 
       void queryClient.invalidateQueries({ queryKey: qk.dashboard(profile.id) });
       onClose();
     },
+    onError: () => setError('Couldn’t save — try again.'),
   });
   const busy = saveMut.isPending;
 
   function save() {
+    setError(null);
     saveMut.mutate();
   }
 
@@ -773,11 +837,14 @@ function FactSetsModal({ profile, onClose }: { profile: Profile; onClose: () => 
   return (
     <Modal onClose={onClose} title={`${profile.avatar} ${profile.displayName}'s facts`}>
       {!catalog && <p className="muted">Loading…</p>}
+      {error && <div className="error-banner">{error}</div>}
       {Object.entries(grouped).map(([op, sets]) => (
         <div key={op} className="set-group">
           <div className="set-group-title">
             {OP_LABEL[op as keyof typeof OP_LABEL]}{' '}
-            <span className="op-sym">{OP_SYMBOL[op as keyof typeof OP_SYMBOL]}</span>
+            <span className="op-sym" aria-hidden="true">
+              {OP_SYMBOL[op as keyof typeof OP_SYMBOL]}
+            </span>
           </div>
           <div className="set-options">
             {sets.map((s) => (
@@ -785,6 +852,8 @@ function FactSetsModal({ profile, onClose }: { profile: Profile; onClose: () => 
                 key={s.id}
                 className={`set-pill ${op} ${enabled.has(s.id) ? 'on' : ''}`}
                 onClick={() => toggle(s.id)}
+                aria-pressed={enabled.has(s.id)}
+                aria-label={s.label}
               >
                 {s.label.replace(/^[A-Za-z]+ /, '')}
               </button>

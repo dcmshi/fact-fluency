@@ -69,6 +69,11 @@
   height: 100%;
   display: flex;
   align-items: flex-end;
+  /* it's a button now (tap-to-inspect) — strip the chrome */
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 .trend-track {
   width: 100%;
@@ -142,6 +147,10 @@
   display: grid;
   place-items: center;
   transition: transform 0.08s ease;
+  /* it's a button now (tap-to-inspect) — strip the chrome */
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 .fact-cell:hover {
   transform: scale(1.12);
@@ -191,4 +200,14 @@
 .export-row .btn {
   text-decoration: none;
   padding: 0.35rem 0.8rem;
+}
+
+/* Caption line written by tapping a fact cell or trend bar (the hover
+   tooltips are invisible on touch, keyboard, and screen readers). */
+.chart-detail {
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-align: center;
 }

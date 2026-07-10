@@ -198,7 +198,8 @@
 }
 .stat.accent {
   background: var(--sun);
-  box-shadow: 0 4px 0 #e0a91f;
+  color: var(--on-sun);
+  box-shadow: 0 4px 0 var(--sun-shadow);
 }
 .stat-value {
   font-family: var(--font-display);
@@ -213,7 +214,8 @@
   color: var(--ink-soft);
 }
 .stat.accent .stat-label {
-  color: #8a6a12;
+  color: var(--on-sun);
+  opacity: 0.75;
 }
 
 .coin-total {

@@ -51,7 +51,10 @@ export function AuthPage() {
     <div className="screen center-y">
       <div className="stack rise">
         <div className="brand" style={{ justifyContent: 'center', fontSize: '1.7rem' }}>
-          <span className="glyph">✦</span> Fact Fluency
+          <span className="glyph" aria-hidden="true">
+            ✦
+          </span>
+          Fact Fluency
         </div>
         <p className="muted" style={{ textAlign: 'center', marginTop: '-0.4rem' }}>
           Practice math facts the fun way.

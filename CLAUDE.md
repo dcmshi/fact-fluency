@@ -119,5 +119,5 @@ otherwise skip the devDependencies the build needs.
 ## Git
 
 - Remote: `git@github.com:dcmshi/fact-fluency.git`, default branch `main`.
-- Commit/push only when asked. End commit messages with the Co-Authored-By
-  trailer.
+- Commit/push only when asked. No Co-Authored-By (or other) trailers on
+  commit messages.

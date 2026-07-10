@@ -170,6 +170,8 @@ function median(nums: number[]): number | null {
 function Dashboard({ dash }: { dash: DashboardView }) {
   const { summary, trends, suggestion } = dash;
   const typicalMs = median(trends.map((t) => t.medianMs).filter((m): m is number => m != null));
+  // Tap-to-inspect caption for the trend chart (tooltips are hover-only).
+  const [detail, setDetail] = useState<string | null>(null);
 
   return (
     <section className="dash card rise">
@@ -197,7 +199,9 @@ function Dashboard({ dash }: { dash: DashboardView }) {
 
       {suggestion && (
         <div className="suggestion">
-          <span className="suggestion-spark">✨</span>
+          <span className="suggestion-spark" aria-hidden="true">
+            ✨
+          </span>
           <div>
             <strong>Ready for more!</strong> {suggestion.reason}
             <span className="muted"> Enable it from the Facts screen.</span>
@@ -205,7 +209,17 @@ function Dashboard({ dash }: { dash: DashboardView }) {
         </div>
       )}
 
-      <TrendChart trends={trends} windowDays={dash.windowDays} active={summary.daysActive} />
+      <TrendChart
+        trends={trends}
+        windowDays={dash.windowDays}
+        active={summary.daysActive}
+        onPick={setDetail}
+      />
+      {detail && (
+        <p className="chart-detail" role="status">
+          {detail}
+        </p>
+      )}
     </section>
   );
 }
@@ -244,10 +258,12 @@ function TrendChart({
   trends,
   windowDays,
   active,
+  onPick,
 }: {
   trends: DayTrend[];
   windowDays: number;
   active: number;
+  onPick?: (text: string) => void;
 }) {
   const maxMs = Math.max(1, ...trends.map((t) => t.medianMs ?? 0));
 
@@ -260,9 +276,18 @@ function TrendChart({
         </span>
       </div>
 
-      <div className="trend-bars" role="img" aria-label="Daily accuracy">
+      {/* Each day is tappable/SR-readable — the hover title alone is invisible
+          on touch (the primary device), keyboard, and screen readers. */}
+      <div className="trend-bars">
         {trends.map((t) => (
-          <div className="trend-col" key={t.day} title={tooltip(t)}>
+          <button
+            type="button"
+            className="trend-col"
+            key={t.day}
+            title={tooltip(t)}
+            aria-label={tooltip(t)}
+            onClick={() => onPick?.(tooltip(t))}
+          >
             <div className="trend-track">
               <div
                 className="trend-bar"
@@ -272,7 +297,7 @@ function TrendChart({
                 }}
               />
             </div>
-          </div>
+          </button>
         ))}
       </div>
       <div className="trend-axis">
@@ -321,11 +346,16 @@ function tooltip(t: DayTrend): string {
 
 function OperationGrid({ grid }: { grid: ProgressGrid }) {
   const mastered = grid.cells.filter((c) => c.state === 'mastered').length;
+  // Tap-to-inspect: the hover title is invisible on touch/keyboard/SR, so a
+  // tapped cell writes its details into a caption line (and each cell carries
+  // an aria-label for screen-reader browse mode). Cells stay out of the Tab
+  // order — ~170 tab stops per grid would bury every other control.
+  const [detail, setDetail] = useState<string | null>(null);
   return (
     <section className="grid-card card rise">
       <div className="grid-head">
         <h2>
-          <span className="op-sym" style={{ color: OP_HEX[grid.operation] }}>
+          <span className="op-sym" style={{ color: OP_HEX[grid.operation] }} aria-hidden="true">
             {OP_SYMBOL[grid.operation]}
           </span>{' '}
           {OP_LABEL[grid.operation]}
@@ -335,21 +365,33 @@ function OperationGrid({ grid }: { grid: ProgressGrid }) {
         </span>
       </div>
       <div className="fact-grid">
-        {grid.cells.map((c) => (
-          <div
-            key={`${c.operandA}-${c.operandB}`}
-            className="fact-cell"
-            style={{ background: cellColor(grid.operation, c.box, c.state) }}
-            title={`${c.operandA} ${OP_SYMBOL[grid.operation]} ${c.operandB} = ${c.answer} · ${c.state}`}
-          >
-            <span className="fact-cell-text">
-              {c.operandA}
-              {OP_SYMBOL[grid.operation]}
-              {c.operandB}
-            </span>
-          </div>
-        ))}
+        {grid.cells.map((c) => {
+          const label = `${c.operandA} ${OP_SYMBOL[grid.operation]} ${c.operandB} = ${c.answer} · ${c.state}`;
+          return (
+            <button
+              type="button"
+              key={`${c.operandA}-${c.operandB}`}
+              className="fact-cell"
+              style={{ background: cellColor(grid.operation, c.box, c.state) }}
+              title={label}
+              aria-label={label}
+              tabIndex={-1}
+              onClick={() => setDetail(label)}
+            >
+              <span className="fact-cell-text">
+                {c.operandA}
+                {OP_SYMBOL[grid.operation]}
+                {c.operandB}
+              </span>
+            </button>
+          );
+        })}
       </div>
+      {detail && (
+        <p className="chart-detail" role="status">
+          {detail}
+        </p>
+      )}
     </section>
   );
 }

@@ -75,6 +75,14 @@ export function MunchBoard({
 
   const posRef = useRef(pos);
   posRef.current = pos;
+  // Roving tabindex support: when the muncher moves and keyboard focus is
+  // inside the grid, carry focus to the new cell so Space keeps munching there.
+  const gridRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (!grid || !grid.contains(document.activeElement)) return;
+    (grid.children[pos] as HTMLElement | undefined)?.focus?.();
+  }, [pos]);
   const burstId = useRef(0);
   // Drive the muncher: chomp → (happy | bleh) → idle, cleaned up on unmount.
   const stateTimers = useRef<number[]>([]);
@@ -128,6 +136,15 @@ export function MunchBoard({
       } else {
         wrongRef.current += 1;
       }
+      // Mid-round SR feedback: each munch replaces the last announcement (the
+      // live region is a single message, so rapid munching self-throttles).
+      // The round-complete announcement from the parent supersedes the last one.
+      const left = [...correctIdx].filter((i) => !eatenRef.current.has(i)).length;
+      if (left > 0) {
+        announce?.(
+          isCorrect ? `Munched ${cells[idx]}. ${left} left.` : `Oops — ${cells[idx]} isn't one.`,
+        );
+      }
       onMunch(isCorrect);
       reactMuncher(isCorrect);
       setFlash({ idx, ok: isCorrect });
@@ -159,7 +176,7 @@ export function MunchBoard({
         );
       }
     },
-    [correctIdx, onMunch, onComplete, reactMuncher],
+    [correctIdx, cells, announce, onMunch, onComplete, reactMuncher],
   );
 
   const move = useCallback(
@@ -231,10 +248,13 @@ export function MunchBoard({
         <span className="munch-remaining">{remaining} left</span>
       </div>
 
+      {/* role=group, not grid: no row/gridcell structure is exposed, and grid
+          semantics would promise arrow-key cell navigation APIs we don't have. */}
       <div
+        ref={gridRef}
         className="munch-grid"
         style={{ gridTemplateColumns: `repeat(${size}, 1fr)` }}
-        role="grid"
+        role="group"
         aria-label={`Munch grid, ${remaining} cells left`}
       >
         {cells.map((v, i) => {
@@ -246,11 +266,17 @@ export function MunchBoard({
               key={i}
               className={`munch-cell ${isEaten ? 'eaten' : ''} ${isHere ? 'here' : ''} ${f}`}
               onClick={() => {
+                // aria-disabled (with this guard), not disabled: disabling a
+                // just-munched cell would drop keyboard focus to <body>.
+                if (eatenRef.current.has(i)) return;
                 setPos(i);
                 munchAt(i);
               }}
               aria-label={isEaten ? 'munched' : String(v)}
-              disabled={isEaten}
+              aria-disabled={isEaten}
+              // Roving tabindex: one tab stop (the muncher's cell); arrows/WASD
+              // move it, so Tab exits the 25-cell grid in one step.
+              tabIndex={isHere ? 0 : -1}
             >
               <span className="munch-num">{isEaten ? '' : v}</span>
               {isHere && (
@@ -265,7 +291,10 @@ export function MunchBoard({
       </div>
 
       <div className="munch-hint muted">
-        Arrow keys / WASD to move · Space to munch · or tap a number
+        <span className="hint-kbd">
+          Arrow keys / WASD to move · Space to munch · or tap a number
+        </span>
+        <span className="hint-touch">Tap a number to munch it</span>
       </div>
     </div>
   );

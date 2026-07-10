@@ -15,6 +15,11 @@
 
   /* brand + operations */
   --sun: #ffc83d;
+  /* companions to --sun, overridden per theme: the pressed-shadow shade and
+     the ink that stays readable on a sun-colored surface. Hardcoding gold
+     here broke themes that remap --sun (midnight's periwinkle). */
+  --sun-shadow: #e0a91f;
+  --on-sun: #2b2440;
   --add: #2fb87a;
   --sub: #ff6b5c;
   --mul: #3b82f6;
@@ -119,7 +124,8 @@ button {
   height: 2.2rem;
   border-radius: 12px;
   background: var(--sun);
-  box-shadow: 0 4px 0 #e0a91f;
+  color: var(--on-sun);
+  box-shadow: 0 4px 0 var(--sun-shadow);
   transform: rotate(-6deg);
 }
 
@@ -170,8 +176,8 @@ button {
 }
 .btn.sun {
   --c: var(--sun);
-  --shadow: #e0a91f;
-  color: var(--ink);
+  --shadow: var(--sun-shadow);
+  color: var(--on-sun);
 }
 .btn.ghost {
   background: transparent;
@@ -300,6 +306,8 @@ body[data-theme='ocean'] {
   --paper: #eaf6fb;
   --paper-2: #d6eef6;
   --sun: #16b5c9;
+  --sun-shadow: #0e8494;
+  --on-sun: #06333b;
   --ink: #123b47;
   --ink-soft: #4d7682;
   --line: #cfe6ee;
@@ -309,6 +317,8 @@ body[data-theme='candy'] {
   --paper: #fdeef7;
   --paper-2: #fbdcef;
   --sun: #ff5fa2;
+  --sun-shadow: #cf3d7c;
+  --on-sun: #46102a;
   --ink: #4a1d3a;
   --ink-soft: #9b5e80;
   --line: #f4d3e6;
@@ -318,6 +328,8 @@ body[data-theme='forest'] {
   --paper: #edf6ea;
   --paper-2: #dcecd5;
   --sun: #3a9d54;
+  --sun-shadow: #29753d;
+  --on-sun: #0e2a15;
   --ink: #1f3a25;
   --ink-soft: #5b7560;
   --line: #d3e6cd;
@@ -327,6 +339,8 @@ body[data-theme='sunset'] {
   --paper: #fff0e8;
   --paper-2: #ffe0d0;
   --sun: #ff7a3d;
+  --sun-shadow: #d55a20;
+  --on-sun: #3d1a0b;
   --ink: #4a2418;
   --ink-soft: #9b6a55;
   --line: #f6d9c8;
@@ -336,24 +350,28 @@ body[data-theme='midnight'] {
   --paper: #191c2b;
   --paper-2: #222740;
   --sun: #7c9cff;
+  --sun-shadow: #5064c9;
+  --on-sun: #141833;
   --ink: #eef1ff;
   --ink-soft: #a6adcc;
   --line: #33384f;
   --card: #232843;
 }
 
-/* Offline banner (resilient sync). Fixed strip so it never blocks tapping. */
+/* Offline banner (resilient sync). Sticky and in-flow, so it pushes the page
+   content down instead of overlapping the play header's Quit button; padded
+   for a phone's notch/status bar. */
 .offline-banner {
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
+  width: 100%;
   z-index: 100;
   text-align: center;
   padding: 0.4rem 1rem;
+  padding-top: calc(0.4rem + env(safe-area-inset-top, 0px));
   font-size: 0.85rem;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--on-sun);
   background: var(--sun);
   box-shadow: 0 2px 0 rgba(43, 36, 64, 0.12);
 }

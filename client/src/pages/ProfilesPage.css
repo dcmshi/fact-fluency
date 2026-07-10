@@ -74,6 +74,8 @@
   padding: 0.4rem 0.5rem;
   font-size: 0.82rem;
   white-space: nowrap;
+  /* Kid fingers: keep every tile action at the 44px minimum touch target. */
+  min-height: 44px;
 }
 
 .add-tile {
@@ -191,6 +193,21 @@
   font-size: 0.78rem;
   color: var(--ink);
 }
+/* Encouraging goal note for a locked reward ("45 more coins to go!"). */
+.notice-banner {
+  background: color-mix(in srgb, var(--sun) 22%, var(--card));
+  color: var(--ink);
+  border-radius: var(--r-md);
+  padding: 0.7rem 1rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+/* Tile-shaped shimmer while the reward catalog loads. */
+.reward-skel {
+  height: 104px;
+}
+
 .coin-balance {
   text-align: center;
   font-family: var(--font-display);
@@ -229,7 +246,9 @@
 }
 .reward-tile.equipped {
   border-color: var(--sun);
-  background: #fff6df;
+  /* Tint from the theme's own --sun so midnight (dark card, light ink) stays
+     legible — a hardcoded cream broke there. */
+  background: color-mix(in srgb, var(--sun) 16%, var(--card));
 }
 .reward-tile.locked {
   opacity: 0.55;
@@ -264,7 +283,7 @@
   color: var(--ink);
 }
 .reward-tile.equipped .reward-status {
-  color: #c98a00;
+  color: var(--sun-shadow);
 }
 
 .band-picker {
