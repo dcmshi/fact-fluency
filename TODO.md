@@ -2,7 +2,7 @@
 
 Where things stand and what's left. v1 (DESIGN.md §9) is complete: auth, all four
 operations, the scheduling/fluency engine, the session player, the fact grid,
-daily streaks, and Render deploy (SQLite + Postgres). 208 tests passing.
+daily streaks, and Render deploy (SQLite + Postgres). 233 tests passing.
 
 This is a backlog, not a commitment — pick from it as needed.
 
@@ -346,7 +346,8 @@ generation memoized; N+1s already engineered out.
       award-survives-mid-spend races and the insufficient-rollback; pg-mem
       covers the debit math (note: pg-mem can't honor ROLLBACK, so the
       rollback side-effect is asserted on the SQLite adapter). (`setCoins` is now
-      test-only — a dead-code cleanup for the refactor pass.)
+      test-only — a dead-code cleanup for the refactor pass; audit pass 8 found
+      `addCoins` and `addUnlock` have joined it.)
 - [x] **Stale open session closed without awarding its coins.** `startSession`
       plain-`completeSession`d a prior-day open session; the queued offline
       `complete` then saw `firstCompletion === false` and skipped the award —
@@ -610,6 +611,33 @@ posture from earlier passes all re-verified sound. New, verified findings below
       pass, inviting `--no-verify` habits. Add `.gitattributes`
       (`* text=auto eol=lf`, binaries marked) and normalize the working tree.
 
+## Audit pass 8 (2026-07-10) — remaining-files sweep
+
+Covered what pass 7 skimmed or skipped: `ops.ts`, `sound.ts`, the
+Muncher/CelebrationBurst/Confetti components, `calibrate.ts` +
+`engine/calibration.ts`, `password.ts`, the manifest, eslint/tsconfig/vitest
+configs, the hooks installer, and README — plus a fresh-eyes re-read of the
+pass-7 changes. All clean except:
+
+- [ ] **`playFast()` is dead code — a fast round sounds identical to a normal
+      correct one.** `sound.ts` ships a "correct AND fast" sparkle arpeggio
+      that nothing imports; the P2 thresholds work made the client compute
+      `fast` locally (in `finishRound`), so wiring it is a two-line change
+      right where the fast announcement fires. Until then the fluency win has
+      no audio identity (§4.7's instant feedback is visual/SR-only).
+- [ ] **Test-only Db methods have grown**: `addCoins`, `setCoins`, _and_
+      `addUnlock` are now only called from tests — prod paths use the
+      transactional `completeSessionAndAward` / `spendAndUnlock`. Fold into
+      the P6 dead-code cleanup (which currently names only `setCoins`);
+      either delete them from the `Db` interface or move them to a test
+      helper.
+- Non-findings, verified sound this pass: calibration percentile math +
+  advisory clamps; argon2 verify's catch-all (malformed hash → false, no
+  throw); the hooks installer's non-git guard; eslint flat config coverage;
+  `pendingCount` (a legitimate test observability helper); no TODO/FIXME
+  markers anywhere in source. Manifest icon/orientation gaps were already
+  tracked in P5.
+
 ## Features
 
 - [x] **Number Munchers play mode** (pivot — DESIGN.md §12) — replaced typed
@@ -706,16 +734,18 @@ posture from earlier passes all re-verified sound. New, verified findings below
 
 ## Deployment / ops
 
-- [!] **Free Render Postgres expires every ~30 days.** The original
-  `fact-fluency-db` was suspended on 2026-07-04 (Render's free-tier limit),
-  which crash-looped the service (`migrate()` can't reach the DB, boot
+- [~] **Free Render Postgres expires every ~30 days — accepted for now.** The
+  original `fact-fluency-db` was suspended on 2026-07-04 (Render's free-tier
+  limit), which crash-looped the service (`migrate()` can't reach the DB, boot
   exits 1) and failed the 2026-07-09 deploy. Resolved 2026-07-10 by deleting
   the suspended DB and re-syncing the Blueprint (fresh free instance; the
   schema self-applies via `migrate()`; prior data was discarded — user count
-  negligible). **The clock restarts each time: expect the next suspension
-  around 2026-08-09.** Either repeat the delete + Blueprint re-sync then, or
-  upgrade the DB to a paid instance to end the cycle. Render emails two
-  warnings before suspending.
+  negligible). **Decision (2026-07-10): stay on the free tier until there's
+  real user traffic** — the monthly delete + Blueprint re-sync is the accepted
+  routine, and losing demo data is fine. **The clock restarts each cycle:
+  expect the next suspension around 2026-08-09** (Render emails two warnings
+  first). Upgrade to a paid instance only once real users would be hurt by a
+  reset.
 - [x] **Self-healing migrations.** `migrate()` now backfills additive columns
       on a DB created before the column existed (`CREATE TABLE IF NOT EXISTS`
       can't add columns): Postgres via idempotent `ADD COLUMN IF NOT EXISTS`
