@@ -208,3 +208,70 @@ describe('streak shield (perk)', () => {
     expect(await db.listUnlocks(profileId)).toContain('perk-streak-shield');
   });
 });
+
+describe('audit pass 9 — service-level coverage for the P7 wiring', () => {
+  it('equality-only boards when comparisons is off', async () => {
+    const accountId = await db.createAccount('c@b.co', 'hash', 'UTC');
+    const profile = await db.createProfile({
+      accountId,
+      displayName: 'Kid',
+      avatar: '🦊',
+      settings: { sessionCards: 20, sessionSeconds: 180, newPerSession: 6, comparisons: false },
+    });
+    await db.setEnabledSetIds(profile.id, ['add-0-10']);
+    const session = await startSession(db, profile, Date.UTC(2026, 0, 1, 9));
+    expect(session.deck.length).toBeGreaterThan(3);
+    for (const card of session.deck) {
+      expect(card.board?.relation).toBe('=');
+    }
+  });
+
+  it('stops emitting in-session re-shows past the presentation ceiling', async () => {
+    const { accountId, profile } = await makeProfile();
+    const now = Date.UTC(2026, 0, 1, 9);
+    const session = await startSession(db, profile, now);
+    const factId = session.deck[0].fact.id;
+
+    // Answer the same fact wrong repeatedly: every wrong answer requeues, so
+    // injects flow until the session's attempt count crosses the ceiling (30).
+    let sawInject = false;
+    let stoppedAt: number | null = null;
+    for (let i = 1; i <= 35; i++) {
+      const r = await answer(
+        db,
+        accountId,
+        session.sessionId,
+        { factId, correct: false, responseMs: 900 },
+        now,
+      );
+      if (r.injects?.length) sawInject = true;
+      else if (stoppedAt === null) stoppedAt = i;
+    }
+    expect(sawInject).toBe(true); // early misses do re-show
+    expect(stoppedAt).not.toBeNull(); // ...but the ceiling cuts them off
+    expect(stoppedAt!).toBeLessThanOrEqual(31);
+  });
+
+  it('throttles new-fact intake from recent attempt accuracy (service wiring)', async () => {
+    const { accountId, profile } = await makeProfile();
+    const day1 = Date.UTC(2026, 0, 1, 9);
+
+    // Session 1: answer >=10 attempts at ~30% accuracy (struggling).
+    const s1 = await startSession(db, profile, day1);
+    const ids = s1.deck.map((c) => c.fact.id);
+    for (let i = 0; i < 12; i++) {
+      await answer(
+        db,
+        accountId,
+        s1.sessionId,
+        { factId: ids[i % ids.length], correct: i % 3 === 0, responseMs: 900 },
+        day1,
+      );
+    }
+    await complete(db, accountId, s1.sessionId, day1);
+
+    // Next day's plan must include NO cold intros while accuracy is that low.
+    const s2 = await startSession(db, profile, day1 + DAY_MS);
+    expect(s2.deck.some((c) => c.isNew)).toBe(false);
+  });
+});

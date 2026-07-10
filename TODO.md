@@ -4,7 +4,7 @@ Where things stand and what's left. v1 (DESIGN.md §9) is complete — auth, all
 four operations, the scheduling/fluency engine, the session player, the fact
 grid, daily streaks, Render deploy (SQLite + Postgres) — and the P4–P7 backlog
 (perf, UI/a11y, refactoring, features) is fully cleared as of 2026-07-10.
-275 tests passing.
+278 tests passing.
 
 This is a backlog, not a commitment — pick from it as needed.
 
@@ -1120,6 +1120,28 @@ posture from earlier passes all re-verified sound. New, verified findings below
       Prettier (endOfLine: lf) flags all of them — the hook's format gate can't
       pass, inviting `--no-verify` habits. Add `.gitattributes`
       (`* text=auto eol=lf`, binaries marked) and normalize the working tree.
+
+## Audit pass 9 (2026-07-10) — coverage check after the P4–P7 clear
+
+A targeted audit of what the big batch left untested. Three service-level gaps
+found and closed the same pass (all passed first-run — the features behaved as
+designed):
+
+- [x] **Presentation ceiling had no test** — added: repeated misses re-show via
+      injects until the session's attempt count crosses the ceiling, then stop.
+- [x] **`comparisons: false` gating untested at the board level** — added: a
+      session planned for such a profile emits `=` boards exclusively.
+- [x] **Accuracy-throttle service wiring untested** (engine was covered) —
+      added: a ~30%-accuracy session yields a next-day plan with zero cold
+      intros.
+- [x] **`masteredFacts` asserted on the HTTP completion summary** (shape +
+      empty case).
+- Non-gaps, verified: seasonal/perk rules, streak shield, `removeUnlock`,
+  `recordAnswer` atomicity, `dueToday`, trickiest/weekly, config parsing, the
+  throttle bands, and the sibling nudge all landed with tests in their own
+  commits; `spliceInject` is unit-tested and its PlayPage wiring was verified
+  in-browser (the imperative game loop stays untested by design — see the
+  React Query note in pass 2).
 
 ## Audit pass 8 (2026-07-10) — remaining-files sweep
 

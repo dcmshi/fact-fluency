@@ -104,6 +104,10 @@ describe('session loop', () => {
     expect(summary.body.correct).toBe(deck.length - 1); // the one wrong answer
     expect(summary.body.pointsEarned).toBeGreaterThan(0);
     expect(summary.body.streak).toBe(1); // first day playing
+    // The celebration chips carry the full Fact for each mastery this session
+    // (none here — one pass never reaches box 5).
+    expect(summary.body.masteredFacts).toEqual([]);
+    expect(summary.body.mastered).toBe(0);
   });
 
   it('keeps the streak at 1 when completing twice the same day', async () => {
