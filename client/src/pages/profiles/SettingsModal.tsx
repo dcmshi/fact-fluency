@@ -6,10 +6,12 @@ import { AvatarPicker } from '../../components/AvatarPicker';
 import { Modal } from '../../components/Modal';
 import { EDIT_ERROR_MESSAGES, FALLBACK_MESSAGE } from '../../messages';
 
-/** Labels/hints for the editable session settings. The inclusive bounds come
+type NumericKey = Exclude<keyof ProfileSettings, 'comparisons'>;
+
+/** Labels/hints for the numeric session settings. The inclusive bounds come
  *  from /catalog (the server's own validation limits), so the form can't
  *  drift from what the server accepts; these are the offline fallback. */
-const SETTING_FIELDS: { key: keyof ProfileSettings; label: string; hint: string }[] = [
+const SETTING_FIELDS: { key: NumericKey; label: string; hint: string }[] = [
   {
     key: 'sessionCards',
     label: 'Cards per session',
@@ -27,7 +29,7 @@ const SETTING_FIELDS: { key: keyof ProfileSettings; label: string; hint: string 
   },
 ];
 
-const FALLBACK_BOUNDS: Record<keyof ProfileSettings, [number, number]> = {
+const FALLBACK_BOUNDS: Record<NumericKey, [number, number]> = {
   sessionCards: [5, 50],
   sessionSeconds: [30, 600],
   newPerSession: [0, 10],
@@ -118,6 +120,20 @@ export function SettingsModal({
           </div>
         );
       })}
+      <div className="field">
+        <label className="toggle-row" htmlFor="set-comparisons">
+          <input
+            id="set-comparisons"
+            type="checkbox"
+            checked={values.comparisons !== false}
+            onChange={(e) => setValues((v) => ({ ...v, comparisons: e.target.checked }))}
+          />
+          Include “smaller / bigger” rounds
+        </label>
+        <span className="muted" style={{ fontSize: '0.85rem' }}>
+          Off = every round asks for “the same as” — good for younger kids (K–1 starts this way).
+        </span>
+      </div>
       <button className="btn sun full" disabled={busy || outOfRange || nameEmpty} onClick={save}>
         {saveMut.isPending ? 'Saving…' : 'Save'}
       </button>

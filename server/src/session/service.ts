@@ -253,7 +253,9 @@ export async function startSession(
     // A munch board per round; seeded per (session, fact, index) for variety,
     // and persisted in workingState so resume replays the identical board.
     const rng = makeRng(seedFrom(`${sessionId}:${card.fact.id}:${i}`));
-    const relation = pickRelation(card.answer, rng);
+    // K-1 (or an adult's choice) keeps rounds equality-only — the "smaller/
+    // bigger" judgment is its own skill and can wait (DESIGN.md §11).
+    const relation = profile.settings.comparisons === false ? '=' : pickRelation(card.answer, rng);
     const board = buildBoard({ target: card.answer, relation, rng });
     return { ...card, ...(hint ? { family: hint } : {}), board };
   });

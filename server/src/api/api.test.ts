@@ -461,6 +461,7 @@ describe('profiles', () => {
       sessionCards: 12,
       sessionSeconds: 180,
       newPerSession: 3,
+      comparisons: true,
     });
 
     // newPerSession: 0 is valid (review-only) — not treated as "unset".
@@ -469,12 +470,22 @@ describe('profiles', () => {
       .send({ settings: { newPerSession: 0 } });
     expect(zeroNew.body.profile.settings.newPerSession).toBe(0);
 
+    // The comparisons toggle round-trips (equality-only rounds when false).
+    const noCompare = await agent
+      .patch(`/api/profiles/${id}`)
+      .send({ settings: { comparisons: false } });
+    expect(noCompare.body.profile.settings.comparisons).toBe(false);
+    expect(
+      (await agent.patch(`/api/profiles/${id}`).send({ settings: { comparisons: 'yes' } })).status,
+    ).toBe(400);
+
     // Persisted across reads.
     const list = await agent.get('/api/profiles');
     expect(list.body.profiles[0].settings).toEqual({
       sessionCards: 12,
       sessionSeconds: 180,
       newPerSession: 0,
+      comparisons: false,
     });
 
     // Out-of-range and non-integer values are rejected.

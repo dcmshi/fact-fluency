@@ -66,9 +66,9 @@ export const api = {
     req<{
       sets: FactSet[];
       gradeBands: GradeBand[];
-      /** Inclusive [min, max] per editable profile setting — the server's own
+      /** Inclusive [min, max] per numeric profile setting — the server's own
        *  validation bounds, so the settings form can't drift from them. */
-      settingBounds: Record<keyof ProfileSettings, [number, number]>;
+      settingBounds: Record<Exclude<keyof ProfileSettings, 'comparisons'>, [number, number]>;
     }>('GET', '/catalog'),
 
   // profiles

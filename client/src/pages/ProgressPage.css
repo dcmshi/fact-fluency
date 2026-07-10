@@ -211,3 +211,114 @@
   color: var(--ink-soft);
   text-align: center;
 }
+
+/* "This week" recap line. */
+.weekly-recap {
+  margin-top: 0.9rem;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  background: var(--paper-2);
+  border-radius: var(--r-md);
+  padding: 0.6rem 0.9rem;
+}
+.weekly-recap .delta-up {
+  color: var(--add);
+  font-weight: 800;
+}
+.weekly-recap .delta-down {
+  color: var(--sub);
+  font-weight: 800;
+}
+
+/* Trickiest-facts panel. */
+.trickiest {
+  margin-top: 0.9rem;
+}
+.trickiest h3 {
+  font-size: 0.95rem;
+  margin-bottom: 0.4rem;
+}
+.trickiest-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.trickiest-chip {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.85rem;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  background: var(--card);
+}
+.trickiest-acc {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+}
+
+.suggestion .enable-now {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.print-cert {
+  align-self: flex-start;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+/* Printable mastery certificate: hidden on screen; when printing, it is the
+   only thing on the page. */
+.certificate-sheet {
+  display: none;
+}
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .certificate-sheet {
+    display: block;
+    visibility: visible;
+    position: fixed;
+    inset: 0;
+    background: #fff;
+  }
+  .certificate-sheet * {
+    visibility: visible;
+  }
+  .certificate {
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    text-align: center;
+    border: 6px double #b8860b;
+    margin: 5vh 6vw;
+    padding: 2rem;
+    font-family: Georgia, 'Times New Roman', serif;
+    color: #2b2440;
+  }
+  .certificate h1 {
+    font-size: 2rem;
+    margin: 0;
+  }
+  .certificate-star {
+    font-size: 3rem;
+  }
+  .certificate-name {
+    font-size: 1.6rem;
+    font-weight: 700;
+    border-bottom: 2px solid #b8860b;
+    padding: 0 2rem 0.3rem;
+  }
+  .certificate-date {
+    color: #6b6480;
+  }
+  .certificate-brand {
+    margin-top: 1rem;
+    font-weight: 700;
+  }
+}

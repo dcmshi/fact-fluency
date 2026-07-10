@@ -272,3 +272,26 @@
     animation: none;
   }
 }
+
+/* "Mastered today" celebration chips on the summary. */
+.mastered-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+  align-items: center;
+}
+.mastered-chips-label {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--ink-soft);
+}
+.mastered-chip {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: #fff;
+  background: var(--c, var(--add));
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+}

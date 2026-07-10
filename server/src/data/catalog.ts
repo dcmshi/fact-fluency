@@ -87,7 +87,14 @@ export const DEFAULT_ENABLED_SET_IDS = ['add-0-10', 'mul-0-5'];
  * fine-tune sets afterward from the Facts screen.
  */
 export const GRADE_BANDS: GradeBand[] = [
-  { id: 'k-1', label: 'Kindergarten–Grade 1', setIds: ['add-0-10', 'sub-0-10'] },
+  // K-1 also starts with equality-only munch rounds ('smaller/bigger'
+  // judgments come later — DESIGN.md §11).
+  {
+    id: 'k-1',
+    label: 'Kindergarten–Grade 1',
+    setIds: ['add-0-10', 'sub-0-10'],
+    comparisons: false,
+  },
   { id: 'grade-2', label: 'Grade 2', setIds: ['add-0-12', 'sub-0-20'] },
   { id: 'grade-3', label: 'Grade 3', setIds: ['mul-0-10', 'div-0-10'] },
   { id: 'grade-4-plus', label: 'Grade 4 and up', setIds: ['mul-0-12', 'div-0-12'] },

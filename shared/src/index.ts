@@ -40,6 +40,8 @@ export interface GradeBand {
   id: string;
   label: string;
   setIds: string[];
+  /** Start with equality-only munch rounds (no `<`/`>`) for this band. */
+  comparisons?: false;
 }
 
 /** Leitner box 0 (learning) … 5 (mastered). */
@@ -75,6 +77,9 @@ export interface ProfileSettings {
   sessionCards: number;
   sessionSeconds: number;
   newPerSession: number;
+  /** Include smaller/bigger (`<`/`>`) munch rounds; false = equality only
+   *  (young or pre-reading kids). Absent on older rows = true. */
+  comparisons?: boolean;
 }
 
 export interface Profile {

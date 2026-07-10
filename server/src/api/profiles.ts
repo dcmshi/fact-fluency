@@ -8,7 +8,7 @@ import type { ProfileSettings } from '@shared';
 import type { Db } from '../db';
 import { loadOwnedProfile, requireAuth } from '../auth/middleware';
 import { DEFAULT_ENABLED_SET_IDS, gradeBandById, SEED_CATALOG } from '../data/catalog';
-import { DEFAULT_SETTINGS, SETTING_BOUNDS } from '../data/settings';
+import { DEFAULT_SETTINGS, SETTING_BOUNDS, type NumericSettingKey } from '../data/settings';
 import { generateFactsForSets } from '../engine/facts';
 import { handle } from './handle';
 import { rateLimit } from '../rateLimit';
@@ -21,9 +21,10 @@ const CREATE_PROFILE_MAX = 20;
 
 const CATALOG_IDS = new Set(SEED_CATALOG.map((s) => s.id));
 
-/** Returns the first invalid field name, or null if every field is in range. */
-function invalidSetting(s: ProfileSettings): keyof ProfileSettings | null {
-  for (const key of Object.keys(SETTING_BOUNDS) as (keyof ProfileSettings)[]) {
+/** Returns the first invalid numeric field name, or null if all are in range
+ *  (the boolean `comparisons` toggle is validated separately at the route). */
+function invalidSetting(s: ProfileSettings): NumericSettingKey | null {
+  for (const key of Object.keys(SETTING_BOUNDS) as NumericSettingKey[]) {
     const [min, max] = SETTING_BOUNDS[key];
     const v = s[key];
     if (typeof v !== 'number' || !Number.isInteger(v) || v < min || v > max) return key;
@@ -79,15 +80,19 @@ export function createProfileRouter(db: Db): Router {
       if (typeof avatar !== 'string' || !avatar || avatar.length > 16) {
         return res.status(400).json({ error: 'invalid_avatar' });
       }
+      // Onboarding pre-check: a chosen grade band's sets, else the starter mix
+      // (DESIGN.md §3.3). An unknown band id falls back to the default. A band
+      // flagged comparisons:false (K-1) starts with equality-only munch rounds.
+      const band = typeof gradeBand === 'string' ? gradeBandById(gradeBand) : undefined;
       const profile = await db.createProfile({
         accountId: req.accountId!,
         displayName: displayName.trim(),
         avatar,
-        settings: DEFAULT_SETTINGS,
+        settings: {
+          ...DEFAULT_SETTINGS,
+          ...(band?.comparisons === false ? { comparisons: false } : {}),
+        },
       });
-      // Onboarding pre-check: a chosen grade band's sets, else the starter mix
-      // (DESIGN.md §3.3). An unknown band id falls back to the default.
-      const band = typeof gradeBand === 'string' ? gradeBandById(gradeBand) : undefined;
       await db.setEnabledSetIds(profile.id, band ? band.setIds : DEFAULT_ENABLED_SET_IDS);
       return res.status(201).json({ profile });
     }),
@@ -127,10 +132,14 @@ export function createProfileRouter(db: Db): Router {
         if (typeof incoming !== 'object' || incoming === null) {
           return res.status(400).json({ error: 'invalid_settings' });
         }
+        if ('comparisons' in incoming && typeof incoming.comparisons !== 'boolean') {
+          return res.status(400).json({ error: 'invalid_settings' });
+        }
         merged = {
           sessionCards: incoming.sessionCards ?? profile.settings.sessionCards,
           sessionSeconds: incoming.sessionSeconds ?? profile.settings.sessionSeconds,
           newPerSession: incoming.newPerSession ?? profile.settings.newPerSession,
+          comparisons: incoming.comparisons ?? profile.settings.comparisons ?? true,
         };
         if (invalidSetting(merged)) {
           return res.status(400).json({ error: 'invalid_settings' });

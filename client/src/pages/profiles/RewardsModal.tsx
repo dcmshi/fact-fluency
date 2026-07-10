@@ -48,13 +48,15 @@ export function RewardsModal({ profile, onClose }: { profile: Profile; onClose: 
   }, [rewards]);
 
   const isEquipped = (item: RewardItem) =>
-    item.kind === 'avatar'
-      ? item.value === equippedAvatar
-      : item.kind === 'theme'
-        ? item.value === equippedTheme
-        : item.kind === 'muncher'
-          ? item.value === equippedMuncher
-          : item.value === equippedEffect;
+    item.kind === 'perk'
+      ? false // perks act on their own; nothing is "worn"
+      : item.kind === 'avatar'
+        ? item.value === equippedAvatar
+        : item.kind === 'theme'
+          ? item.value === equippedTheme
+          : item.kind === 'muncher'
+            ? item.value === equippedMuncher
+            : item.value === equippedEffect;
 
   async function equip(item: RewardItem) {
     const r = await api.equipReward(profile.id, item.id);
@@ -74,12 +76,17 @@ export function RewardsModal({ profile, onClose }: { profile: Profile; onClose: 
     setGoal(null);
     try {
       if (isOwned) {
-        await equip(item);
+        if (item.kind === 'perk') {
+          // Nothing to equip — remind what it's for instead of a dead tap.
+          setGoal('Your streak shield is ready — it saves your streak if you miss a day!');
+        } else {
+          await equip(item);
+        }
       } else if (coins >= item.cost) {
         const r = await api.unlockReward(profile.id, item.id);
         setCoins(r.coins);
         setOwned(new Set(r.owned));
-        await equip(item); // wear it right away
+        if (item.kind !== 'perk') await equip(item); // wear it right away
         // Coins were spent — refresh the picker badge and the rewards cache.
         void queryClient.invalidateQueries({ queryKey: qk.profiles });
         void queryClient.invalidateQueries({ queryKey: qk.rewards(profile.id) });
@@ -132,6 +139,7 @@ export function RewardsModal({ profile, onClose }: { profile: Profile; onClose: 
       {section('Celebrations', 'effect')}
       {section('Avatars', 'avatar')}
       {section('Themes', 'theme')}
+      {section('Power-ups', 'perk')}
     </Modal>
   );
 }
@@ -180,6 +188,7 @@ function RewardTile({
         {item.kind === 'effect' && (
           <span className="reward-emoji">{EFFECT_ICON[item.value] ?? '🎉'}</span>
         )}
+        {item.kind === 'perk' && <span className="reward-emoji">🛡️</span>}
         {item.kind === 'theme' && (
           <span className="reward-swatches">
             {(item.swatches ?? []).map((c, i) => (
@@ -193,7 +202,11 @@ function RewardTile({
         {equipped ? (
           '✓ On'
         ) : owned ? (
-          'Use'
+          item.kind === 'perk' ? (
+            '✓ Ready'
+          ) : (
+            'Use'
+          )
         ) : locked ? (
           // Show the goal, not just the price: "⭐ 80 · 45 to go!"
           <>

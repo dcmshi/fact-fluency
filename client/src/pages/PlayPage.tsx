@@ -23,6 +23,9 @@ const OP_WORD: Record<string, string> = {
 const eqText = (a: number, op: string, b: number, answer: number) =>
   `${a} ${OP_WORD[op] ?? op} ${b} equals ${answer}`;
 
+/** Mirrors the server's REHEARSAL_GAP for offline self-requeues (§4.4). */
+const REHEARSAL_GAP = 3;
+
 type Phase = 'loading' | 'study' | 'munch' | 'done' | 'error';
 
 export function PlayPage() {
@@ -205,6 +208,14 @@ export function PlayPage() {
         .catch(() => {
           // Offline (or a blip): queue the report; it replays on reconnect.
           enqueueAnswer(s.sessionId, body);
+          // No server injects while offline — self-requeue a missed fact
+          // locally at the same rehearsal gap so it still gets its in-session
+          // re-show (the queued report re-grades it server-side later).
+          if (!r.correct && current) {
+            applyQueue((q) =>
+              spliceInject(q, current, REHEARSAL_GAP, playedRef.current - playedAtPost),
+            );
+          }
         })
         .finally(() => {
           inflightRef.current.delete(report);
@@ -369,6 +380,16 @@ export function PlayPage() {
           {summary.streak > 1 && (
             <div className="streak-ribbon">
               <span aria-hidden="true">🔥</span> {summary.streak}-day streak!
+            </div>
+          )}
+          {summary.masteredFacts.length > 0 && (
+            <div className="mastered-chips">
+              <span className="mastered-chips-label">Mastered today:</span>
+              {summary.masteredFacts.map((f) => (
+                <span key={f.id} className={`mastered-chip ${OP_CLASS[f.operation]}`}>
+                  {f.operandA} {OP_SYMBOL[f.operation]} {f.operandB} = {f.answer}
+                </span>
+              ))}
             </div>
           )}
           <div className="summary-stats">

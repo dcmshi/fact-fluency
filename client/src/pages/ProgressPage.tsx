@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Box, CellState, DashboardView, DayTrend, ProgressGrid } from '@shared';
 import { api, qk } from '../api';
@@ -91,14 +91,18 @@ export function ProgressPage() {
           </div>
         )}
 
-        {dash ? <Dashboard dash={dash} /> : !dashError && <DashboardSkeleton />}
+        {dash ? (
+          <Dashboard dash={dash} profileId={profileId} />
+        ) : (
+          !dashError && <DashboardSkeleton />
+        )}
 
         {!view && !viewError && <GridSkeleton />}
         {view?.grids.length === 0 && (
           <p className="muted">No fact sets enabled yet — pick some from the profiles screen.</p>
         )}
         {view?.grids.map((grid) => (
-          <OperationGrid key={grid.operation} grid={grid} />
+          <OperationGrid key={grid.operation} grid={grid} kidName={dash?.displayName ?? ''} />
         ))}
 
         {view && view.grids.length > 0 && (
@@ -167,11 +171,26 @@ function median(nums: number[]): number | null {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
-function Dashboard({ dash }: { dash: DashboardView }) {
-  const { summary, trends, suggestion } = dash;
+function Dashboard({ dash, profileId }: { dash: DashboardView; profileId: string }) {
+  const { summary, trends, suggestion, weekly, trickiest } = dash;
   const typicalMs = median(trends.map((t) => t.medianMs).filter((m): m is number => m != null));
   // Tap-to-inspect caption for the trend chart (tooltips are hover-only).
   const [detail, setDetail] = useState<string | null>(null);
+
+  // One-tap "Enable now" on the suggestion — no detour through the Facts modal.
+  const queryClient = useQueryClient();
+  const enableMut = useMutation({
+    mutationFn: async () => {
+      if (!suggestion) return;
+      const { enabledIds } = await api.getFactSets(profileId);
+      await api.setFactSets(profileId, [...new Set([...enabledIds, suggestion.setId])]);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.factSets(profileId) });
+      void queryClient.invalidateQueries({ queryKey: qk.progress(profileId) });
+      void queryClient.invalidateQueries({ queryKey: qk.dashboard(profileId) });
+    },
+  });
 
   return (
     <section className="dash card rise">
@@ -197,14 +216,56 @@ function Dashboard({ dash }: { dash: DashboardView }) {
         />
       </div>
 
+      {weekly.attempts > 0 && (
+        <div className="weekly-recap">
+          <strong>This week:</strong> {weekly.sessions}{' '}
+          {weekly.sessions === 1 ? 'session' : 'sessions'} · {weekly.attempts} answers
+          {weekly.accuracy != null && <> · {Math.round(weekly.accuracy * 100)}% right</>}
+          {weekly.accuracyDelta != null && (
+            <span className={weekly.accuracyDelta >= 0 ? 'delta-up' : 'delta-down'}>
+              {' '}
+              ({weekly.accuracyDelta >= 0 ? '+' : ''}
+              {Math.round(weekly.accuracyDelta * 100)}% vs last week)
+            </span>
+          )}
+          {weekly.mastered > 0 && <> · {weekly.mastered} mastered</>}
+        </div>
+      )}
+
       {suggestion && (
         <div className="suggestion">
           <span className="suggestion-spark" aria-hidden="true">
             ✨
           </span>
           <div>
-            <strong>Ready for more!</strong> {suggestion.reason}
-            <span className="muted"> Enable it from the Facts screen.</span>
+            <strong>Ready for more!</strong> {suggestion.reason}{' '}
+            <button
+              className="btn ghost enable-now"
+              disabled={enableMut.isPending}
+              onClick={() => enableMut.mutate()}
+            >
+              {enableMut.isPending ? 'Enabling…' : 'Enable now'}
+            </button>
+            {enableMut.isError && <span className="muted"> Couldn’t enable — try again.</span>}
+          </div>
+        </div>
+      )}
+
+      {trickiest.length > 0 && (
+        <div className="trickiest">
+          <h3>Trickiest facts right now</h3>
+          <div className="trickiest-chips">
+            {trickiest.map((t) => (
+              <span
+                key={`${t.operation}-${t.operandA}-${t.operandB}`}
+                className="trickiest-chip"
+                style={{ borderColor: OP_HEX[t.operation] }}
+                title={`${Math.round(t.accuracy * 100)}% right · ${(t.medianMs / 1000).toFixed(1)}s typical`}
+              >
+                {t.operandA} {OP_SYMBOL[t.operation]} {t.operandB}
+                <span className="trickiest-acc"> {Math.round(t.accuracy * 100)}%</span>
+              </span>
+            ))}
           </div>
         </div>
       )}
@@ -337,6 +398,60 @@ function TrendChart({
   );
 }
 
+/**
+ * Fridge-door output: a print-friendly certificate for a fully-mastered
+ * operation. The printable node exists only while printing is armed; print CSS
+ * hides everything else (`.certificate-sheet` + @media print in the page CSS).
+ */
+function CertificateButton({
+  kidName,
+  operation,
+}: {
+  kidName: string;
+  operation: ProgressGrid['operation'];
+}) {
+  const [printing, setPrinting] = useState(false);
+
+  function print() {
+    setPrinting(true);
+    // Let the sheet render before opening the dialog; clean up after.
+    requestAnimationFrame(() => {
+      window.print();
+      setPrinting(false);
+    });
+  }
+
+  const today = new Date().toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  return (
+    <>
+      <button className="btn ghost print-cert" onClick={print}>
+        <span aria-hidden="true">🖨️</span> Print certificate
+      </button>
+      {printing && (
+        <div className="certificate-sheet">
+          <div className="certificate">
+            <div className="certificate-star" aria-hidden="true">
+              ⭐
+            </div>
+            <h1>Certificate of Mastery</h1>
+            <p className="certificate-name">{kidName || 'Super mathematician'}</p>
+            <p>
+              mastered <strong>every {OP_LABEL[operation].toLowerCase()} fact</strong>
+            </p>
+            <p className="certificate-date">{today}</p>
+            <p className="certificate-brand">✦ Fact Fluency</p>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function tooltip(t: DayTrend): string {
   if (t.attempts === 0) return `${t.day}: no practice`;
   const acc = `${Math.round(t.accuracy * 100)}% (${t.correct}/${t.attempts})`;
@@ -344,8 +459,9 @@ function tooltip(t: DayTrend): string {
   return `${t.day}: ${acc}${speed}`;
 }
 
-function OperationGrid({ grid }: { grid: ProgressGrid }) {
+function OperationGrid({ grid, kidName }: { grid: ProgressGrid; kidName: string }) {
   const mastered = grid.cells.filter((c) => c.state === 'mastered').length;
+  const fullyMastered = grid.cells.length > 0 && mastered === grid.cells.length;
   // Tap-to-inspect: the hover title is invisible on touch/keyboard/SR, so a
   // tapped cell writes its details into a caption line (and each cell carries
   // an aria-label for screen-reader browse mode). Cells stay out of the Tab
@@ -364,6 +480,7 @@ function OperationGrid({ grid }: { grid: ProgressGrid }) {
           {mastered} / {grid.cells.length} mastered
         </span>
       </div>
+      {fullyMastered && <CertificateButton kidName={kidName} operation={grid.operation} />}
       <div className="fact-grid">
         {grid.cells.map((c) => {
           const label = `${c.operandA} ${OP_SYMBOL[grid.operation]} ${c.operandB} = ${c.answer} · ${c.state}`;

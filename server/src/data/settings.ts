@@ -11,9 +11,12 @@ export const DEFAULT_SETTINGS: ProfileSettings = {
   sessionCards: 20,
   sessionSeconds: 180,
   newPerSession: 3,
+  comparisons: true,
 };
 
-export type SettingBounds = Record<keyof ProfileSettings, [min: number, max: number]>;
+/** Bounds cover the numeric knobs only — `comparisons` is a boolean toggle. */
+export type NumericSettingKey = 'sessionCards' | 'sessionSeconds' | 'newPerSession';
+export type SettingBounds = Record<NumericSettingKey, [min: number, max: number]>;
 
 export const SETTING_BOUNDS: SettingBounds = {
   sessionCards: [5, 50],
