@@ -135,6 +135,9 @@ export function ProfilesPage() {
                 Play ▶
               </button>
               <div className="tile-actions">
+                <button className="btn ghost" onClick={() => navigate(`/race/${p.id}`)}>
+                  🏁 Race
+                </button>
                 <button className="btn ghost" onClick={() => setRewardsFor(p)}>
                   Rewards
                 </button>

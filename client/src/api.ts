@@ -13,6 +13,10 @@ import type {
   Profile,
   ProfileSettings,
   ProgressView,
+  RaceResult,
+  RaceRunRequest,
+  RaceStartResponse,
+  RaceSummary,
   RewardsView,
   SessionResponse,
   SessionSummary,
@@ -100,6 +104,15 @@ export const api = {
   calibrationSubmit: (profileId: string, results: CalibrationAnswer[]) =>
     req<{ seeded: number }>('POST', `/profiles/${profileId}/calibration`, { results }),
 
+  // race (multiplayer)
+  raceCreate: (profileId: string) => req<RaceStartResponse>('POST', `/profiles/${profileId}/races`),
+  raceList: (profileId: string) =>
+    req<{ races: RaceSummary[] }>('GET', `/profiles/${profileId}/races`),
+  raceGet: (profileId: string, raceId: string) =>
+    req<RaceStartResponse>('GET', `/profiles/${profileId}/races/${raceId}`),
+  raceRun: (profileId: string, raceId: string, body: RaceRunRequest) =>
+    req<RaceResult>('POST', `/profiles/${profileId}/races/${raceId}/run`, body),
+
   // progress
   progress: (profileId: string) => req<ProgressView>('GET', `/profiles/${profileId}/progress`),
   dashboard: (profileId: string) => req<DashboardView>('GET', `/profiles/${profileId}/dashboard`),
@@ -131,4 +144,5 @@ export const qk = {
   factSets: (profileId: string) => ['factsets', profileId] as const,
   progress: (profileId: string) => ['progress', profileId] as const,
   dashboard: (profileId: string) => ['dashboard', profileId] as const,
+  races: (profileId: string) => ['races', profileId] as const,
 };

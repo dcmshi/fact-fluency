@@ -294,11 +294,14 @@ export interface RaceSummary {
   played: boolean;
 }
 
-/** Start/join response: the shared deck + an opponent to chase. */
+/** Start/join response: the shared deck + an opponent to chase, plus the kid's
+ *  equipped muncher/effect so the race board matches their solo game. */
 export interface RaceStartResponse {
   raceId: string;
   deck: Card[];
   ghost: RaceGhost;
+  muncher: string;
+  effect: string;
 }
 
 /** A finished run the client reports (client-timed; server sanity-clamps). */

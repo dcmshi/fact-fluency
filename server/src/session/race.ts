@@ -92,7 +92,11 @@ export async function createRace(
     factCount: deck.length,
     createdAt: now,
   });
-  return { raceId, deck, ghost: botGhostFor(raceId, deck.length) };
+  const [muncher, effect] = await Promise.all([
+    db.getEquippedMuncher(profile.id),
+    db.getEquippedEffect(profile.id),
+  ]);
+  return { raceId, deck, ghost: botGhostFor(raceId, deck.length), muncher, effect };
 }
 
 /** Join/rematch an existing race: the same deck, with the fastest run by
@@ -119,7 +123,11 @@ export async function getRaceForPlay(
   } else {
     ghost = botGhostFor(raceId, race.factCount);
   }
-  return { raceId, deck, ghost };
+  const [muncher, effect] = await Promise.all([
+    db.getEquippedMuncher(profile.id),
+    db.getEquippedEffect(profile.id),
+  ]);
+  return { raceId, deck, ghost, muncher, effect };
 }
 
 /** Record a finished run, rank it against the field (best run per racer + the
