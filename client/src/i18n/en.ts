@@ -83,6 +83,7 @@ export const en = {
     play: 'Play ▶',
     race: '🏁 Race',
     rewards: 'Rewards',
+    stickers: 'Stickers',
     progress: 'Progress',
     facts: 'Facts',
     settings: 'Settings',
@@ -358,6 +359,12 @@ export const en = {
       'effect-stars': 'Shooting stars',
       'effect-fireworks': 'Fireworks',
     },
+  },
+  stickers: {
+    title: '{{avatar}} {{name}}’s sticker book',
+    collected: '{{collected}} of {{total}} collected',
+    locked: 'Not collected yet',
+    complete: 'Collection complete! 🎉',
   },
   // Derivation strategies shown on the study card — server emits the key + params
   // (server/src/engine/facts.ts), the client renders them.

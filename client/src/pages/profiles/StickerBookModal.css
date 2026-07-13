@@ -1,0 +1,66 @@
+.sticker-progress {
+  margin-bottom: 0.6rem;
+  text-align: center;
+}
+.sticker-progress-count {
+  font-family: var(--font-display);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.sticker-progress-track {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--paper-2);
+  overflow: hidden;
+}
+.sticker-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--sun), var(--add));
+  border-radius: 999px;
+  transition: width 0.5s ease;
+}
+.sticker-complete {
+  margin-top: 0.5rem;
+  font-weight: 800;
+  color: var(--add);
+}
+
+.sticker-section {
+  margin-top: 1rem;
+}
+.sticker-section-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 0.5rem;
+}
+
+/* A sticker slot: a collected item shows its art; an uncollected one is a faded
+   "?" placeholder so the album reads as "things left to find," not a dead grid. */
+.sticker {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-md);
+  padding: 0.35rem;
+}
+.sticker.have {
+  background: var(--card);
+  border: 2px solid color-mix(in srgb, var(--sun) 55%, var(--card));
+  box-shadow: 0 2px 0 var(--line);
+}
+.sticker.locked {
+  background: var(--paper-2);
+  border: 2px dashed var(--line);
+}
+.sticker-locked {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  opacity: 0.45;
+}

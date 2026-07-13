@@ -11,6 +11,7 @@ import { AccountModal } from './profiles/AccountModal';
 import { AddProfileModal } from './profiles/AddProfileModal';
 import { FactSetsModal } from './profiles/FactSetsModal';
 import { RewardsModal } from './profiles/RewardsModal';
+import { StickerBookModal } from './profiles/StickerBookModal';
 import { SettingsModal } from './profiles/SettingsModal';
 import { UpgradeModal } from './profiles/UpgradeModal';
 import './ProfilesPage.css';
@@ -23,6 +24,7 @@ export function ProfilesPage() {
   const [managing, setManaging] = useState<Profile | null>(null);
   const [settingsFor, setSettingsFor] = useState<Profile | null>(null);
   const [rewardsFor, setRewardsFor] = useState<Profile | null>(null);
+  const [stickersFor, setStickersFor] = useState<Profile | null>(null);
   const [upgrading, setUpgrading] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [exiting, setExiting] = useState(false);
@@ -151,6 +153,9 @@ export function ProfilesPage() {
                 <button className="btn ghost" onClick={() => setRewardsFor(p)}>
                   {t('profiles.rewards')}
                 </button>
+                <button className="btn ghost" onClick={() => setStickersFor(p)}>
+                  {t('profiles.stickers')}
+                </button>
                 <button className="btn ghost" onClick={() => navigate(`/progress/${p.id}`)}>
                   {t('profiles.progress')}
                 </button>
@@ -187,6 +192,9 @@ export function ProfilesPage() {
         />
       )}
       {rewardsFor && <RewardsModal profile={rewardsFor} onClose={() => setRewardsFor(null)} />}
+      {stickersFor && (
+        <StickerBookModal profile={stickersFor} onClose={() => setStickersFor(null)} />
+      )}
       {upgrading && (
         <UpgradeModal onClose={() => setUpgrading(false)} onDone={() => setUpgrading(false)} />
       )}

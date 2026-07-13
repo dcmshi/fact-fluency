@@ -83,6 +83,7 @@ export const es: typeof en = {
     play: 'Jugar ▶',
     race: '🏁 Carrera',
     rewards: 'Premios',
+    stickers: 'Álbum',
     progress: 'Progreso',
     facts: 'Operaciones',
     settings: 'Ajustes',
@@ -362,6 +363,12 @@ export const es: typeof en = {
       'effect-stars': 'Estrellas fugaces',
       'effect-fireworks': 'Fuegos artificiales',
     },
+  },
+  stickers: {
+    title: 'Álbum de {{avatar}} {{name}}',
+    collected: '{{collected}} de {{total}} recolectadas',
+    locked: 'Aún no la tienes',
+    complete: '¡Colección completa! 🎉',
   },
   strategy: {
     addZero: 'Sumar 0 no cambia nada: sigue siendo {{answer}}.',

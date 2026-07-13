@@ -84,6 +84,7 @@ export const fr: typeof en = {
     play: 'Jouer ▶',
     race: '🏁 Course',
     rewards: 'Récompenses',
+    stickers: 'Album',
     progress: 'Progrès',
     facts: 'Calculs',
     settings: 'Réglages',
@@ -360,6 +361,12 @@ export const fr: typeof en = {
       'effect-stars': 'Étoiles filantes',
       'effect-fireworks': 'Feux d’artifice',
     },
+  },
+  stickers: {
+    title: 'Album de {{avatar}} {{name}}',
+    collected: '{{collected}} sur {{total}} collectés',
+    locked: 'Pas encore obtenu',
+    complete: 'Collection complète ! 🎉',
   },
   strategy: {
     addZero: 'Ajouter 0 ne change rien — toujours {{answer}}.',

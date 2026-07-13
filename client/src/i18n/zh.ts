@@ -80,6 +80,7 @@ export const zh: typeof en = {
     play: '开始 ▶',
     race: '🏁 比赛',
     rewards: '奖励',
+    stickers: '贴纸',
     progress: '进度',
     facts: '算式',
     settings: '设置',
@@ -345,6 +346,12 @@ export const zh: typeof en = {
       'effect-stars': '流星',
       'effect-fireworks': '烟花',
     },
+  },
+  stickers: {
+    title: '{{avatar}} {{name}} 的贴纸册',
+    collected: '已收集 {{collected}} / {{total}}',
+    locked: '尚未收集',
+    complete: '收集完成！🎉',
   },
   strategy: {
     addZero: '加 0 不变 — 还是 {{answer}}。',

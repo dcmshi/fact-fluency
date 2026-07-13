@@ -1,29 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Profile, RewardItem } from '@shared';
 import { api, qk } from '../../api';
 import { Modal } from '../../components/Modal';
-import { Muncher } from '../../components/Muncher';
-import { tLabel } from '../../i18n';
+import { RewardPreview, itemLabel } from '../../components/RewardPreview';
 import { useTheme } from '../../useTheme';
-
-/** Shop preview icon per celebration effect. */
-const EFFECT_ICON: Record<string, string> = {
-  confetti: '🎉',
-  sparkles: '✨',
-  stars: '🌟',
-  fireworks: '🎆',
-};
-
-/** Localized reward name by id; the 12 free avatars share one label. */
-function itemLabel(t: TFunction, item: RewardItem): string {
-  const key = item.id.startsWith('avatar-free-')
-    ? 'rewards.items.starterBuddy'
-    : `rewards.items.${item.id}`;
-  return tLabel(t, key, item.label);
-}
 
 export function RewardsModal({ profile, onClose }: { profile: Profile; onClose: () => void }) {
   const { t } = useTranslation();
@@ -194,31 +176,7 @@ function RewardTile({
       onClick={onClick}
       title={itemLabel(t, item)}
     >
-      <div className="reward-preview">
-        {item.kind === 'avatar' && <span className="reward-emoji">{item.value}</span>}
-        {/* `still` (no animation) AND a clipped, self-compositing wrapper
-            (.reward-muncher): the muncher SVG paints past its box
-            (overflow: visible), and a plain overflow:hidden ancestor doesn't
-            reliably clip a composited SVG while the modal is mid-scroll — it
-            slides off its tile. The wrapper's own layer clips it on the
-            scroll thread. Emoji/swatch previews don't need this. */}
-        {item.kind === 'muncher' && (
-          <span className="reward-muncher">
-            <Muncher animal={item.value} state="still" size={36} />
-          </span>
-        )}
-        {item.kind === 'effect' && (
-          <span className="reward-emoji">{EFFECT_ICON[item.value] ?? '🎉'}</span>
-        )}
-        {item.kind === 'perk' && <span className="reward-emoji">🛡️</span>}
-        {item.kind === 'theme' && (
-          <span className="reward-swatches">
-            {(item.swatches ?? []).map((c, i) => (
-              <span key={i} className="reward-swatch" style={{ background: c }} />
-            ))}
-          </span>
-        )}
-      </div>
+      <RewardPreview item={item} />
       <div className="reward-label">{itemLabel(t, item)}</div>
       <div className="reward-status">
         {equipped ? (
