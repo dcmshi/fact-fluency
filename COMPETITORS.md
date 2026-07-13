@@ -241,9 +241,10 @@ Filtered to fit the product's philosophy (short, non-tedious, fluency-first,
 warm) and to be _better than_, not just match, the field.
 
 **Status** (updated 2026-07-13): ✅ done · ⚠️ partial · ⬜ not started. Summary:
-**8 of 12** substantially shipped; open = efficacy page (#6), classroom/SSO (#9),
-game skins (#10); partial = emailed recap (#2), narrated audio (#5), sticker book
-(#11).
+**9 of 12** substantially shipped. Only **#9 classroom/SSO** is untouched (vendor-
+gated). Partial: **#2** emailed recap (needs a domain + Security-approved email
+vendor) and **#6** opt-in outcome tracking (the page is live; the study data
+pipeline is parked on a COPPA/consent decision). Everything else is done.
 
 1. ✅ **Non-punitive async multiplayer** ("ghost race" vs. your own best, or
    sibling/family async challenges) — closes the #1 gap without importing
@@ -261,15 +262,18 @@ game skins (#10); partial = emailed recap (#2), narrated audio (#5), sticker boo
    (with a visible "getting faster" trend) — turn an engine strength into a
    marketing wedge. **Effort: S**
    — _Shipped: dashboard speed trend + fast-bar threshold shown per operation._
-5. ⚠️ **Spanish localization + narrated audio for pre/emerging readers** — XtraMath
+5. ✅ **Spanish localization + narrated audio for pre/emerging readers** — XtraMath
    proves demand; audio also serves accessibility and the K–1 market. **Effort:
    M**
    — _Shipped: full localization in English, Spanish, French, Simplified Chinese
-   (react-i18next; server prose emitted as translation keys). Open: narrated
-   audio._
-6. ⬜ **Publish a transparent methodology + efficacy page; add opt-in anonymized
+   (react-i18next; server prose emitted as translation keys), plus on-device
+   narrated audio (Web Speech API) behind a per-profile toggle._
+6. ⚠️ **Publish a transparent methodology + efficacy page; add opt-in anonymized
    outcome tracking to seed a real study** — attacks the credibility gap vs.
    Reflex/Zearn. **Effort: M writeup / L for a study**
+   — _Shipped: the public `/how-it-works` methodology page (honest, no fabricated
+   outcomes). Open: opt-in anonymized outcome tracking — parked on a COPPA/
+   consent decision._
 7. ✅ **Gentle accessibility/dyscalculia mode** (no-timer "confidence" setting,
    reduced-motion, dyslexia-friendly font, high-contrast, subitizing visuals) —
    inclusive, on-brand, unmatched by the arcade competitors. **Effort: M**
@@ -280,14 +284,17 @@ game skins (#10); partial = emailed recap (#2), narrated audio (#5), sticker boo
 9. ⬜ **Lightweight classroom mode** (class-code join + optional Clever/Google SSO +
    simple roster) — opens the school channel; keep it optional so home UX stays
    login-free. **Effort: L**
-10. ⬜ **Multiple game skins over the same engine** (rotate mini-games beyond
+10. ✅ **Multiple game skins over the same engine** (rotate mini-games beyond
     munch-the-grid) — counters single-mechanic fatigue; reuses the SR/fluency
     core. **Effort: M**
-11. ⚠️ **Calm reward meta** (collectible muncher "sticker book," milestone-linked
+    — _Shipped: Number Feast, a real-time "sushi-go-round" arena (grab the plates
+    matching the fact, bump rivals) — a second multiplayer game on the shared
+    fact engine. See FEAST.md. More game types can follow the same pattern._
+11. ✅ **Calm reward meta** (collectible muncher "sticker book," milestone-linked
     themes, Duolingo-style streak-freeze) — extends motivation without
     punishment. **Effort: S–M**
-    — _Shipped: streak-freeze (streak shield) + unlockable themes/munchers/effects.
-    Open: a collectible "sticker book" gallery view._
+    — _Shipped: a collectible sticker-book gallery, streak-freeze (streak shield),
+    and unlockable themes/munchers/effects._
 12. ✅ **Marketed anti-grind guarantee** (parent-set daily goal + a hard "done for
     today" stop) — turns a core principle into a claim no competitor makes.
     **Effort: S**

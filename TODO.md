@@ -1326,6 +1326,41 @@ pass-7 changes. All clean except:
       key is the proxy-observed client IP behind Render (audit pass 6 tightened
       this from `true`, which was spoofable). Unit + HTTP tested.
 
+## Session 2026-07-12/13 — localization, accessibility, credibility, game variety
+
+Worked the COMPETITORS.md §5 differentiation backlog. 303 server + 18 client
+tests passing. Remaining §5 items are all externally gated: emailed recap
+(#2, needs a domain + a Security-approved email vendor), opt-in outcome tracking
+(#6, parked on a COPPA/consent decision — the methodology page shipped), and
+classroom/SSO (#9, vendor-gated). See the COMPETITORS.md §5 checklist for status.
+
+- [x] **Localization (4 languages).** react-i18next; English + Spanish + French + Simplified Chinese. `client/src/i18n/{en,es,fr,zh}.ts` (es/fr/zh typed
+      `typeof en`, so a missing key fails the build). Device-level detection
+      (localStorage `ff_lang` + navigator), switcher on the landing hero +
+      profiles header, `<html lang>` synced. **Server-generated prose** is
+      emitted as structured `LocalizedText` `{key, params}` (strategy hints,
+      dashboard suggestion) or resolved by id (catalog/reward labels), so all
+      copy lives in the client dictionaries — no server locale needed.
+- [x] **Narrated audio (#5).** On-device Web Speech API (`client/src/speech.ts`);
+      per-profile `narrate` accessibility setting; reads the study equation and
+      each munch prompt (as a question, no answer) aloud, with a replay button.
+      Also localized `MunchBoard` (a gap missed in the initial i18n sweep).
+- [x] **Methodology / efficacy page (#6, page half).** Public `/how-it-works`
+      (lazy route, linked from the landing + sitemap), honest — no fabricated
+      outcomes — with a children's-data privacy promise. Localized.
+- [x] **Collectible sticker book (#11).** A read-only collection gallery over
+      the rewards catalog (owned vs. locked "?"), progress bar + completion
+      celebration; shared `RewardPreview` with the shop.
+- [x] **Number Feast — real-time multiplayer arena (#10).** A "sushi-go-round":
+      a belt of numbered plates, tap the ones matching the fact for points, bump
+      rivals; score-attack timer; solo-vs-bots or live (same account, other
+      devices). Server-authoritative tick loop over a new `/api/feast-ws`
+      (`server/src/feast/live.ts`) stepping a pure engine (`engine/feast.ts`,
+      12 unit tests). Client arena `FeastPage`. Full design in **FEAST.md**.
+- [x] **Deploy fix.** Server now binds `0.0.0.0` (was Node's default IPv6 `::`),
+      which Render's IPv4 port scan couldn't detect under the Node 24 pin —
+      deploys were timing out with "no open ports detected".
+
 ## Known limitations
 
 - `caughtUp` is computed per profile (due-review + learning counts), not scoped
