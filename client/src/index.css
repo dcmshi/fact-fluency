@@ -193,6 +193,19 @@ button {
 .btn.ghost:active {
   transform: none;
 }
+/* Summary-screen secondary actions — real chunky buttons (not the old
+   ghost/links that blended into the coin summary line), each visually distinct
+   and sub-ordinate to the sun "Play again"/"Done" primary. */
+.btn.spend-coins {
+  --c: var(--div);
+  --shadow: #c87d08;
+  color: var(--on-sun);
+}
+.btn.done-for-now {
+  --c: var(--paper-2);
+  --shadow: var(--line);
+  color: var(--ink-soft);
+}
 
 /* operation accents */
 .op-add {
@@ -439,6 +452,12 @@ body[data-theme='midnight'] {
   font-size: 0.85rem;
   letter-spacing: 0.02em;
   color: var(--ink-soft);
+  transition: opacity 0.25s ease;
+}
+/* Faded out (and non-interactive) once the info panel is in view. */
+.scroll-cue--hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 .cue-arrow {
   display: grid;
@@ -458,6 +477,10 @@ body[data-theme='midnight'] {
   animation: cue-bob 1.7s ease-in-out infinite;
 }
 .scroll-cue[data-dir='up'] {
+  /* Full-width block so the label + arrow center within the info panel (the
+     panel is a plain block, not a flex row, so inline-flex would sit left). */
+  display: flex;
+  width: 100%;
   margin-bottom: 1.1rem;
   color: var(--ink);
 }

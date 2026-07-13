@@ -414,7 +414,10 @@ export function PlayPage() {
             <span aria-hidden="true">⭐</span> {summary.coins} coins to spend in Rewards
           </div>
           {summary.coins > 0 && (
-            <button className="btn ghost" onClick={() => navigate(`/?rewards=${profileId}`)}>
+            <button
+              className="btn full spend-coins"
+              onClick={() => navigate(`/?rewards=${profileId}`)}
+            >
               <span aria-hidden="true">⭐</span> Spend coins
             </button>
           )}
@@ -423,7 +426,7 @@ export function PlayPage() {
               <button className="btn sun full" onClick={() => navigate('/')}>
                 Done
               </button>
-              <button className="btn ghost" onClick={start}>
+              <button className="btn full" onClick={start}>
                 Play a bonus round
               </button>
             </>
@@ -432,7 +435,7 @@ export function PlayPage() {
               <button className="btn sun full" onClick={start}>
                 Play again
               </button>
-              <button className="btn ghost" onClick={() => navigate('/')}>
+              <button className="btn full done-for-now" onClick={() => navigate('/')}>
                 Done for now
               </button>
             </>

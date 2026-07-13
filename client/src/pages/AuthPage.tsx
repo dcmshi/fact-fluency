@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ApiError } from '../api';
 import { useAuth } from '../auth';
@@ -30,6 +30,20 @@ export function AuthPage() {
     el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
   };
 
+  // Hide the hero's "Learn more" cue once the info panel scrolls into view, so
+  // it doesn't linger beside the "Play Fact Fluency" cue (both fit on screen at
+  // once on a short page, which reads as confusing).
+  const [infoVisible, setInfoVisible] = useState(false);
+  useEffect(() => {
+    const el = infoRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([entry]) => setInfoVisible(entry.isIntersecting), {
+      rootMargin: '0px 0px -20% 0px',
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -50,7 +64,7 @@ export function AuthPage() {
     setGuestBusy(true);
     try {
       const profileId = await playAsGuest();
-      navigate(`/play/${profileId}`);
+      navigate(`/calibrate/${profileId}`);
     } catch {
       setError('Could not start a guest game. Try again.');
       setGuestBusy(false);
@@ -143,7 +157,7 @@ export function AuthPage() {
 
         <button
           type="button"
-          className="scroll-cue"
+          className={`scroll-cue${infoVisible ? ' scroll-cue--hidden' : ''}`}
           data-dir="down"
           onClick={() => scrollToSection(infoRef.current)}
         >
