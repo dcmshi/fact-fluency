@@ -219,6 +219,19 @@
   display: grid;
   place-items: center;
 }
+/* The muncher art is the only reward preview that escaped its tile on scroll
+   (it's an SVG with overflow: visible; themes/avatars are plain divs/emoji).
+   Give it its own clipped compositor layer (translateZ) so the clip is applied
+   on the scroll/compositor thread — a bare overflow:hidden ancestor doesn't
+   reliably clip a composited SVG once the modal is scrolling. */
+.reward-muncher {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  transform: translateZ(0);
+}
 .reward-emoji {
   font-size: 1.9rem;
   line-height: 1;

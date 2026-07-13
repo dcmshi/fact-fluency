@@ -180,11 +180,17 @@ function RewardTile({
     >
       <div className="reward-preview">
         {item.kind === 'avatar' && <span className="reward-emoji">{item.value}</span>}
-        {/* `still`, not `idle`: the idle bob is an infinite composited
-            animation, and inside the modal's scroll container Chrome can
-            desync that layer from the scroll — munchers float off their
-            tiles. A static preview can't. */}
-        {item.kind === 'muncher' && <Muncher animal={item.value} state="still" size={44} />}
+        {/* `still` (no animation) AND a clipped, self-compositing wrapper
+            (.reward-muncher): the muncher SVG paints past its box
+            (overflow: visible), and a plain overflow:hidden ancestor doesn't
+            reliably clip a composited SVG while the modal is mid-scroll — it
+            slides off its tile. The wrapper's own layer clips it on the
+            scroll thread. Emoji/swatch previews don't need this. */}
+        {item.kind === 'muncher' && (
+          <span className="reward-muncher">
+            <Muncher animal={item.value} state="still" size={36} />
+          </span>
+        )}
         {item.kind === 'effect' && (
           <span className="reward-emoji">{EFFECT_ICON[item.value] ?? '🎉'}</span>
         )}
