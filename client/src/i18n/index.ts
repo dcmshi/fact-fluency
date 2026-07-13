@@ -10,21 +10,30 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { en } from './en';
 import { es } from './es';
+import { fr } from './fr';
+import { zh } from './zh';
 
 /** The languages offered in the switcher. */
 export const LANGUAGES = [
   { code: 'en', label: 'English' },
   { code: 'es', label: 'Español' },
+  { code: 'fr', label: 'Français' },
+  { code: 'zh', label: '中文' },
 ] as const;
 
 void i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    resources: { en: { translation: en }, es: { translation: es } },
+    resources: {
+      en: { translation: en },
+      es: { translation: es },
+      fr: { translation: fr },
+      zh: { translation: zh },
+    },
     fallbackLng: 'en',
-    supportedLngs: ['en', 'es'],
-    nonExplicitSupportedLngs: true, // es-MX, es-419 … → es
+    supportedLngs: ['en', 'es', 'fr', 'zh'],
+    nonExplicitSupportedLngs: true, // es-MX → es, fr-CA → fr, zh-CN → zh
     interpolation: { escapeValue: false }, // React already escapes
     detection: {
       order: ['localStorage', 'navigator'],
