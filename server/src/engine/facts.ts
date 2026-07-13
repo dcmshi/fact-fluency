@@ -157,6 +157,49 @@ export function siblingFactId(fact: Fact): string | null {
   return hint ? factId(hint.operation, hint.operandA, hint.operandB) : null;
 }
 
+/**
+ * A warm, kid-friendly *strategy* for deriving a fact — Reflex-style
+ * "just-in-time coaching" (COMPETITORS.md), shown on the study card so a missed
+ * fact teaches a way to get it, not just the answer. Pure; picks the most
+ * useful strategy for the fact (doubles, make-ten, ×10/×5 shortcuts, build-up,
+ * or the inverse relationship). Operands are canonical (a ≤ b for add/mul; sub/
+ * div carry dividend/divisor).
+ */
+export function strategyHint(fact: Fact): string {
+  const { operandA: a, operandB: b, answer } = fact;
+  const hi = Math.max(a, b);
+  const lo = Math.min(a, b);
+  switch (fact.operation) {
+    case 'add':
+      if (a === 0 || b === 0) return `Adding 0 doesn't change it — still ${answer}.`;
+      if (a === b) return `It's a double: ${a} + ${a} = ${answer}.`;
+      if (a + b > 10 && hi < 10) {
+        const need = 10 - hi;
+        return `Make ten: ${hi} + ${need} = 10, then + ${lo - need} = ${answer}.`;
+      }
+      return `Count up ${lo} from ${hi} to get ${answer}.`;
+    case 'sub':
+      // a = minuend, b = subtrahend, answer = difference.
+      return `Think addition: ${b} + ___ = ${a}? It's ${answer}.`;
+    case 'mul':
+      if (a === 0 || b === 0) return `Anything times 0 is 0.`;
+      if (lo === 1) return `Times 1 keeps it the same — ${answer}.`;
+      if (lo === 2) return `Doubling: ${hi} + ${hi} = ${answer}.`;
+      if (a === 10 || b === 10) {
+        const other = a === 10 ? b : a;
+        return `Times 10: ${other} with a 0 after it → ${answer}.`;
+      }
+      if (a === 5 || b === 5) {
+        const other = a === 5 ? b : a;
+        return `Times 5 is half of times 10: ${other} × 10 = ${other * 10}, half is ${answer}.`;
+      }
+      return `Build up: ${lo} × ${hi - 1} = ${lo * (hi - 1)}, then + ${lo} = ${answer}.`;
+    case 'div':
+      // a = dividend, b = divisor, answer = quotient.
+      return `Think multiplication: ${b} × ___ = ${a}? It's ${answer}.`;
+  }
+}
+
 /** Box a freshly-mastered fact lends its unseen inverse sibling — a review head
  *  start, never auto-mastery (box 5 must still be earned directly, §4.3). */
 export const FAMILY_TRANSFER_BOX: Box = 3;

@@ -329,6 +329,11 @@ export function PlayPage() {
               <span className="op">=</span>
               <span className="answer-reveal">{current.answer}</span>
             </div>
+            {current.strategy && (
+              <div className="strategy-hint">
+                <span aria-hidden="true">💡</span> {current.strategy}
+              </div>
+            )}
             <button
               className={`btn sun full ${studyReady ? 'ready-pulse' : ''}`}
               disabled={!studyReady}

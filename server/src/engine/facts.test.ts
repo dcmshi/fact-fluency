@@ -1,6 +1,43 @@
 import { describe, expect, it } from 'vitest';
 import type { Fact, FactProgress } from '@shared';
-import { FAMILY_TRANSFER_BOX, factId, familyHint, familyTransfer, generateFacts } from './facts';
+import {
+  FAMILY_TRANSFER_BOX,
+  factId,
+  familyHint,
+  familyTransfer,
+  generateFacts,
+  strategyHint,
+} from './facts';
+
+describe('strategyHint', () => {
+  const f = (
+    operation: 'add' | 'sub' | 'mul' | 'div',
+    operandA: number,
+    operandB: number,
+    answer: number,
+  ): Fact => ({ id: factId(operation, operandA, operandB), operation, operandA, operandB, answer });
+
+  it('picks the fitting addition strategy', () => {
+    expect(strategyHint(f('add', 3, 3, 6))).toMatch(/double/i);
+    expect(strategyHint(f('add', 7, 8, 15))).toMatch(/make ten/i);
+    expect(strategyHint(f('add', 0, 5, 5))).toMatch(/0/);
+    expect(strategyHint(f('add', 2, 3, 5))).toMatch(/count up/i);
+  });
+
+  it('uses inverse thinking for subtraction and division', () => {
+    expect(strategyHint(f('sub', 15, 7, 8))).toMatch(/7 \+ ___ = 15.*8/);
+    expect(strategyHint(f('div', 12, 3, 4))).toMatch(/3 × ___ = 12.*4/);
+  });
+
+  it('picks the fitting multiplication shortcut', () => {
+    expect(strategyHint(f('mul', 0, 6, 0))).toMatch(/times 0 is 0/i);
+    expect(strategyHint(f('mul', 1, 7, 7))).toMatch(/times 1/i);
+    expect(strategyHint(f('mul', 2, 6, 12))).toMatch(/doubling/i);
+    expect(strategyHint(f('mul', 5, 6, 30))).toMatch(/half of times 10/i);
+    expect(strategyHint(f('mul', 6, 10, 60))).toMatch(/times 10/i);
+    expect(strategyHint(f('mul', 3, 4, 12))).toMatch(/build up/i);
+  });
+});
 
 describe('familyHint', () => {
   const fact = (

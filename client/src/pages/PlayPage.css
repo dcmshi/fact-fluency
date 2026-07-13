@@ -208,6 +208,16 @@
   font-size: 0.9rem;
   color: var(--ink-soft);
 }
+/* Warm derivation strategy on the study card (Reflex-style coaching). */
+.strategy-hint {
+  background: color-mix(in srgb, var(--sun) 14%, var(--card));
+  border-radius: var(--r-md);
+  padding: 0.55rem 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.4;
+}
 
 .summary-stats {
   display: grid;

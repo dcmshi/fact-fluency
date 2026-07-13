@@ -175,6 +175,8 @@ export interface Card {
   isNew: boolean;
   /** For a new sub/div intro: the known mul/add sibling shown on the study card. */
   family?: FactHint;
+  /** A warm derivation strategy shown on the study card (new facts only). */
+  strategy?: string;
   /** The munch grid for this round (server-generated). */
   board?: MunchBoard;
 }

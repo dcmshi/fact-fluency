@@ -22,7 +22,13 @@ import { STREAK_SHIELD_ID } from '../data/rewards';
 import { SEED_CATALOG } from '../data/catalog';
 import type { Db, SessionRecord } from '../db';
 import { HttpError } from '../httpError';
-import { familyHint, familyTransfer, generateFactsForSets, siblingFactId } from '../engine/facts';
+import {
+  familyHint,
+  familyTransfer,
+  generateFactsForSets,
+  siblingFactId,
+  strategyHint,
+} from '../engine/facts';
 import { gradeAnswer } from '../engine/grade';
 import { buildBoard, makeRng, pickRelation, seedFrom } from '../engine/munch';
 import { planSession } from '../engine/planner';
@@ -250,8 +256,10 @@ export async function startSession(
     // Adaptive throttle (§4.4): struggling recent accuracy pauses cold intros.
     recentAccuracy: recentAccuracyOf(recentAttempts),
   }).map((card, i) => {
-    // Frame a new sub/div intro with its known inverse sibling (DESIGN.md §9).
+    // Frame a new sub/div intro with its known inverse sibling (DESIGN.md §9),
+    // and a derivation strategy for any new fact (Reflex-style coaching).
     const hint = card.isNew ? familyHint(card.fact) : null;
+    const strategy = card.isNew ? strategyHint(card.fact) : null;
     // A munch board per round; seeded per (session, fact, index) for variety,
     // and persisted in workingState so resume replays the identical board.
     const rng = makeRng(seedFrom(`${sessionId}:${card.fact.id}:${i}`));
@@ -259,7 +267,12 @@ export async function startSession(
     // bigger" judgment is its own skill and can wait (DESIGN.md §11).
     const relation = profile.settings.comparisons === false ? '=' : pickRelation(card.answer, rng);
     const board = buildBoard({ target: card.answer, relation, rng });
-    return { ...card, ...(hint ? { family: hint } : {}), board };
+    return {
+      ...card,
+      ...(hint ? { family: hint } : {}),
+      ...(strategy ? { strategy } : {}),
+      board,
+    };
   });
 
   const workingState: WorkingState = { deck, learning: {} };
