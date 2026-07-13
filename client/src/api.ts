@@ -5,6 +5,8 @@
 import type {
   AnswerRequest,
   AnswerResponse,
+  CalibrationAnswer,
+  CalibrationStartResponse,
   DashboardView,
   FactSet,
   GradeBand,
@@ -91,6 +93,12 @@ export const api = {
   answer: (sessionId: string, body: AnswerRequest) =>
     req<AnswerResponse>('POST', `/sessions/${sessionId}/answer`, body),
   complete: (sessionId: string) => req<SessionSummary>('POST', `/sessions/${sessionId}/complete`),
+
+  // calibration (guest warm-up placement)
+  calibrationStart: (profileId: string, grade: string) =>
+    req<CalibrationStartResponse>('POST', `/profiles/${profileId}/calibration/start`, { grade }),
+  calibrationSubmit: (profileId: string, results: CalibrationAnswer[]) =>
+    req<{ seeded: number }>('POST', `/profiles/${profileId}/calibration`, { results }),
 
   // progress
   progress: (profileId: string) => req<ProgressView>('GET', `/profiles/${profileId}/progress`),

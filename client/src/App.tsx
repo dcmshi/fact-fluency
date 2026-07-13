@@ -10,6 +10,9 @@ const ProfilesPage = lazy(() =>
   import('./pages/ProfilesPage').then((m) => ({ default: m.ProfilesPage })),
 );
 const PlayPage = lazy(() => import('./pages/PlayPage').then((m) => ({ default: m.PlayPage })));
+const CalibratePage = lazy(() =>
+  import('./pages/CalibratePage').then((m) => ({ default: m.CalibratePage })),
+);
 const ProgressPage = lazy(() =>
   import('./pages/ProgressPage').then((m) => ({ default: m.ProgressPage })),
 );
@@ -68,6 +71,7 @@ function AppRoutes() {
     <Suspense fallback={<LoadingScreen />}>
       <Routes>
         <Route path="/" element={<ProfilesPage />} />
+        <Route path="/calibrate/:profileId" element={<CalibratePage />} />
         <Route path="/play/:profileId" element={<PlayPage />} />
         <Route path="/progress/:profileId" element={<ProgressPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

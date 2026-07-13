@@ -173,6 +173,29 @@ export interface Card {
   board?: MunchBoard;
 }
 
+// ---------------------------------------------------------------------------
+// Guest calibration — a short tap-answer "warm-up" that places a new kid at
+// their fluency edge instead of the easiest fact (server: engine/placement.ts).
+// ---------------------------------------------------------------------------
+
+/** One warm-up question: the fact to show plus tap choices (one is the answer). */
+export interface CalibrationQuestion {
+  fact: Fact;
+  choices: number[];
+}
+
+export interface CalibrationStartResponse {
+  questions: CalibrationQuestion[];
+}
+
+/** What the kid tapped for one question; the server re-grades `given` against
+ *  the fact's real answer (client isn't trusted for scheduling decisions). */
+export interface CalibrationAnswer {
+  factId: string;
+  given: number;
+  responseMs: number;
+}
+
 /** Per-operation "fast enough" cutoffs (ms), sent so the client can render
  *  instant fast/slow feedback; the server recomputes authoritatively. */
 export type Thresholds = Record<Operation, number>;

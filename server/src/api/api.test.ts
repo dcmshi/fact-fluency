@@ -376,7 +376,7 @@ describe('profiles', () => {
       .send({ displayName: 'Kid', avatar: '🦊', gradeBand: 'grade-3' });
     expect(
       (await agent.get(`/api/profiles/${g3.body.profile.id}/factsets`)).body.enabledIds.sort(),
-    ).toEqual(['div-0-10', 'mul-0-10']);
+    ).toEqual(['add-0-12', 'div-0-5', 'mul-0-5', 'sub-0-20']);
 
     // Unknown band → starter default.
     const bad = await agent
@@ -385,6 +385,52 @@ describe('profiles', () => {
     expect(
       (await agent.get(`/api/profiles/${bad.body.profile.id}/factsets`)).body.enabledIds.sort(),
     ).toEqual(['add-0-10', 'mul-0-5']);
+  });
+
+  it('calibration enables the grade band and seeds placement from the warm-up', async () => {
+    const agent = await authed();
+    const pid = (await agent.post('/api/profiles').send({ displayName: 'Cal', avatar: '🦊' })).body
+      .profile.id;
+
+    const start = await agent
+      .post(`/api/profiles/${pid}/calibration/start`)
+      .send({ grade: 'grade-4' });
+    expect(start.status).toBe(200);
+    const qs = start.body.questions as {
+      fact: { id: string; answer: number };
+      choices: number[];
+    }[];
+    expect(qs.length).toBeGreaterThan(0);
+    expect(qs.every((q) => q.choices.length === 4 && q.choices.includes(q.fact.answer))).toBe(true);
+
+    // start enabled the chosen band's sets
+    expect((await agent.get(`/api/profiles/${pid}/factsets`)).body.enabledIds.sort()).toEqual([
+      'div-0-10',
+      'mul-0-10',
+    ]);
+
+    // answer everything fast + correct → a chunk of facts seeded as known
+    const results = qs.map((q) => ({ factId: q.fact.id, given: q.fact.answer, responseMs: 700 }));
+    const submit = await agent.post(`/api/profiles/${pid}/calibration`).send({ results });
+    expect(submit.status).toBe(200);
+    expect(submit.body.seeded).toBeGreaterThan(0);
+
+    // an unknown grade still runs, over the starter default sets
+    const pid2 = (await agent.post('/api/profiles').send({ displayName: 'Cal2', avatar: '🐼' }))
+      .body.profile.id;
+    const start2 = await agent
+      .post(`/api/profiles/${pid2}/calibration/start`)
+      .send({ grade: 'nope' });
+    expect(start2.status).toBe(200);
+    expect((await agent.get(`/api/profiles/${pid2}/factsets`)).body.enabledIds.sort()).toEqual([
+      'add-0-10',
+      'mul-0-5',
+    ]);
+
+    // a malformed results payload is rejected
+    expect(
+      (await agent.post(`/api/profiles/${pid}/calibration`).send({ results: 'nope' })).status,
+    ).toBe(400);
   });
 
   it('validates profile creation input', async () => {

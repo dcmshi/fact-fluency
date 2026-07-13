@@ -159,7 +159,13 @@ export function planSession(input: PlannerInput): Card[] {
     freshFacts.push(...extra);
     remaining -= extra.length;
   }
-  take(mastered); // (4) last-resort light review of mastered facts
+  // (4) Light review of mastered facts — ONLY when the session would otherwise
+  // be empty (nothing due/upcoming, no new intros). A kid with real work — or a
+  // freshly-calibrated kid whose easy facts are all mastered — must not have the
+  // deck padded with already-known facts; that's what replayed 0 + 0 right after
+  // calibration. When there's genuinely nothing else, a light mastered review is
+  // still better than an empty session.
+  if (reviewFacts.length === 0 && freshFacts.length === 0) take(mastered);
 
   return interleave(
     reviewFacts.map((f) => toCard(f, false)),

@@ -13,6 +13,7 @@ import { getDashboardView } from '../dashboard';
 import { attemptsToCsv, buildExport } from '../export';
 import { getProgressView } from '../progress';
 import { equipReward, getRewards, unlockReward } from '../rewards';
+import * as calibration from '../session/calibrate';
 import * as sessions from '../session/service';
 import { createProfileRouter } from './profiles';
 
@@ -28,6 +29,33 @@ export function createApiRouter(db: Db, isProd: boolean): Router {
 
   router.use('/auth', createAuthRouter(db, isProd));
   router.use('/profiles', createProfileRouter(db));
+
+  // --- guest calibration warm-up (DESIGN.md §4.4) ---
+  router.post(
+    '/profiles/:id/calibration/start',
+    requireAuth,
+    owned,
+    handle(async (req, res) => {
+      res.json(await calibration.startCalibration(db, req.profile!, req.body?.grade, Date.now()));
+    }),
+  );
+
+  router.post(
+    '/profiles/:id/calibration',
+    requireAuth,
+    owned,
+    handle(async (req, res) => {
+      res.json(
+        await calibration.submitCalibration(
+          db,
+          req.profile!,
+          req.accountId!,
+          req.body?.results,
+          Date.now(),
+        ),
+      );
+    }),
+  );
 
   // --- session loop (DESIGN.md §4.9) ---
   router.post(

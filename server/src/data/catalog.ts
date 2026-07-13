@@ -81,23 +81,37 @@ export const SEED_CATALOG: FactSet[] = [
 export const DEFAULT_ENABLED_SET_IDS = ['add-0-10', 'mul-0-5'];
 
 /**
- * Starting presets by grade band (DESIGN.md §11 open question). An adult can
- * pick a level at profile creation; the kid's enabled sets default to these.
- * Bands are intentionally coarse and easy to edit — the adult can always
- * fine-tune sets afterward from the Facts screen.
+ * Starting presets by grade band. An adult can pick a level at profile
+ * creation (and guest calibration bounds its probe to the band's sets); the
+ * kid's enabled sets default to these. Bands are intentionally coarse and easy
+ * to edit — the adult can always fine-tune sets afterward from the Facts screen.
+ *
+ * Grounded in the Ontario (2020) and BC math curricula:
+ *  - Ontario: recall add/sub facts to 20 by G2; multiplication ×2/5/10 and
+ *    related division by G3; full ×/÷ to 12×12 by G4.
+ *  - BC: add facts to 20 by end of G3; multiplicative fluency building in G4
+ *    (2/3/5×); many multiplication facts recalled by G5.
+ * BC runs slightly later than Ontario, so bands are biased a little
+ * conservative — calibration then pushes a fluent kid past the easy facts.
  */
 export const GRADE_BANDS: GradeBand[] = [
-  // K-1 also starts with equality-only munch rounds ('smaller/bigger'
-  // judgments come later — DESIGN.md §11).
+  // K–1 also start with equality-only munch rounds ('smaller/bigger' judgments
+  // come later — DESIGN.md §11).
+  { id: 'k', label: 'Kindergarten', setIds: ['add-0-5'], comparisons: false },
   {
-    id: 'k-1',
-    label: 'Kindergarten–Grade 1',
+    id: 'grade-1',
+    label: 'Grade 1',
     setIds: ['add-0-10', 'sub-0-10'],
     comparisons: false,
   },
-  { id: 'grade-2', label: 'Grade 2', setIds: ['add-0-12', 'sub-0-20'] },
-  { id: 'grade-3', label: 'Grade 3', setIds: ['mul-0-10', 'div-0-10'] },
-  { id: 'grade-4-plus', label: 'Grade 4 and up', setIds: ['mul-0-12', 'div-0-12'] },
+  { id: 'grade-2', label: 'Grade 2', setIds: ['add-0-10', 'sub-0-20'] },
+  {
+    id: 'grade-3',
+    label: 'Grade 3',
+    setIds: ['add-0-12', 'sub-0-20', 'mul-0-5', 'div-0-5'],
+  },
+  { id: 'grade-4', label: 'Grade 4', setIds: ['mul-0-10', 'div-0-10'] },
+  { id: 'grade-5-plus', label: 'Grade 5 and up', setIds: ['mul-0-12', 'div-0-12'] },
 ];
 
 export function gradeBandById(id: string): GradeBand | undefined {

@@ -149,7 +149,7 @@ export async function requireOwnedProfile(db: Db, accountId: string, profileId: 
 }
 
 /** Current per-operation fast cutoffs for a profile (DESIGN.md §4.5). */
-async function computeThresholds(db: Db, profileId: string): Promise<Thresholds> {
+export async function computeThresholds(db: Db, profileId: string): Promise<Thresholds> {
   const stats = await db.getOperationStats(profileId);
   const statByOp = new Map(stats.map((s) => [s.operation, s]));
   const thresholds = {} as Thresholds;

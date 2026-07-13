@@ -1,0 +1,93 @@
+/* Guest calibration warm-up (pages/CalibratePage.tsx). */
+.big-emoji {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+/* Grade picker — big two-up tap targets. */
+.cal-grades {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.6rem;
+}
+.cal-grades .btn {
+  width: 100%;
+}
+
+.cal-head {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Progress dots across the probe. */
+.cal-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+}
+.cal-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--line);
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+.cal-dot.done {
+  background: var(--sun);
+}
+.cal-dot.here {
+  background: var(--sun);
+  transform: scale(1.35);
+}
+
+.cal-eq {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.2rem, 11vw, 3.2rem);
+  color: var(--ink);
+}
+.cal-op {
+  color: var(--ink-soft);
+}
+.cal-q {
+  color: var(--sun-shadow);
+}
+
+/* Answer choices — 2×2 chunky number buttons with instant right/wrong feedback. */
+.cal-choices {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.7rem;
+}
+.btn.cal-choice {
+  --shadow: var(--line);
+  background: var(--card);
+  color: var(--ink);
+  border: 2px solid var(--line);
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  padding: 1.1rem 0.5rem;
+}
+.btn.cal-choice.right {
+  --shadow: #1f8c5b;
+  background: var(--correct);
+  border-color: var(--correct);
+  color: #fff;
+  opacity: 1; /* keep the feedback vivid even though tapping disables the row */
+}
+.btn.cal-choice.wrong {
+  --shadow: #d24a3d;
+  background: var(--wrong);
+  border-color: var(--wrong);
+  color: #fff;
+  opacity: 1;
+}
