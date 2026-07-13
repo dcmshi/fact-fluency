@@ -44,6 +44,7 @@ export function PlayPage() {
   const [offlineFinish, setOfflineFinish] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [announce, setAnnounce] = useState('');
+  const [studySeen, setStudySeen] = useState(false);
   const [muted, setMutedState] = useState(isMuted());
 
   const sessionStart = useRef(0);
@@ -53,6 +54,10 @@ export function PlayPage() {
   // all queue updates compose instead of clobbering each other.
   const queueRef = useRef<Card[]>([]);
   const playedRef = useRef(0);
+  // Fact ids already shown on a study card this session. A missed *new* fact is
+  // re-shown by reusing its (isNew) deck card, so without this it would greet
+  // the kid as brand new again — instead we flip the copy to a gentle reminder.
+  const studiedRef = useRef<Set<string>>(new Set());
   // Answer POSTs in flight — play no longer blocks on them, but completion
   // must wait for them so the server scores a full attempt log.
   const inflightRef = useRef<Set<Promise<void>>>(new Set());
@@ -110,8 +115,11 @@ export function PlayPage() {
       applyQueue(() => nextQueue);
       if (nextQueue[0].isNew) {
         const f = nextQueue[0].fact;
+        const seen = studiedRef.current.has(f.id);
+        studiedRef.current.add(f.id);
+        setStudySeen(seen);
         setAnnounce(
-          `New fact. ${eqText(f.operandA, f.operation, f.operandB, nextQueue[0].answer)}.`,
+          `${seen ? 'Remember this one' : 'New fact'}. ${eqText(f.operandA, f.operation, f.operandB, nextQueue[0].answer)}.`,
         );
         setStudyReady(false);
         setPhase('study');
@@ -129,6 +137,8 @@ export function PlayPage() {
     setSummary(null);
     setCaughtUp(false);
     setOfflineFinish(false);
+    setStudySeen(false);
+    studiedRef.current = new Set();
     inflightRef.current = new Set();
     try {
       const s = await api.startSession(profileId);
@@ -300,7 +310,9 @@ export function PlayPage() {
       {phase === 'study' && current && (
         <div className="play-center">
           <div className="card study-card rise" key={current.fact.id}>
-            <div className="study-tag">New fact — take a look!</div>
+            <div className="study-tag">
+              {studySeen ? 'Remember this one? Take another look 👀' : 'New fact — take a look!'}
+            </div>
             {current.family && (
               <div className="family-hint">
                 <span className="family-eq">

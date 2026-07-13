@@ -30,6 +30,15 @@
      ~1.5:1 and misreadable. The op's darker shadow shade keeps the hue at 3:1+. */
   color: var(--shadow, var(--ink));
 }
+/* Comparison tail ("< ?") that turns the expression into a readable inequality.
+   Muted so the operands stay the focus; "?" is the number the kid is hunting. */
+.munch-rel {
+  color: var(--ink-soft);
+  padding: 0 0.12em;
+}
+.munch-target {
+  color: var(--ink-soft);
+}
 .munch-remaining {
   font-weight: 800;
   font-size: 0.8rem;

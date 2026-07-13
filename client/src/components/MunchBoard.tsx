@@ -14,6 +14,16 @@ const RELATION_PHRASE: Record<MunchRelation, string> = {
   '<': 'smaller than',
   '>': 'bigger than',
 };
+// Symbol for the on-screen comparison that follows the fact expression, e.g.
+// "0 + 0 < ?". The expression sits on the left and the number to munch ("?") on
+// the right, so the symbol is the *flip* of the munch relation: we munch cells
+// where `cell > target`, i.e. `target < cell` → "expr < ?". Shows the =/</>
+// glyph alongside the "same/smaller/bigger" wording so kids read both.
+const RELATION_SYMBOL: Record<MunchRelation, string> = {
+  '=': '=',
+  '<': '>',
+  '>': '<',
+};
 const OP_WORD: Record<string, string> = {
   add: 'plus',
   sub: 'minus',
@@ -243,7 +253,8 @@ export function MunchBoard({
         <span className="munch-instruction">Munch everything {RELATION_PHRASE[relation]}</span>
         <span className="munch-expr">
           {fact.operandA} <span className="munch-op">{OP_SYMBOL[fact.operation]}</span>{' '}
-          {fact.operandB}
+          {fact.operandB} <span className="munch-rel">{RELATION_SYMBOL[relation]}</span>{' '}
+          <span className="munch-target">?</span>
         </span>
         <span className="munch-remaining">{remaining} left</span>
       </div>
