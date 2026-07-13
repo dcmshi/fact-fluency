@@ -195,6 +195,11 @@
   align-items: center;
   gap: 0.25rem;
   transition: transform 0.08s ease;
+  /* Clip the muncher preview to the tile. The character SVG (overflow: visible,
+     larger than its 36px slot) otherwise paints on a layer that desyncs from
+     the modal's scroll in Chrome and floats off the tile. It sits within the
+     tile at rest, so this changes nothing static — it just caps the escape. */
+  overflow: hidden;
 }
 .reward-tile:not(:disabled):hover {
   transform: translateY(-2px);
