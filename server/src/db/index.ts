@@ -42,6 +42,30 @@ export interface AttemptRecord {
   answeredAt: number;
 }
 
+/** A multiplayer race: a short seeded deck every racer plays (MULTIPLAYER.md).
+ *  Isolated from the scheduler + attempt log — race play never writes SR state. */
+export interface RaceRecord {
+  id: string;
+  accountId: string;
+  createdByProfileId: string;
+  /** JSON: the shared seeded deck (Card[] with boards), served verbatim to all. */
+  deck: string;
+  factCount: number;
+  createdAt: number;
+}
+
+/** One racer's finished run — a ghost (per-round splits) + a leaderboard entry. */
+export interface RaceRunRecord {
+  id: string;
+  raceId: string;
+  profileId: string;
+  totalMs: number;
+  correctCount: number;
+  /** JSON: number[] per-round ms — the ghost's splits. */
+  perRound: string;
+  finishedAt: number;
+}
+
 export interface Db {
   /** Apply the schema (idempotent). SQLite does this in its constructor too. */
   migrate(): Promise<void>;
@@ -179,6 +203,15 @@ export interface Db {
   /** Every attempt at/after `since` across all profiles — backs the offline
    *  calibration analysis (DESIGN.md §4.5). Read-only/ops use. */
   listAllAttempts(since: number): Promise<AttemptRecord[]>;
+
+  // --- races (MULTIPLAYER.md) ---
+  createRace(r: RaceRecord): Promise<void>;
+  getRace(id: string): Promise<RaceRecord | null>;
+  /** Recent races under an account, newest first — for the race lobby. */
+  listRacesForAccount(accountId: string, limit: number): Promise<RaceRecord[]>;
+  addRaceRun(run: RaceRunRecord): Promise<void>;
+  /** All runs for a race, fastest-first — the leaderboard + ghosts. */
+  listRaceRuns(raceId: string): Promise<RaceRunRecord[]>;
 
   close(): Promise<void>;
 }

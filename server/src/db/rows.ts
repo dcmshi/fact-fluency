@@ -5,7 +5,7 @@
  * driver may hand back strings (pg BIGINT) — harmless for SQLite's numbers.
  */
 import type { FactProgress, Operation, OperationStat, Profile, ProfileSettings } from '@shared';
-import type { AttemptRecord, SessionRecord } from './index';
+import type { AttemptRecord, RaceRecord, RaceRunRecord, SessionRecord } from './index';
 
 export interface ProfileRow {
   id: string;
@@ -129,5 +129,47 @@ export function toAttempt(r: AttemptRow): AttemptRecord {
     fast: !!r.fast,
     responseMs: r.response_ms,
     answeredAt: Number(r.answered_at),
+  };
+}
+
+export interface RaceRow {
+  id: string;
+  account_id: string;
+  created_by_profile_id: string;
+  deck: string;
+  fact_count: number;
+  created_at: number;
+}
+
+export interface RaceRunRow {
+  id: string;
+  race_id: string;
+  profile_id: string;
+  total_ms: number;
+  correct_count: number;
+  per_round: string;
+  finished_at: number;
+}
+
+export function toRace(r: RaceRow): RaceRecord {
+  return {
+    id: r.id,
+    accountId: r.account_id,
+    createdByProfileId: r.created_by_profile_id,
+    deck: r.deck,
+    factCount: r.fact_count,
+    createdAt: Number(r.created_at),
+  };
+}
+
+export function toRaceRun(r: RaceRunRow): RaceRunRecord {
+  return {
+    id: r.id,
+    raceId: r.race_id,
+    profileId: r.profile_id,
+    totalMs: r.total_ms,
+    correctCount: r.correct_count,
+    perRound: r.per_round,
+    finishedAt: Number(r.finished_at),
   };
 }

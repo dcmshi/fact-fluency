@@ -114,4 +114,27 @@ CREATE TABLE IF NOT EXISTS profile_effect (
   profile_id TEXT PRIMARY KEY REFERENCES profile(id) ON DELETE CASCADE,
   effect     TEXT NOT NULL DEFAULT 'confetti'
 );
+
+-- Multiplayer race (MULTIPLAYER.md) — see the SQLite schema. Epoch-ms columns
+-- are BIGINT here (32-bit INTEGER would overflow).
+CREATE TABLE IF NOT EXISTS race (
+  id                    TEXT PRIMARY KEY,
+  account_id            TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+  created_by_profile_id TEXT NOT NULL REFERENCES profile(id) ON DELETE CASCADE,
+  deck                  TEXT NOT NULL,
+  fact_count            INTEGER NOT NULL,
+  created_at            BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_race_account ON race(account_id, created_at);
+
+CREATE TABLE IF NOT EXISTS race_run (
+  id            TEXT PRIMARY KEY,
+  race_id       TEXT NOT NULL REFERENCES race(id) ON DELETE CASCADE,
+  profile_id    TEXT NOT NULL REFERENCES profile(id) ON DELETE CASCADE,
+  total_ms      INTEGER NOT NULL,
+  correct_count INTEGER NOT NULL,
+  per_round     TEXT NOT NULL,
+  finished_at   BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_race_run_race ON race_run(race_id, total_ms);
 `;

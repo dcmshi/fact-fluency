@@ -9,18 +9,29 @@ import path from 'node:path';
 import Database from 'better-sqlite3';
 import type { FactProgress, Operation, OperationStat, Profile, ProfileSettings } from '@shared';
 import { ADDITIVE_COLUMNS } from './additiveColumns';
-import type { AnswerWrite, AttemptRecord, Db, SessionRecord } from './index';
+import type {
+  AnswerWrite,
+  AttemptRecord,
+  Db,
+  RaceRecord,
+  RaceRunRecord,
+  SessionRecord,
+} from './index';
 import {
   PROFILE_SELECT,
   toAttempt,
   toOperationStat,
   toProfile,
   toProgress,
+  toRace,
+  toRaceRun,
   toSession,
   type AttemptRow,
   type OperationStatRow,
   type ProfileRow,
   type ProgressRow,
+  type RaceRow,
+  type RaceRunRow,
   type SessionRow,
 } from './rows';
 import { SCHEMA } from './schema';
@@ -592,6 +603,45 @@ export class SqliteDb implements Db {
       .prepare('SELECT * FROM attempt WHERE answered_at >= ? ORDER BY answered_at')
       .all(since) as AttemptRow[];
     return rows.map(toAttempt);
+  }
+
+  // --- races ---
+
+  async createRace(r: RaceRecord): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT INTO race (id, account_id, created_by_profile_id, deck, fact_count, created_at)
+         VALUES (@id, @accountId, @createdByProfileId, @deck, @factCount, @createdAt)`,
+      )
+      .run(r);
+  }
+
+  async getRace(id: string): Promise<RaceRecord | null> {
+    const row = this.db.prepare('SELECT * FROM race WHERE id = ?').get(id) as RaceRow | undefined;
+    return row ? toRace(row) : null;
+  }
+
+  async listRacesForAccount(accountId: string, limit: number): Promise<RaceRecord[]> {
+    const rows = this.db
+      .prepare('SELECT * FROM race WHERE account_id = ? ORDER BY created_at DESC LIMIT ?')
+      .all(accountId, limit) as RaceRow[];
+    return rows.map(toRace);
+  }
+
+  async addRaceRun(run: RaceRunRecord): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT INTO race_run (id, race_id, profile_id, total_ms, correct_count, per_round, finished_at)
+         VALUES (@id, @raceId, @profileId, @totalMs, @correctCount, @perRound, @finishedAt)`,
+      )
+      .run(run);
+  }
+
+  async listRaceRuns(raceId: string): Promise<RaceRunRecord[]> {
+    const rows = this.db
+      .prepare('SELECT * FROM race_run WHERE race_id = ? ORDER BY total_ms, finished_at')
+      .all(raceId) as RaceRunRow[];
+    return rows.map(toRaceRun);
   }
 
   async close(): Promise<void> {

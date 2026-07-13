@@ -177,6 +177,46 @@ function describeDbContract(name: string, makeDb: () => Promise<Db>) {
       expect(await db.findAccountIdByToken('tok')).toBeNull();
       expect(await db.findAccountByEmail('a@b.co')).toBeNull();
     });
+
+    it('round-trips a race and its runs (fastest-first), and cascades on delete', async () => {
+      const { accountId, profile } = await seedProfile();
+      await db.createRace({
+        id: 'r1',
+        accountId,
+        createdByProfileId: profile.id,
+        deck: '[{"fact":"x"}]',
+        factCount: 6,
+        createdAt: 1000,
+      });
+      expect((await db.getRace('r1'))?.factCount).toBe(6);
+      expect((await db.listRacesForAccount(accountId, 10)).map((r) => r.id)).toEqual(['r1']);
+
+      await db.addRaceRun({
+        id: 'run-slow',
+        raceId: 'r1',
+        profileId: profile.id,
+        totalMs: 45000,
+        correctCount: 6,
+        perRound: '[8000,7000]',
+        finishedAt: 2000,
+      });
+      await db.addRaceRun({
+        id: 'run-fast',
+        raceId: 'r1',
+        profileId: profile.id,
+        totalMs: 30000,
+        correctCount: 6,
+        perRound: '[5000,5000]',
+        finishedAt: 3000,
+      });
+      const runs = await db.listRaceRuns('r1');
+      expect(runs.map((r) => r.id)).toEqual(['run-fast', 'run-slow']); // fastest first
+      expect(runs[0].perRound).toBe('[5000,5000]');
+
+      await db.deleteAccount(accountId); // cascades to race + race_run
+      expect(await db.getRace('r1')).toBeNull();
+      expect(await db.listRaceRuns('r1')).toEqual([]);
+    });
   });
 }
 
