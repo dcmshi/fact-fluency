@@ -142,6 +142,7 @@
   gap: 5px;
 }
 .fact-cell {
+  position: relative;
   aspect-ratio: 1;
   border-radius: 9px;
   display: grid;
@@ -151,6 +152,14 @@
   border: none;
   padding: 0;
   cursor: pointer;
+}
+/* Mastered = full-saturation fill (cellColor) + a crisp white inset ring and a
+   slight lift, so a mastered fact is unmistakable next to an in-review one
+   (box 4) rather than just a hair darker. */
+.fact-cell.mastered {
+  box-shadow:
+    inset 0 0 0 2.5px rgba(255, 255, 255, 0.7),
+    0 1px 3px rgba(43, 36, 64, 0.3);
 }
 .fact-cell:hover {
   transform: scale(1.12);
@@ -187,6 +196,10 @@
   width: 18px;
   height: 18px;
   border-radius: 5px;
+}
+/* Teach the grid's mastered marker in the legend too. */
+.legend-swatch.mastered {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.7);
 }
 
 .export-row {

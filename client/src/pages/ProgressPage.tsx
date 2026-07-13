@@ -9,7 +9,10 @@ import './ProgressPage.css';
 /** Mastery shade: pale for unseen, deepening to the solid op color at box 5. */
 function cellColor(op: keyof typeof OP_HEX, box: Box | null, state: CellState): string {
   if (state === 'unseen' || box === null) return '#f1e7d5';
-  const alpha = [0.22, 0.36, 0.5, 0.64, 0.8, 1][box] ?? 0.22;
+  // Review deepens gently (0.2 → 0.66); mastered jumps to a full, solid fill so
+  // it reads as clearly "done" rather than one shade darker than box 4. The
+  // mastered cell also gets an inset ring in CSS (.fact-cell.mastered).
+  const alpha = [0.2, 0.31, 0.42, 0.53, 0.66, 1][box] ?? 0.2;
   const hex = OP_HEX[op];
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -112,7 +115,7 @@ export function ProgressPage() {
               {[null, 0, 1, 2, 3, 4, 5].map((b, i) => (
                 <span
                   key={i}
-                  className="legend-swatch"
+                  className={`legend-swatch${b === 5 ? ' mastered' : ''}`}
                   style={{
                     background: cellColor('mul', b as Box | null, b === null ? 'unseen' : 'review'),
                   }}
@@ -488,7 +491,7 @@ function OperationGrid({ grid, kidName }: { grid: ProgressGrid; kidName: string 
             <button
               type="button"
               key={`${c.operandA}-${c.operandB}`}
-              className="fact-cell"
+              className={`fact-cell${c.state === 'mastered' ? ' mastered' : ''}`}
               style={{ background: cellColor(grid.operation, c.box, c.state) }}
               title={label}
               aria-label={label}
