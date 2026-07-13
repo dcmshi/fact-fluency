@@ -405,6 +405,11 @@ export function PlayPage() {
               <span aria-hidden="true">🛡️</span> Streak shield ready
             </div>
           )}
+          <div className="today-done">
+            <span aria-hidden="true">🎉</span> That&rsquo;s today&rsquo;s practice done — see you
+            tomorrow, or keep going!
+          </div>
+
           {summary.masteredFacts.length > 0 && (
             <div className="mastered-chips">
               <span className="mastered-chips-label">Mastered today:</span>

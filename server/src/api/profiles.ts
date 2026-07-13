@@ -10,6 +10,7 @@ import { loadOwnedProfile, requireAuth } from '../auth/middleware';
 import { DEFAULT_ENABLED_SET_IDS, gradeBandById, SEED_CATALOG } from '../data/catalog';
 import { DEFAULT_SETTINGS, SETTING_BOUNDS, type NumericSettingKey } from '../data/settings';
 import { generateFactsForSets } from '../engine/facts';
+import { dayInTz } from '../engine/scheduling';
 import { handle } from './handle';
 import { rateLimit } from '../rateLimit';
 
@@ -42,19 +43,24 @@ export function createProfileRouter(db: Db): Router {
     handle(async (req, res) => {
       const profiles = await db.listProfiles(req.accountId!);
       const now = Date.now();
-      // "N to review!" chip data: due review + still-learning counts, scoped
-      // to each kid's enabled sets (a disabled set's rows never count).
+      const timezone = (await db.getAccountTimezone(req.accountId!)) ?? 'UTC';
+      const today = dayInTz(timezone, now);
+      // "N to review!" chip data: due review + still-learning counts, scoped to
+      // each kid's enabled sets (a disabled set's rows never count). Plus
+      // `doneToday` — a session completed today — so the picker can invite rest
+      // (soft anti-grind) rather than nag with a review count once practice is done.
       const withDue = await Promise.all(
         profiles.map(async (p) => {
           const enabled = await db.listEnabledSetIds(p.id);
           const ids = generateFactsForSets(SEED_CATALOG.filter((s) => enabled.includes(s.id))).map(
             (f) => f.id,
           );
-          const [due, learning] = await Promise.all([
+          const [due, learning, streak] = await Promise.all([
             db.countDueReview(p.id, now, ids),
             db.countLearning(p.id, ids),
+            db.getProfileStreak(p.id),
           ]);
-          return { ...p, dueToday: due + learning };
+          return { ...p, dueToday: due + learning, doneToday: streak.lastPlayedDay === today };
         }),
       );
       return res.json({ profiles: withDue });

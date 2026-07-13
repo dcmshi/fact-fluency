@@ -201,6 +201,13 @@
   font-size: 0.85rem;
   color: var(--ink-soft);
 }
+/* Soft anti-grind line: one session a day is enough, but never a wall. */
+.today-done {
+  align-self: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
 
 .summary-stats {
   display: grid;

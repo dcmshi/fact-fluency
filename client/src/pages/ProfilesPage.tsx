@@ -122,8 +122,11 @@ export function ProfilesPage() {
               <div className="coin-badge" role="img" aria-label={`${p.coins} coins`}>
                 <span aria-hidden="true">⭐</span> {p.coins}
               </div>
-              {/* Positive framing only: an invitation, never a homework backlog. */}
-              {(p.dueToday ?? 0) > 0 ? (
+              {/* Positive framing only: an invitation, never a homework backlog.
+                  Once today's session is done, celebrate rest over a review nag. */}
+              {p.doneToday ? (
+                <div className="due-chip caught-up">Done for today ✓</div>
+              ) : (p.dueToday ?? 0) > 0 ? (
                 <div className="due-chip">{p.dueToday} to review!</div>
               ) : p.streak > 0 ? (
                 <div className="due-chip caught-up">All caught up ✓</div>

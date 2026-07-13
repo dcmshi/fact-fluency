@@ -99,6 +99,9 @@ export interface Profile {
   /** Facts due/learning today across enabled sets — filled by GET /profiles
    *  for the picker's "N to review!" chip; absent elsewhere. */
   dueToday?: number;
+  /** The kid has completed a session today (daily practice goal met) — drives
+   *  the picker's soft "Done for today ✓" state instead of a review-count nag. */
+  doneToday?: boolean;
 }
 
 // ---------------------------------------------------------------------------
