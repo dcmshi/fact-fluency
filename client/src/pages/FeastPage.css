@@ -1,0 +1,190 @@
+.screen.feast {
+  gap: 0.6rem;
+}
+
+.feast-header {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.feast-fact {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.3rem, 5vw, 2rem);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.feast-op {
+  color: var(--ink-soft);
+}
+.feast-q {
+  color: var(--sun-shadow);
+}
+.feast-timer {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.4rem;
+  min-width: 3ch;
+  text-align: right;
+}
+.feast-timer.low {
+  color: var(--sub);
+}
+
+/* The conveyor belt: full-width strip; plates ride it via an animated `left`. */
+.feast-belt {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  height: clamp(120px, 34vh, 320px);
+  border-radius: var(--r-lg);
+  background: repeating-linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--paper-2) 80%, var(--card)),
+    color-mix(in srgb, var(--paper-2) 80%, var(--card)) 28px,
+    var(--paper-2) 28px,
+    var(--paper-2) 56px
+  );
+  border: 2px solid var(--line);
+  overflow: hidden;
+}
+.feast-plate {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  transition: left 0.12s linear;
+  width: clamp(48px, 12vw, 64px);
+  height: clamp(48px, 12vw, 64px);
+  border-radius: 50%;
+  border: 3px solid var(--sun-shadow);
+  background: var(--card);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.1rem, 3.5vw, 1.5rem);
+  box-shadow: 0 3px 0 rgba(43, 36, 64, 0.15);
+  cursor: pointer;
+}
+.feast-plate:active {
+  transform: translate(-50%, -50%) scale(0.9);
+}
+.feast-plate:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+/* Players row — tap a rival to bump them. */
+.feast-players {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+.feast-player {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  border: 2px solid var(--line);
+  background: var(--card);
+  min-height: 44px;
+  font-weight: 700;
+}
+.feast-player.you {
+  border-color: var(--sun);
+  background: color-mix(in srgb, var(--sun) 16%, var(--card));
+}
+.feast-player.stunned {
+  opacity: 0.55;
+}
+.feast-player-muncher {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+}
+.feast-stun {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 0.9rem;
+}
+.feast-player-name {
+  font-size: 0.85rem;
+}
+.feast-player-score {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: var(--sun-shadow);
+}
+
+.feast-hint {
+  font-size: 0.85rem;
+}
+
+/* Lobby / countdown / results */
+.feast-roster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+}
+.feast-roster-chip {
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  background: var(--paper-2);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.feast-roster-chip.you {
+  background: color-mix(in srgb, var(--sun) 22%, var(--card));
+}
+.feast-countdown {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(3rem, 18vw, 6rem);
+  color: var(--sun-shadow);
+}
+.feast-standings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+}
+.feast-standing {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.8rem;
+  border-radius: var(--r-md);
+  background: var(--paper-2);
+}
+.feast-standing.you {
+  background: color-mix(in srgb, var(--sun) 18%, var(--card));
+}
+.feast-place {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  min-width: 1.6rem;
+}
+.feast-standing-name {
+  flex: 1;
+  text-align: left;
+  font-weight: 700;
+}
+.feast-standing-score {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+.feast-standing-coins {
+  font-weight: 800;
+  color: var(--sun-shadow);
+}

@@ -150,6 +150,9 @@ export function ProfilesPage() {
                 <button className="btn ghost" onClick={() => navigate(`/race/${p.id}`)}>
                   {t('profiles.race')}
                 </button>
+                <button className="btn ghost" onClick={() => navigate(`/feast/${p.id}`)}>
+                  {t('profiles.feast')}
+                </button>
                 <button className="btn ghost" onClick={() => setRewardsFor(p)}>
                   {t('profiles.rewards')}
                 </button>
