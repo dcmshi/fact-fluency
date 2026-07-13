@@ -132,6 +132,7 @@ export function AuthPage() {
             Plain semantic HTML, below the fold, honest copy (no keyword
             stuffing). */}
         <section className="landing-info">
+          <div className="landing-info__label">Learn more ↓</div>
           <h2>What is Fact Fluency?</h2>
           <p>
             Fact Fluency helps kids build real automaticity with their math facts — addition,

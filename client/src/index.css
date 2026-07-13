@@ -60,6 +60,11 @@ body {
   background-size:
     22px 22px,
     100% 100%;
+  /* Dots tile across the whole page; the warm glow paints once at the top and
+     fades into --paper. Without this the glow's default `repeat` re-draws it
+     every viewport-height, leaving a hard seam when the landing page scrolls. */
+  background-repeat: repeat, no-repeat;
+  background-attachment: scroll, fixed;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -391,19 +396,40 @@ body[data-theme='midnight'] {
 
 /* Landing-page info section (AuthPage) — quiet, below-the-fold content. */
 .landing-info {
-  margin-top: 1.5rem;
-  padding-top: 1.25rem;
-  border-top: 2px solid var(--line);
+  margin-top: 1.75rem;
   color: var(--ink-soft);
   font-size: 0.92rem;
   line-height: 1.55;
+}
+/* A soft "Learn more" divider introduces the section, instead of a hard rule
+   butting up against the auth card. The flanking lines are drawn with
+   pseudo-elements so the label sits centered on the divider. */
+.landing-info__label {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 1.4rem;
+  color: var(--ink-soft);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.landing-info__label::before,
+.landing-info__label::after {
+  content: '';
+  flex: 1;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--line);
 }
 .landing-info h2 {
   color: var(--ink);
   font-size: 1.05rem;
   margin: 1rem 0 0.35rem;
 }
-.landing-info h2:first-child {
+.landing-info__label + h2 {
   margin-top: 0;
 }
 .landing-info p {
