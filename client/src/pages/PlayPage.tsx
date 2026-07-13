@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Card, Operation, SessionResponse, SessionSummary } from '@shared';
+import { tLabel } from '../i18n';
 import { api, ApiError, qk } from '../api';
 import { Confetti } from '../components/Confetti';
 import { MunchBoard, type RoundResult } from '../components/MunchBoard';
@@ -339,7 +340,8 @@ export function PlayPage() {
             </div>
             {current.strategy && (
               <div className="strategy-hint">
-                <span aria-hidden="true">💡</span> {current.strategy}
+                <span aria-hidden="true">💡</span>{' '}
+                {tLabel(t, current.strategy.key, '', current.strategy.params)}
               </div>
             )}
             <button

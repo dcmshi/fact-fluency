@@ -324,7 +324,7 @@ export function RacePage() {
           coins: s.coinsEarned,
         }))
       : (result?.standings ?? []).map((s) => ({
-          name: s.name,
+          name: s.isBot ? t('race.botName') : s.name,
           avatar: s.avatar,
           placement: s.placement,
           totalMs: s.totalMs,
@@ -416,7 +416,7 @@ export function RacePage() {
           <Lane
             key="ghost"
             pct={(Math.min(ghostRounds, total) / total) * 100}
-            label={deck.ghost.name}
+            label={deck.ghost.isBot ? t('race.botName') : deck.ghost.name}
           >
             <span className="race-ghost-avatar">{deck.ghost.avatar}</span>
           </Lane>,

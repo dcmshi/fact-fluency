@@ -5,6 +5,7 @@ import { api, ApiError, qk } from '../../api';
 import { AvatarPicker } from '../../components/AvatarPicker';
 import { Modal } from '../../components/Modal';
 import { editErrorText } from '../../errors';
+import { tLabel } from '../../i18n';
 import { AVATARS } from '../../ops';
 
 export function AddProfileModal({
@@ -72,7 +73,7 @@ export function AddProfileModal({
               onClick={() => setBand(b.id)}
               aria-pressed={band === b.id}
             >
-              {b.label}
+              {tLabel(t, `catalog.grades.${b.id}`, b.label)}
             </button>
           ))}
         </div>

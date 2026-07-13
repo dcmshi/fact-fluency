@@ -2,7 +2,16 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { Box, CellState, DashboardView, DayTrend, ProgressGrid, TrickyFact } from '@shared';
+import type {
+  Box,
+  CellState,
+  DashboardView,
+  DayTrend,
+  LocalizedText,
+  ProgressGrid,
+  TrickyFact,
+} from '@shared';
+import { tLabel } from '../i18n';
 import { api, qk } from '../api';
 import { OP_HEX, OP_SYMBOL } from '../ops';
 import './ProgressPage.css';
@@ -201,6 +210,23 @@ function Dashboard({ dash, profileId }: { dash: DashboardView; profileId: string
     },
   });
 
+  // The suggestion sentence is server-emitted as a key + params; its params
+  // carry set ids and an operation, resolved to localized labels here.
+  const reasonText = (r: LocalizedText): string => {
+    const p = r.params ?? {};
+    if (r.key === 'suggestion.masteredPct') {
+      return t('suggestion.masteredPct', {
+        pct: p.pct,
+        from: tLabel(t, `catalog.sets.${p.fromId}`, String(p.fromId)),
+        to: tLabel(t, `catalog.sets.${p.toId}`, String(p.toId)),
+      });
+    }
+    return t('suggestion.readyOp', {
+      op: tLabel(t, `ops.${p.op}`, String(p.op)).toLowerCase(),
+      set: tLabel(t, `catalog.sets.${p.setId}`, String(p.setId)),
+    });
+  };
+
   return (
     <section className="dash card rise">
       <div className="dash-cards">
@@ -272,7 +298,7 @@ function Dashboard({ dash, profileId }: { dash: DashboardView; profileId: string
             ✨
           </span>
           <div>
-            <strong>{t('progress.readyForMore')}</strong> {suggestion.reason}{' '}
+            <strong>{t('progress.readyForMore')}</strong> {reasonText(suggestion.reason)}{' '}
             <button
               className="btn ghost enable-now"
               disabled={enableMut.isPending}

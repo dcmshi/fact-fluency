@@ -7,7 +7,16 @@
  * addition (never negative); division the inverse of multiplication (whole
  * quotients, never ÷0).
  */
-import type { Box, Fact, FactHint, FactProgress, FactSet, Operation, RangeSpec } from '@shared';
+import type {
+  Box,
+  Fact,
+  FactHint,
+  FactProgress,
+  FactSet,
+  LocalizedText,
+  Operation,
+  RangeSpec,
+} from '@shared';
 import { dueAtForBox, stateForBox } from './scheduling';
 
 /** Canonical, stable id for a fact. Commutative ops are written with a ≤ b. */
@@ -165,38 +174,41 @@ export function siblingFactId(fact: Fact): string | null {
  * or the inverse relationship). Operands are canonical (a ≤ b for add/mul; sub/
  * div carry dividend/divisor).
  */
-export function strategyHint(fact: Fact): string {
+export function strategyHint(fact: Fact): LocalizedText {
   const { operandA: a, operandB: b, answer } = fact;
   const hi = Math.max(a, b);
   const lo = Math.min(a, b);
   switch (fact.operation) {
     case 'add':
-      if (a === 0 || b === 0) return `Adding 0 doesn't change it — still ${answer}.`;
-      if (a === b) return `It's a double: ${a} + ${a} = ${answer}.`;
+      if (a === 0 || b === 0) return { key: 'strategy.addZero', params: { answer } };
+      if (a === b) return { key: 'strategy.addDouble', params: { a, answer } };
       if (a + b > 10 && hi < 10) {
         const need = 10 - hi;
-        return `Make ten: ${hi} + ${need} = 10, then + ${lo - need} = ${answer}.`;
+        return { key: 'strategy.addMakeTen', params: { hi, need, rest: lo - need, answer } };
       }
-      return `Count up ${lo} from ${hi} to get ${answer}.`;
+      return { key: 'strategy.addCountUp', params: { lo, hi, answer } };
     case 'sub':
       // a = minuend, b = subtrahend, answer = difference.
-      return `Think addition: ${b} + ___ = ${a}? It's ${answer}.`;
+      return { key: 'strategy.subThinkAddition', params: { a, b, answer } };
     case 'mul':
-      if (a === 0 || b === 0) return `Anything times 0 is 0.`;
-      if (lo === 1) return `Times 1 keeps it the same — ${answer}.`;
-      if (lo === 2) return `Doubling: ${hi} + ${hi} = ${answer}.`;
+      if (a === 0 || b === 0) return { key: 'strategy.mulZero' };
+      if (lo === 1) return { key: 'strategy.mulOne', params: { answer } };
+      if (lo === 2) return { key: 'strategy.mulDouble', params: { hi, answer } };
       if (a === 10 || b === 10) {
         const other = a === 10 ? b : a;
-        return `Times 10: ${other} with a 0 after it → ${answer}.`;
+        return { key: 'strategy.mulTen', params: { other, answer } };
       }
       if (a === 5 || b === 5) {
         const other = a === 5 ? b : a;
-        return `Times 5 is half of times 10: ${other} × 10 = ${other * 10}, half is ${answer}.`;
+        return { key: 'strategy.mulFive', params: { other, tenfold: other * 10, answer } };
       }
-      return `Build up: ${lo} × ${hi - 1} = ${lo * (hi - 1)}, then + ${lo} = ${answer}.`;
+      return {
+        key: 'strategy.mulBuildUp',
+        params: { lo, hiLess: hi - 1, product: lo * (hi - 1), answer },
+      };
     case 'div':
       // a = dividend, b = divisor, answer = quotient.
-      return `Think multiplication: ${b} × ___ = ${a}? It's ${answer}.`;
+      return { key: 'strategy.divThinkMul', params: { a, b, answer } };
   }
 }
 

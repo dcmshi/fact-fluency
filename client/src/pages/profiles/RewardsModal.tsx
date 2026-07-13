@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Profile, RewardItem } from '@shared';
 import { api, qk } from '../../api';
 import { Modal } from '../../components/Modal';
 import { Muncher } from '../../components/Muncher';
+import { tLabel } from '../../i18n';
 import { useTheme } from '../../useTheme';
 
 /** Shop preview icon per celebration effect. */
@@ -14,6 +16,14 @@ const EFFECT_ICON: Record<string, string> = {
   stars: '🌟',
   fireworks: '🎆',
 };
+
+/** Localized reward name by id; the 12 free avatars share one label. */
+function itemLabel(t: TFunction, item: RewardItem): string {
+  const key = item.id.startsWith('avatar-free-')
+    ? 'rewards.items.starterBuddy'
+    : `rewards.items.${item.id}`;
+  return tLabel(t, key, item.label);
+}
 
 export function RewardsModal({ profile, onClose }: { profile: Profile; onClose: () => void }) {
   const { t } = useTranslation();
@@ -95,7 +105,7 @@ export function RewardsModal({ profile, onClose }: { profile: Profile; onClose: 
       } else {
         // A locked tile is a goal, not a dead end (the strongest motivation
         // loop): tapping it says how far away it is.
-        setGoal(t('rewards.needMore', { label: item.label, n: item.cost - coins }));
+        setGoal(t('rewards.needMore', { label: itemLabel(t, item), n: item.cost - coins }));
       }
     } catch {
       // Refresh from the server so the UI reflects true ownership/coins.
@@ -182,7 +192,7 @@ function RewardTile({
       className={`reward-tile ${equipped ? 'equipped' : ''} ${locked ? 'locked' : ''}`}
       disabled={busy || equipped}
       onClick={onClick}
-      title={item.label}
+      title={itemLabel(t, item)}
     >
       <div className="reward-preview">
         {item.kind === 'avatar' && <span className="reward-emoji">{item.value}</span>}
@@ -209,7 +219,7 @@ function RewardTile({
           </span>
         )}
       </div>
-      <div className="reward-label">{item.label}</div>
+      <div className="reward-label">{itemLabel(t, item)}</div>
       <div className="reward-status">
         {equipped ? (
           t('rewards.statusOn')

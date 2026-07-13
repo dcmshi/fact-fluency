@@ -107,8 +107,10 @@ describe('suggestNextSet', () => {
       set({ setId: 'add-0-5', label: 'Addition 0–5', aMax: 5, enabled: false }),
     ]);
     expect(r?.setId).toBe('add-0-12'); // smallest not-enabled set larger than 0–10
-    expect(r?.reason).toContain('90%');
-    expect(r?.reason).toContain('Addition 0–10');
+    expect(r?.reason).toEqual({
+      key: 'suggestion.masteredPct',
+      params: { pct: 90, fromId: 'add-0-10', toId: 'add-0-12' },
+    });
   });
 
   it('returns null when the kid is not yet ready', () => {
@@ -165,7 +167,10 @@ describe('suggestNextSet', () => {
     // add has no larger set to advance to → cross over to the easiest sub set.
     expect(r?.setId).toBe('sub-0-10');
     expect(r?.operation).toBe('sub');
-    expect(r?.reason).toContain('subtraction');
+    expect(r?.reason).toEqual({
+      key: 'suggestion.readyOp',
+      params: { op: 'sub', setId: 'sub-0-10' },
+    });
   });
 
   it('prefers finishing the current operation over crossing to a new one', () => {

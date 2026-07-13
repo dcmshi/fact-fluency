@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { CalibrationAnswer, CalibrationQuestion } from '@shared';
+import { tLabel } from '../i18n';
 import { api, qk } from '../api';
 import { OP_SYMBOL } from '../ops';
 import './CalibratePage.css';
@@ -101,7 +102,7 @@ export function CalibratePage() {
                 disabled={busy}
                 onClick={() => chooseGrade(b.id)}
               >
-                {b.label}
+                {tLabel(t, `catalog.grades.${b.id}`, b.label)}
               </button>
             ))}
           </div>

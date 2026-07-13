@@ -175,6 +175,18 @@ export interface MunchBoard {
   cells: number[];
 }
 
+/**
+ * A translatable string the server emits for the client to render via i18next
+ * (`t(key, params)`). The server never builds user-facing prose itself — all
+ * copy lives in the client dictionaries, keyed by `key`, with `params`
+ * interpolated. Param values that are themselves labels (e.g. a fact-set id)
+ * are resolved by the client at render time.
+ */
+export interface LocalizedText {
+  key: string;
+  params?: Record<string, string | number>;
+}
+
 /** A card the client plays. `answer` is embedded for instant feedback (§4.7). */
 export interface Card {
   fact: Fact;
@@ -183,7 +195,7 @@ export interface Card {
   /** For a new sub/div intro: the known mul/add sibling shown on the study card. */
   family?: FactHint;
   /** A warm derivation strategy shown on the study card (new facts only). */
-  strategy?: string;
+  strategy?: LocalizedText;
   /** The munch grid for this round (server-generated). */
   board?: MunchBoard;
 }
@@ -416,7 +428,7 @@ export interface SetSuggestion {
   setId: string;
   operation: Operation;
   label: string;
-  reason: string;
+  reason: LocalizedText;
 }
 
 /** One hard fact for the "trickiest facts" panel (reps >= 3, not mastered). */

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { FactSet, Operation, Profile } from '@shared';
 import { api, qk } from '../../api';
 import { Modal } from '../../components/Modal';
+import { tLabel } from '../../i18n';
 import { OP_SYMBOL } from '../../ops';
 
 export function FactSetsModal({ profile, onClose }: { profile: Profile; onClose: () => void }) {
@@ -60,37 +61,46 @@ export function FactSetsModal({ profile, onClose }: { profile: Profile; onClose:
     >
       {!catalog && <p className="muted">{t('common.loading')}</p>}
       {error && <div className="error-banner">{error}</div>}
-      {Object.entries(grouped).map(([op, sets]) => (
-        <div key={op} className="set-group">
-          <div className="set-group-title">
-            {t(`ops.${op as Operation}`)}{' '}
-            <span className="op-sym" aria-hidden="true">
-              {OP_SYMBOL[op as keyof typeof OP_SYMBOL]}
-            </span>
+      {Object.entries(grouped).map(([op, sets]) => {
+        const opWord = t(`ops.${op as Operation}`);
+        // Localized full label ("Suma 0–5") minus the op prefix already shown in
+        // the group header — locale-safe (accents don't break it, unlike a regex).
+        const shortLabel = (s: FactSet) => {
+          const full = tLabel(t, `catalog.sets.${s.id}`, s.label);
+          return full.startsWith(`${opWord} `) ? full.slice(opWord.length + 1) : full;
+        };
+        return (
+          <div key={op} className="set-group">
+            <div className="set-group-title">
+              {opWord}{' '}
+              <span className="op-sym" aria-hidden="true">
+                {OP_SYMBOL[op as keyof typeof OP_SYMBOL]}
+              </span>
+            </div>
+            <div className="set-options">
+              {sets.map((s) => (
+                <button
+                  key={s.id}
+                  className={`set-pill ${op} ${enabled.has(s.id) ? 'on' : ''}`}
+                  onClick={() => toggle(s.id)}
+                  aria-pressed={enabled.has(s.id)}
+                  aria-label={tLabel(t, `catalog.sets.${s.id}`, s.label)}
+                >
+                  {shortLabel(s)}
+                </button>
+              ))}
+            </div>
+            {/* Standards alignment for whatever's enabled — a parent/teacher signal. */}
+            {sets
+              .filter((s) => enabled.has(s.id) && s.standards)
+              .map((s) => (
+                <div key={`std-${s.id}`} className="set-standards">
+                  <strong>{shortLabel(s)}</strong> · {s.standards}
+                </div>
+              ))}
           </div>
-          <div className="set-options">
-            {sets.map((s) => (
-              <button
-                key={s.id}
-                className={`set-pill ${op} ${enabled.has(s.id) ? 'on' : ''}`}
-                onClick={() => toggle(s.id)}
-                aria-pressed={enabled.has(s.id)}
-                aria-label={s.label}
-              >
-                {s.label.replace(/^[A-Za-z]+ /, '')}
-              </button>
-            ))}
-          </div>
-          {/* Standards alignment for whatever's enabled — a parent/teacher signal. */}
-          {sets
-            .filter((s) => enabled.has(s.id) && s.standards)
-            .map((s) => (
-              <div key={`std-${s.id}`} className="set-standards">
-                <strong>{s.label.replace(/^[A-Za-z]+ /, '')}</strong> · {s.standards}
-              </div>
-            ))}
-        </div>
-      ))}
+        );
+      })}
       <button className="btn sun full" disabled={busy} onClick={save}>
         {busy ? t('common.saving') : t('common.save')}
       </button>

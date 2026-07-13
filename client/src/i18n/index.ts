@@ -5,6 +5,7 @@
  * Spanish; unknown locales fall back to English.
  */
 import i18n from 'i18next';
+import type { TFunction } from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { en } from './en';
@@ -39,5 +40,23 @@ const syncHtmlLang = (lng: string) => {
 };
 syncHtmlLang(i18n.resolvedLanguage ?? 'en');
 i18n.on('languageChanged', syncHtmlLang);
+
+/**
+ * Translate a key computed at runtime from a server id (fact set, grade band,
+ * reward) or a server-emitted LocalizedText, where the key isn't a compile-time
+ * literal. Deliberately steps outside t()'s static key checking and falls back
+ * to `fallback` if the key isn't in the dictionary — so a newly added server id
+ * degrades to the server's English label rather than a raw key. `params` are
+ * interpolated (e.g. a strategy hint's operands).
+ */
+export function tLabel(
+  t: TFunction,
+  key: string,
+  fallback: string,
+  params?: Record<string, string | number>,
+): string {
+  const loose = t as unknown as (k: string, o: Record<string, unknown>) => string;
+  return loose(key, { defaultValue: fallback, ...params });
+}
 
 export default i18n;

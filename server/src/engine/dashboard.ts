@@ -4,16 +4,9 @@
  * "enable this next" suggestion. No DB/HTTP/time-of-day reached for here: the
  * caller buckets attempts into account-timezone days and passes them in.
  */
-import type { Operation, SpeedTrend } from '@shared';
+import type { LocalizedText, Operation, SpeedTrend } from '@shared';
 
 import { OPERATIONS } from './operations';
-
-const OP_NOUN: Record<Operation, string> = {
-  add: 'addition',
-  sub: 'subtraction',
-  mul: 'multiplication',
-  div: 'division',
-};
 
 /** The slice of an attempt the aggregation needs. */
 export interface AttemptLike {
@@ -102,7 +95,7 @@ export interface SuggestionResult {
   setId: string;
   operation: Operation;
   label: string;
-  reason: string;
+  reason: LocalizedText;
 }
 
 /**
@@ -117,7 +110,7 @@ export interface SuggestionResult {
  * Returns null when nothing is ready — don't nag.
  */
 export function suggestNextSet(sets: SetMastery[], threshold = 0.8): SuggestionResult | null {
-  const candidates: { op: Operation; frac: number; fromLabel: string; next: SetMastery }[] = [];
+  const candidates: { op: Operation; frac: number; fromId: string; next: SetMastery }[] = [];
   let ready = false; // mastered ≥threshold of some operation's largest enabled set
 
   for (const op of OPERATIONS) {
@@ -133,7 +126,7 @@ export function suggestNextSet(sets: SetMastery[], threshold = 0.8): SuggestionR
     const next = inOp
       .filter((s) => !s.enabled && s.aMax > largest.aMax)
       .sort((a, b) => a.aMax - b.aMax)[0];
-    if (next) candidates.push({ op, frac, fromLabel: largest.label, next });
+    if (next) candidates.push({ op, frac, fromId: largest.setId, next });
   }
 
   // (1) Within-operation advancement wins — finish the current ladder.
@@ -141,12 +134,15 @@ export function suggestNextSet(sets: SetMastery[], threshold = 0.8): SuggestionR
     candidates.sort(
       (a, b) => b.frac - a.frac || OPERATIONS.indexOf(a.op) - OPERATIONS.indexOf(b.op),
     );
-    const { frac, fromLabel, next } = candidates[0];
+    const { frac, fromId, next } = candidates[0];
     return {
       setId: next.setId,
       operation: next.operation,
       label: next.label,
-      reason: `Mastered ${Math.round(frac * 100)}% of ${fromLabel} — ready for ${next.label}.`,
+      reason: {
+        key: 'suggestion.masteredPct',
+        params: { pct: Math.round(frac * 100), fromId, toId: next.setId },
+      },
     };
   }
 
@@ -160,7 +156,7 @@ export function suggestNextSet(sets: SetMastery[], threshold = 0.8): SuggestionR
       setId: easiest.setId,
       operation: easiest.operation,
       label: easiest.label,
-      reason: `Doing great — ready to try ${OP_NOUN[op]}? Start with ${easiest.label}.`,
+      reason: { key: 'suggestion.readyOp', params: { op, setId: easiest.setId } },
     };
   }
   return null;
