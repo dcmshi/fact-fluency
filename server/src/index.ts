@@ -4,6 +4,7 @@
  */
 import { createApp } from './app';
 import { createDb } from './db';
+import { attachFeastLive } from './feast/live';
 import { attachRaceLive } from './race/live';
 
 const PORT = Number(process.env.PORT ?? 3001);
@@ -36,8 +37,10 @@ async function main() {
     // eslint-disable-next-line no-console
     console.log(`Fact Fluency API listening on ${HOST}:${PORT} (${isProd ? 'prod' : 'dev'})`);
   });
-  // Live-race WebSocket rooms ride the same HTTP server (MULTIPLAYER.md §2).
+  // Live multiplayer WebSocket rooms ride the same HTTP server: async/live Race
+  // (MULTIPLAYER.md §2) and the real-time Feast arena (FEAST.md).
   attachRaceLive(server, db);
+  attachFeastLive(server, db);
 }
 
 main().catch((err) => {

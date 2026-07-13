@@ -75,10 +75,9 @@ export function attachRaceLive(server: Server, db: Db): void {
 
   server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
     const url = new URL(req.url ?? '', 'http://localhost');
-    if (url.pathname !== RACE_WS_PATH) {
-      socket.destroy(); // the only WebSocket this server speaks
-      return;
-    }
+    // Only claim our own path — another upgrade handler (e.g. Feast) may own the
+    // socket. Don't destroy non-matches, or we'd kill their upgrades.
+    if (url.pathname !== RACE_WS_PATH) return;
     const raceId = url.searchParams.get('raceId') ?? '';
     const profileId = url.searchParams.get('profileId') ?? '';
     void (async () => {
