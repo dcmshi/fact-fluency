@@ -71,9 +71,19 @@
   width: 100%;
 }
 .tile-actions .btn.ghost {
-  padding: 0.4rem 0.5rem;
+  padding: 0.4rem 0.45rem;
   font-size: 0.82rem;
-  white-space: nowrap;
+  /* Labels vary a lot by language ("Facts" → "Operaciones"): let them wrap, and
+     as a last resort in the narrowest (150px) tiles break rather than spill past
+     the pill. Center the (possibly two-line) label vertically. */
+  white-space: normal;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  line-height: 1.12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   /* Kid fingers: keep every tile action at the 44px minimum touch target. */
   min-height: 44px;
 }

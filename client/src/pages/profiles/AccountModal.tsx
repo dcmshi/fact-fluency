@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api, ApiError, qk } from '../../api';
 import { useAuth } from '../../auth';
 import { Modal } from '../../components/Modal';
-import { AUTH_ERROR_MESSAGES, FALLBACK_MESSAGE } from '../../messages';
+import { accountErrorText } from '../../errors';
 
 /** All IANA timezones, when the runtime exposes them (for the picker). */
 const TIMEZONES: string[] = (() => {
@@ -15,13 +16,9 @@ const TIMEZONES: string[] = (() => {
   }
 })();
 
-const MESSAGES: Record<string, string> = {
-  ...AUTH_ERROR_MESSAGES,
-  invalid_timezone: 'Pick a valid timezone.',
-};
-
 /** Parent account management: edit email / password / timezone, or delete. */
 export function AccountModal({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const { deleteAccount } = useAuth();
   const [email, setEmail] = useState('');
   const [timezone, setTimezone] = useState('');
@@ -50,7 +47,7 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
     },
     onError: (e) => {
       setSaved(false);
-      setError(MESSAGES[e instanceof ApiError ? e.code : ''] ?? FALLBACK_MESSAGE);
+      setError(accountErrorText(t, e instanceof ApiError ? e.code : ''));
     },
   });
   const deleteMut = useMutation({ mutationFn: () => deleteAccount() });
@@ -65,16 +62,16 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Modal onClose={onClose} title="Your account">
+    <Modal onClose={onClose} title={t('modals.accountTitle')}>
       <form className="stack" onSubmit={save} style={{ gap: '0.9rem' }}>
         {error && <div className="error-banner">{error}</div>}
         {saved && (
           <div className="muted" style={{ color: 'var(--add)' }}>
-            Saved ✓
+            {t('modals.saved')}
           </div>
         )}
         <div className="field">
-          <label htmlFor="acct-email">Email</label>
+          <label htmlFor="acct-email">{t('landing.email')}</label>
           <input
             id="acct-email"
             type="email"
@@ -85,18 +82,18 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
           />
         </div>
         <div className="field">
-          <label htmlFor="acct-password">New password</label>
+          <label htmlFor="acct-password">{t('modals.newPassword')}</label>
           <input
             id="acct-password"
             type="password"
             autoComplete="new-password"
-            placeholder="Leave blank to keep current"
+            placeholder={t('modals.passwordPlaceholder')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
         <div className="field">
-          <label htmlFor="acct-tz">Timezone</label>
+          <label htmlFor="acct-tz">{t('modals.timezone')}</label>
           {TIMEZONES.length ? (
             <select id="acct-tz" value={timezone} onChange={(e) => setTimezone(e.target.value)}>
               {timezone && !TIMEZONES.includes(timezone) && (
@@ -112,37 +109,37 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
             <input id="acct-tz" value={timezone} onChange={(e) => setTimezone(e.target.value)} />
           )}
           <span className="muted" style={{ fontSize: '0.8rem' }}>
-            Review scheduling uses this zone.
+            {t('modals.timezoneHint')}
           </span>
         </div>
         <button className="btn sun full" type="submit" disabled={saveMut.isPending}>
-          {saveMut.isPending ? 'Saving…' : 'Save changes'}
+          {saveMut.isPending ? t('common.saving') : t('modals.saveChanges')}
         </button>
       </form>
 
       <div className="danger-zone">
-        {deleteMut.isError && <div className="error-banner">Couldn’t delete — try again.</div>}
+        {deleteMut.isError && <div className="error-banner">{t('errors.deleteFailed')}</div>}
         {!confirming ? (
           <button className="btn danger-link" onClick={() => setConfirming(true)}>
-            Delete my account
+            {t('modals.deleteAccount')}
           </button>
         ) : (
           <div className="confirm-delete">
-            <p className="muted">Really delete everything?</p>
+            <p className="muted">{t('modals.deleteAccountConfirm')}</p>
             <div className="confirm-actions">
               <button
                 className="btn ghost"
                 disabled={deleteMut.isPending}
                 onClick={() => setConfirming(false)}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 className="btn danger"
                 disabled={deleteMut.isPending}
                 onClick={() => deleteMut.mutate()}
               >
-                {deleteMut.isPending ? 'Deleting…' : 'Delete everything'}
+                {deleteMut.isPending ? t('modals.deleting') : t('modals.deleteEverything')}
               </button>
             </div>
           </div>

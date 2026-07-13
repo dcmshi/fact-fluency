@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { AVATARS } from '../ops';
 import './AvatarPicker.css';
 
@@ -9,6 +10,7 @@ export function AvatarPicker({
   value: string;
   onChange: (avatar: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="avatar-picker">
       {AVATARS.map((a) => (
@@ -17,7 +19,7 @@ export function AvatarPicker({
           className={`avatar-option ${a === value ? 'selected' : ''}`}
           onClick={() => onChange(a)}
           aria-pressed={a === value}
-          aria-label={`Buddy ${a}`}
+          aria-label={t('modals.buddyOption', { avatar: a })}
         >
           {a}
         </button>

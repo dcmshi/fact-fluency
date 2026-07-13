@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { LiveStanding, RaceResult, RaceStartResponse } from '@shared';
@@ -21,6 +22,7 @@ const isYou = (profileId: string, id: string) => profileId === id;
  * — or you'd rather not wait — you can race the bot solo (the Phase 1 path).
  */
 export function RacePage() {
+  const { t } = useTranslation();
   const { profileId = '' } = useParams();
   const navigate = useNavigate();
 
@@ -202,16 +204,16 @@ export function RacePage() {
           <div className="big-emoji" aria-hidden="true">
             🏁
           </div>
-          <h1>Race!</h1>
+          <h1>{t('race.title')}</h1>
           <p className="muted" style={{ marginTop: '-0.4rem' }}>
-            Race a sibling in real time, or beat the bot. First to clear the deck wins.
+            {t('race.lobbySub')}
           </p>
           <button className="btn sun full" onClick={newRace} disabled={busy}>
-            {busy ? 'Starting…' : '🏁 New race'}
+            {busy ? t('race.starting') : t('race.newRace')}
           </button>
           {races && races.length > 0 && (
             <div className="race-list">
-              <div className="race-list-title">Join a race</div>
+              <div className="race-list-title">{t('race.joinTitle')}</div>
               {races.map((rc) => (
                 <button
                   key={rc.id}
@@ -223,15 +225,17 @@ export function RacePage() {
                     <span aria-hidden="true">{rc.createdByAvatar}</span> {rc.createdByName}
                   </span>
                   <span className="race-list-meta">
-                    {rc.factCount} facts · {rc.runCount} raced
+                    {t('race.raceMeta', { facts: rc.factCount, raced: rc.runCount })}
                   </span>
-                  <span className="race-list-cta">{rc.played ? 'Rematch' : 'Join'}</span>
+                  <span className="race-list-cta">
+                    {rc.played ? t('race.rematch') : t('race.join')}
+                  </span>
                 </button>
               ))}
             </div>
           )}
           <button className="btn ghost" onClick={() => navigate('/')} disabled={busy}>
-            ← Back
+            {t('common.back')}
           </button>
         </div>
       </div>
@@ -246,16 +250,14 @@ export function RacePage() {
           <div className="big-emoji" aria-hidden="true">
             🏁
           </div>
-          <h1>Race lobby</h1>
+          <h1>{t('race.roomTitle')}</h1>
           {countdown != null ? (
             <div className="race-countdown" role="status">
               {countdown}
             </div>
           ) : (
             <p className="muted" style={{ marginTop: '-0.4rem' }}>
-              {wsError
-                ? "Couldn't connect for live play — race the bot instead."
-                : 'Open this race on another device (same account) to race a sibling live.'}
+              {wsError ? t('race.wsError') : t('race.roomHint')}
             </p>
           )}
 
@@ -267,7 +269,7 @@ export function RacePage() {
                   className={`race-roster-chip ${isYou(profileId, p.profileId) ? 'you' : ''}`}
                 >
                   <span aria-hidden="true">{p.avatar}</span> {p.name}
-                  {isYou(profileId, p.profileId) && ' (you)'}
+                  {isYou(profileId, p.profileId) && ` (${t('race.youWord')})`}
                 </span>
               ))}
             </div>
@@ -275,14 +277,14 @@ export function RacePage() {
 
           {countdown == null && !wsError && (
             <button className="btn sun full" onClick={markReady} disabled={ready}>
-              {ready ? 'Ready ✓ — waiting for others…' : "I'm ready!"}
+              {ready ? t('race.readyWaiting') : t('race.imReady')}
             </button>
           )}
           <button className="btn full" onClick={raceTheBot}>
-            🤖 Race the bot
+            {t('race.raceBot')}
           </button>
           <button className="btn ghost" onClick={leave}>
-            ← Back
+            {t('common.back')}
           </button>
         </div>
       </div>
@@ -297,7 +299,7 @@ export function RacePage() {
           <div className="big-emoji" aria-hidden="true">
             🏁
           </div>
-          <h1>At the finish line…</h1>
+          <h1>{t('race.placing')}</h1>
         </div>
       </div>
     );
@@ -340,10 +342,10 @@ export function RacePage() {
           <div className="big-emoji" aria-hidden="true">
             {myPlace === 1 ? '🏆' : '🏁'}
           </div>
-          <h1>{myPlace === 1 ? 'You won!' : 'Nice racing!'}</h1>
+          <h1>{myPlace === 1 ? t('race.youWon') : t('race.niceRacing')}</h1>
           <p className="muted" style={{ marginTop: '-0.4rem' }}>
             {place}
-            {result?.personalBest && ' · new best ⭐'}
+            {result?.personalBest && ` · ${t('race.newBest')}`}
           </p>
           {standings.length > 0 && (
             <div className="race-standings">
@@ -356,7 +358,7 @@ export function RacePage() {
                   <span aria-hidden="true">{s.avatar}</span>
                   <span className="race-standing-name">
                     {s.name}
-                    {s.you && ' (you)'}
+                    {s.you && ` (${t('race.youWord')})`}
                   </span>
                   <span className="race-standing-time">
                     {s.totalMs != null ? secs(s.totalMs) : '—'}
@@ -367,7 +369,7 @@ export function RacePage() {
           )}
           {myCoins > 0 && (
             <div className="race-coins">
-              <span aria-hidden="true">⭐</span> +{myCoins} coins
+              <span aria-hidden="true">⭐</span> {t('race.coinsPlus', { count: myCoins })}
             </div>
           )}
           <button
@@ -378,10 +380,10 @@ export function RacePage() {
               setPhase('lobby');
             }}
           >
-            Race again
+            {t('race.raceAgain')}
           </button>
           <button className="btn ghost" onClick={leave}>
-            Done
+            {t('common.done')}
           </button>
         </div>
       </div>
@@ -398,7 +400,7 @@ export function RacePage() {
           <Lane
             key={p.profileId}
             pct={(p.rounds / total) * 100}
-            label={isYou(profileId, p.profileId) ? 'You' : p.name}
+            label={isYou(profileId, p.profileId) ? t('race.youLabel') : p.name}
           >
             {isYou(profileId, p.profileId) ? (
               <Muncher animal={deck.muncher} state="still" size={26} />
@@ -408,7 +410,7 @@ export function RacePage() {
           </Lane>
         ))
       : [
-          <Lane key="you" pct={(roundIndex / total) * 100} label="You">
+          <Lane key="you" pct={(roundIndex / total) * 100} label={t('race.youLabel')}>
             <Muncher animal={deck.muncher} state="still" size={26} />
           </Lane>,
           <Lane
@@ -424,10 +426,11 @@ export function RacePage() {
     <div className="screen race">
       <header className="play-header">
         <button className="btn ghost" onClick={leave}>
-          <span aria-hidden="true">← </span>Quit
+          <span aria-hidden="true">← </span>
+          {t('play.quit')}
         </button>
         <div className="race-round muted">
-          Round {roundIndex + 1} of {total}
+          {t('race.roundOf', { current: roundIndex + 1, total })}
         </div>
       </header>
 

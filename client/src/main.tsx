@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
 import { ApiError } from './api';
 import { AuthProvider } from './auth';
+import './i18n'; // configure i18next before anything renders
 // Self-hosted fonts (no third-party CDN) — Fredoka (display, weights 500-700)
 // + Nunito (body, 400/600/700/800). Only weights the CSS actually requests are
 // loaded: Fredoka 400 and Nunito 700-italic are unused (no italic anywhere).

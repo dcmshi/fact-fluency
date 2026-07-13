@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import './Modal.css';
 
 const FOCUSABLE =
@@ -18,6 +19,7 @@ export function Modal({
   children: React.ReactNode;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const onCloseRef = useRef(onClose);
@@ -75,7 +77,7 @@ export function Modal({
       >
         <div className="modal-head">
           <h2 id={titleId}>{title}</h2>
-          <button className="btn ghost" onClick={onClose} aria-label="Close">
+          <button className="btn ghost" onClick={onClose} aria-label={t('common.close')}>
             ✕
           </button>
         </div>

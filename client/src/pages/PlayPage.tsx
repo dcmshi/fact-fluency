@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { Card, SessionResponse, SessionSummary } from '@shared';
+import type { Card, Operation, SessionResponse, SessionSummary } from '@shared';
 import { api, ApiError, qk } from '../api';
 import { Confetti } from '../components/Confetti';
 import { MunchBoard, type RoundResult } from '../components/MunchBoard';
@@ -13,25 +14,23 @@ import { enqueueAnswer, flushAnswers, markPendingComplete } from '../syncQueue';
 import { useTheme } from '../useTheme';
 import './PlayPage.css';
 
-/** Spoken form of an operation, for screen-reader announcements. */
-const OP_WORD: Record<string, string> = {
-  add: 'plus',
-  sub: 'minus',
-  mul: 'times',
-  div: 'divided by',
-};
-const eqText = (a: number, op: string, b: number, answer: number) =>
-  `${a} ${OP_WORD[op] ?? op} ${b} equals ${answer}`;
-
 /** Mirrors the server's REHEARSAL_GAP for offline self-requeues (§4.4). */
 const REHEARSAL_GAP = 3;
 
 type Phase = 'loading' | 'study' | 'munch' | 'done' | 'error';
 
 export function PlayPage() {
+  const { t } = useTranslation();
   const { profileId = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // Spoken form of an equation, for screen-reader announcements.
+  const spokenEq = useCallback(
+    (a: number, op: Operation, b: number, answer: number) =>
+      t('play.equationSpoken', { a, op: t(`play.opWords.${op}`), b, answer }),
+    [t],
+  );
 
   const [session, setSession] = useState<SessionResponse | null>(null);
   const [queue, setQueue] = useState<Card[]>([]);
@@ -116,7 +115,7 @@ export function PlayPage() {
           setOfflineFinish(true);
         }
         playComplete();
-        setAnnounce('Session complete. Nice work!');
+        setAnnounce(t('play.announceComplete'));
         setPhase('done');
         return;
       }
@@ -127,7 +126,7 @@ export function PlayPage() {
         studiedRef.current.add(f.id);
         setStudySeen(seen);
         setAnnounce(
-          `${seen ? 'Remember this one' : 'New fact'}. ${eqText(f.operandA, f.operation, f.operandB, nextQueue[0].answer)}.`,
+          `${seen ? t('play.srRemember') : t('play.srNew')}. ${spokenEq(f.operandA, f.operation, f.operandB, nextQueue[0].answer)}.`,
         );
         setStudyReady(false);
         setPhase('study');
@@ -135,7 +134,7 @@ export function PlayPage() {
         startRound();
       }
     },
-    [startRound, queryClient, profileId, applyQueue],
+    [startRound, queryClient, profileId, applyQueue, t, spokenEq],
   );
 
   const start = useCallback(async () => {
@@ -201,11 +200,7 @@ export function PlayPage() {
       const fast = !calm && r.correct && r.responseMs <= s.thresholds[current.fact.operation];
       if (fast) playFast(); // the fluency win gets its sparkle (sound.ts)
       setAnnounce(
-        r.correct
-          ? fast
-            ? 'All munched, super fast!'
-            : 'All munched!'
-          : 'All done — nice effort! Keep going.',
+        r.correct ? (fast ? t('play.munchFast') : t('play.munchDone')) : t('play.munchMiss'),
       );
 
       // Don't block the next card on the answer round trip (200-800ms of dead
@@ -246,7 +241,7 @@ export function PlayPage() {
 
       await goNext(queueRef.current.slice(1));
     },
-    [current, goNext, applyQueue],
+    [current, goNext, applyQueue, t],
   );
 
   // Study card: Enter/Space dismisses to start the round.
@@ -276,7 +271,8 @@ export function PlayPage() {
         {/* No aria-label override: the accessible name must match the visible
             "Quit" (WCAG 2.5.3, label in name). The arrow is decoration. */}
         <button className="btn ghost" onClick={() => navigate('/')}>
-          <span aria-hidden="true">← </span>Quit
+          <span aria-hidden="true">← </span>
+          {t('play.quit')}
         </button>
         {phase !== 'done' && phase !== 'error' && (
           <div className="progress-track">
@@ -285,7 +281,7 @@ export function PlayPage() {
         )}
         <button
           className="btn ghost mute-btn"
-          aria-label={muted ? 'Unmute sounds' : 'Mute sounds'}
+          aria-label={muted ? t('play.unmute') : t('play.mute')}
           aria-pressed={muted}
           onClick={() => setMutedState(setMuted(!muted))}
         >
@@ -298,7 +294,7 @@ export function PlayPage() {
         {announce}
       </div>
 
-      {phase === 'loading' && <div className="play-center muted">Setting up…</div>}
+      {phase === 'loading' && <div className="play-center muted">{t('play.settingUp')}</div>}
 
       {phase === 'error' && (
         <div className="play-center stack" style={{ textAlign: 'center' }}>
@@ -306,15 +302,15 @@ export function PlayPage() {
             📚
           </div>
           <h2>
-            {errorCode === 'no_enabled_sets' ? 'No facts picked yet' : 'Something went wrong'}
+            {errorCode === 'no_enabled_sets'
+              ? t('play.errNoFactsTitle')
+              : t('play.errGenericTitle')}
           </h2>
           <p className="muted">
-            {errorCode === 'no_enabled_sets'
-              ? 'Ask a grown-up to choose some fact sets first.'
-              : 'Let’s head back and try again.'}
+            {errorCode === 'no_enabled_sets' ? t('play.errNoFactsBody') : t('play.errGenericBody')}
           </p>
           <button className="btn sun" onClick={() => navigate('/')}>
-            Back to profiles
+            {t('play.backToProfiles')}
           </button>
         </div>
       )}
@@ -323,7 +319,7 @@ export function PlayPage() {
         <div className="play-center">
           <div className="card study-card rise" key={current.fact.id}>
             <div className="study-tag">
-              {studySeen ? 'Remember this one? Take another look 👀' : 'New fact — take a look!'}
+              {studySeen ? t('play.studyRemember') : t('play.studyNew')}
             </div>
             {current.family && (
               <div className="family-hint">
@@ -331,7 +327,7 @@ export function PlayPage() {
                   {current.family.operandA} {OP_SYMBOL[current.family.operation]}{' '}
                   {current.family.operandB} = {current.family.answer}
                 </span>
-                <span className="family-so">so…</span>
+                <span className="family-so">{t('play.familySo')}</span>
               </div>
             )}
             <div className="equation big">
@@ -351,7 +347,7 @@ export function PlayPage() {
               disabled={!studyReady}
               onClick={startRound}
             >
-              {studyReady ? 'Got it! ▶' : 'Look at it…'}
+              {studyReady ? t('play.gotIt') : t('play.lookAtIt')}
             </button>
           </div>
         </div>
@@ -377,13 +373,10 @@ export function PlayPage() {
           <div className="big-emoji" aria-hidden="true">
             📡
           </div>
-          <h1>Great practicing!</h1>
-          <p className="muted">
-            You’re offline right now — your work is saved. Your coins and streak will update as soon
-            as you’re back online.
-          </p>
+          <h1>{t('play.offlineTitle')}</h1>
+          <p className="muted">{t('play.offlineBody')}</p>
           <button className="btn sun full" onClick={() => navigate('/')}>
-            Done
+            {t('common.done')}
           </button>
         </div>
       )}
@@ -396,40 +389,34 @@ export function PlayPage() {
           </div>
           <h1>
             {summary.allMastered
-              ? 'You mastered it all!'
+              ? t('play.masteredAllTitle')
               : caughtUp
-                ? 'All caught up!'
-                : 'Nice work!'}
+                ? t('play.caughtUpTitle')
+                : t('play.niceWorkTitle')}
           </h1>
-          {summary.allMastered && (
-            <p className="muted">
-              You’ve mastered every fact here. Ask a grown-up to add more so you can keep going!
-            </p>
-          )}
+          {summary.allMastered && <p className="muted">{t('play.masteredAllBody')}</p>}
           {summary.streak > 1 && (
             <div className="streak-ribbon">
-              <span aria-hidden="true">🔥</span> {summary.streak}-day streak!
+              <span aria-hidden="true">🔥</span> {t('play.streakRibbon', { count: summary.streak })}
             </div>
           )}
           {summary.streakSaved && (
             <div className="shield-ribbon">
-              <span aria-hidden="true">🛡️</span> Your streak shield saved your {summary.streak}-day
-              streak!
+              <span aria-hidden="true">🛡️</span> {t('play.shieldSaved', { count: summary.streak })}
             </div>
           )}
           {!summary.streakSaved && summary.streakShieldReady && (
             <div className="shield-note">
-              <span aria-hidden="true">🛡️</span> Streak shield ready
+              <span aria-hidden="true">🛡️</span> {t('play.shieldReady')}
             </div>
           )}
           <div className="today-done">
-            <span aria-hidden="true">🎉</span> That&rsquo;s today&rsquo;s practice done — see you
-            tomorrow, or keep going!
+            <span aria-hidden="true">🎉</span> {t('play.todayDone')}
           </div>
 
           {summary.masteredFacts.length > 0 && (
             <div className="mastered-chips">
-              <span className="mastered-chips-label">Mastered today:</span>
+              <span className="mastered-chips-label">{t('play.masteredToday')}</span>
               {summary.masteredFacts.map((f) => (
                 <span key={f.id} className={`mastered-chip ${OP_CLASS[f.operation]}`}>
                   {f.operandA} {OP_SYMBOL[f.operation]} {f.operandB} = {f.answer}
@@ -438,38 +425,38 @@ export function PlayPage() {
             </div>
           )}
           <div className="summary-stats">
-            <Stat label="Played" value={summary.cardsPlayed} />
-            <Stat label="Correct" value={summary.correct} />
-            <Stat label="Mastered" value={summary.mastered} />
-            <Stat label="Coins +" value={summary.pointsEarned} accent />
+            <Stat label={t('play.statPlayed')} value={summary.cardsPlayed} />
+            <Stat label={t('play.statCorrect')} value={summary.correct} />
+            <Stat label={t('play.statMastered')} value={summary.mastered} />
+            <Stat label={t('play.statCoins')} value={summary.pointsEarned} accent />
           </div>
           <div className="coin-total">
-            <span aria-hidden="true">⭐</span> {summary.coins} coins to spend in Rewards
+            <span aria-hidden="true">⭐</span> {t('play.coinsToSpend', { count: summary.coins })}
           </div>
           {summary.coins > 0 && (
             <button
               className="btn full spend-coins"
               onClick={() => navigate(`/?rewards=${profileId}`)}
             >
-              <span aria-hidden="true">⭐</span> Spend coins
+              <span aria-hidden="true">⭐</span> {t('play.spendCoins')}
             </button>
           )}
           {summary.allMastered ? (
             <>
               <button className="btn sun full" onClick={() => navigate('/')}>
-                Done
+                {t('common.done')}
               </button>
               <button className="btn full" onClick={start}>
-                Play a bonus round
+                {t('play.bonusRound')}
               </button>
             </>
           ) : (
             <>
               <button className="btn sun full" onClick={start}>
-                Play again
+                {t('play.playAgain')}
               </button>
               <button className="btn full done-for-now" onClick={() => navigate('/')}>
-                Done for now
+                {t('play.doneForNow')}
               </button>
             </>
           )}

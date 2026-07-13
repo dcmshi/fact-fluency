@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError, qk } from '../../api';
 import { AvatarPicker } from '../../components/AvatarPicker';
 import { Modal } from '../../components/Modal';
-import { EDIT_ERROR_MESSAGES, FALLBACK_MESSAGE } from '../../messages';
+import { editErrorText } from '../../errors';
 import { AVATARS } from '../../ops';
 
 export function AddProfileModal({
@@ -13,6 +14,7 @@ export function AddProfileModal({
   onClose: () => void;
   onCreated: () => void;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState(AVATARS[0]);
@@ -32,8 +34,7 @@ export function AddProfileModal({
       void queryClient.invalidateQueries({ queryKey: qk.profiles });
       onCreated();
     },
-    onError: (e) =>
-      setError(EDIT_ERROR_MESSAGES[e instanceof ApiError ? e.code : ''] ?? FALLBACK_MESSAGE),
+    onError: (e) => setError(editErrorText(t, e instanceof ApiError ? e.code : '')),
   });
   const busy = createMut.isPending;
 
@@ -44,25 +45,25 @@ export function AddProfileModal({
   }
 
   return (
-    <Modal onClose={onClose} title="Add a kid">
+    <Modal onClose={onClose} title={t('modals.addTitle')}>
       {error && <div className="error-banner">{error}</div>}
       <div className="field">
-        <label htmlFor="kid-name">Name</label>
+        <label htmlFor="kid-name">{t('modals.name')}</label>
         <input id="kid-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
       </div>
       <div className="field">
-        <label>Pick a buddy</label>
+        <label>{t('modals.pickBuddy')}</label>
         <AvatarPicker value={avatar} onChange={setAvatar} />
       </div>
       <div className="field">
-        <label>Starting level</label>
+        <label>{t('modals.startingLevel')}</label>
         <div className="band-picker">
           <button
             className={`set-pill ${band === '' ? 'on' : ''}`}
             onClick={() => setBand('')}
             aria-pressed={band === ''}
           >
-            Starter mix
+            {t('modals.starterMix')}
           </button>
           {bands.map((b) => (
             <button
@@ -76,11 +77,11 @@ export function AddProfileModal({
           ))}
         </div>
         <span className="muted" style={{ fontSize: '0.8rem' }}>
-          Sets a few fact sets to start — you can fine-tune them anytime from “Facts”.
+          {t('modals.startingHint')}
         </span>
       </div>
       <button className="btn sun full" disabled={busy || !name.trim()} onClick={create}>
-        {busy ? 'Creating…' : 'Create profile'}
+        {busy ? t('modals.creating') : t('modals.createProfile')}
       </button>
     </Modal>
   );

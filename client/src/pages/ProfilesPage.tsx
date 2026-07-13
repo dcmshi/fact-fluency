@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { Profile } from '@shared';
 import { api, qk } from '../api';
 import { useAuth } from '../auth';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { Modal } from '../components/Modal';
 import { AccountModal } from './profiles/AccountModal';
 import { AddProfileModal } from './profiles/AddProfileModal';
@@ -14,6 +16,7 @@ import { UpgradeModal } from './profiles/UpgradeModal';
 import './ProfilesPage.css';
 
 export function ProfilesPage() {
+  const { t } = useTranslation();
   const { logout, guest } = useAuth();
   const navigate = useNavigate();
   const [adding, setAdding] = useState(false);
@@ -52,44 +55,43 @@ export function ProfilesPage() {
           </span>{' '}
           Fact Fluency
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <LanguageSwitcher />
           {!guest && (
             <button className="btn ghost" onClick={() => setAccountOpen(true)}>
-              Account
+              {t('profiles.account')}
             </button>
           )}
           {/* A guest's session cookie is the only key to their account — exiting
               strands it for the prune job. Confirm (with a save path) first. */}
           <button className="btn ghost" onClick={() => (guest ? setExiting(true) : logout())}>
-            {guest ? 'Exit' : 'Sign out'}
+            {guest ? t('profiles.exit') : t('profiles.signOut')}
           </button>
         </div>
       </header>
 
       <div className="stack" style={{ maxWidth: 720 }}>
         <h1 className="rise" style={{ fontSize: 'clamp(1.6rem, 5vw, 2.2rem)' }}>
-          Who’s practicing?
+          {t('profiles.whosPracticing')}
         </h1>
 
         {guest && (
           <div className="card guest-banner rise">
             <div>
-              <strong>Playing as a guest.</strong>{' '}
-              <span className="muted">
-                Progress is saved on this device only — create an account to keep it.
-              </span>
+              <strong>{t('profiles.guestTitle')}</strong>{' '}
+              <span className="muted">{t('profiles.guestNote')}</span>
             </div>
             <button className="btn sun" onClick={() => setUpgrading(true)}>
-              Save my progress
+              {t('profiles.saveProgress')}
             </button>
           </div>
         )}
 
         {isError && (
           <div className="card" role="alert" style={{ textAlign: 'center' }}>
-            <p className="muted">Couldn’t load profiles.</p>
+            <p className="muted">{t('profiles.loadError')}</p>
             <button className="btn ghost" onClick={() => refetch()}>
-              Try again
+              {t('common.tryAgain')}
             </button>
           </div>
         )}
@@ -115,40 +117,48 @@ export function ProfilesPage() {
               </div>
               <div className="profile-name">{p.displayName}</div>
               {p.streak > 1 && (
-                <div className="streak-badge" role="img" aria-label={`${p.streak}-day streak`}>
+                <div
+                  className="streak-badge"
+                  role="img"
+                  aria-label={t('profiles.streakLabel', { count: p.streak })}
+                >
                   <span aria-hidden="true">🔥</span> {p.streak}
                 </div>
               )}
-              <div className="coin-badge" role="img" aria-label={`${p.coins} coins`}>
+              <div
+                className="coin-badge"
+                role="img"
+                aria-label={t('profiles.coinsLabel', { count: p.coins })}
+              >
                 <span aria-hidden="true">⭐</span> {p.coins}
               </div>
               {/* Positive framing only: an invitation, never a homework backlog.
                   Once today's session is done, celebrate rest over a review nag. */}
               {p.doneToday ? (
-                <div className="due-chip caught-up">Done for today ✓</div>
+                <div className="due-chip caught-up">{t('profiles.doneToday')}</div>
               ) : (p.dueToday ?? 0) > 0 ? (
-                <div className="due-chip">{p.dueToday} to review!</div>
+                <div className="due-chip">{t('profiles.toReview', { count: p.dueToday })}</div>
               ) : p.streak > 0 ? (
-                <div className="due-chip caught-up">All caught up ✓</div>
+                <div className="due-chip caught-up">{t('profiles.caughtUp')}</div>
               ) : null}
               <button className="btn sun full" onClick={() => navigate(`/play/${p.id}`)}>
-                Play ▶
+                {t('profiles.play')}
               </button>
               <div className="tile-actions">
                 <button className="btn ghost" onClick={() => navigate(`/race/${p.id}`)}>
-                  🏁 Race
+                  {t('profiles.race')}
                 </button>
                 <button className="btn ghost" onClick={() => setRewardsFor(p)}>
-                  Rewards
+                  {t('profiles.rewards')}
                 </button>
                 <button className="btn ghost" onClick={() => navigate(`/progress/${p.id}`)}>
-                  Progress
+                  {t('profiles.progress')}
                 </button>
                 <button className="btn ghost" onClick={() => setManaging(p)}>
-                  Facts
+                  {t('profiles.facts')}
                 </button>
                 <button className="btn ghost" onClick={() => setSettingsFor(p)}>
-                  Settings
+                  {t('profiles.settings')}
                 </button>
               </div>
             </div>
@@ -159,7 +169,7 @@ export function ProfilesPage() {
               <div className="avatar plus" aria-hidden="true">
                 ＋
               </div>
-              <div className="profile-name">Add a kid</div>
+              <div className="profile-name">{t('profiles.addKid')}</div>
             </button>
           )}
         </div>
@@ -182,10 +192,9 @@ export function ProfilesPage() {
       )}
       {accountOpen && <AccountModal onClose={() => setAccountOpen(false)} />}
       {exiting && (
-        <Modal title="Leaving already?" onClose={() => setExiting(false)}>
+        <Modal title={t('profiles.exitTitle')} onClose={() => setExiting(false)}>
           <p className="muted" style={{ marginTop: '-0.3rem' }}>
-            You’re playing as a guest, so exiting deletes your coins and progress for good. Want to
-            save them with an account first?
+            {t('profiles.exitBody')}
           </p>
           <button
             className="btn sun full"
@@ -194,10 +203,10 @@ export function ProfilesPage() {
               setUpgrading(true);
             }}
           >
-            Save my progress
+            {t('profiles.saveProgress')}
           </button>
           <button className="btn danger" onClick={logout}>
-            Exit and delete my progress
+            {t('profiles.exitConfirm')}
           </button>
         </Modal>
       )}

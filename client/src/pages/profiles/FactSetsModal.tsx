@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { FactSet, Profile } from '@shared';
+import type { FactSet, Operation, Profile } from '@shared';
 import { api, qk } from '../../api';
 import { Modal } from '../../components/Modal';
-import { FALLBACK_MESSAGE } from '../../messages';
-import { OP_LABEL, OP_SYMBOL } from '../../ops';
+import { OP_SYMBOL } from '../../ops';
 
 export function FactSetsModal({ profile, onClose }: { profile: Profile; onClose: () => void }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [enabled, setEnabled] = useState<Set<string>>(new Set());
 
@@ -38,7 +39,7 @@ export function FactSetsModal({ profile, onClose }: { profile: Profile; onClose:
       void queryClient.invalidateQueries({ queryKey: qk.dashboard(profile.id) });
       onClose();
     },
-    onError: () => setError(FALLBACK_MESSAGE),
+    onError: () => setError(t('errors.save')),
   });
   const busy = saveMut.isPending;
 
@@ -53,13 +54,16 @@ export function FactSetsModal({ profile, onClose }: { profile: Profile; onClose:
   }, {});
 
   return (
-    <Modal onClose={onClose} title={`${profile.avatar} ${profile.displayName}'s facts`}>
-      {!catalog && <p className="muted">Loading…</p>}
+    <Modal
+      onClose={onClose}
+      title={t('modals.factsTitle', { avatar: profile.avatar, name: profile.displayName })}
+    >
+      {!catalog && <p className="muted">{t('common.loading')}</p>}
       {error && <div className="error-banner">{error}</div>}
       {Object.entries(grouped).map(([op, sets]) => (
         <div key={op} className="set-group">
           <div className="set-group-title">
-            {OP_LABEL[op as keyof typeof OP_LABEL]}{' '}
+            {t(`ops.${op as Operation}`)}{' '}
             <span className="op-sym" aria-hidden="true">
               {OP_SYMBOL[op as keyof typeof OP_SYMBOL]}
             </span>
@@ -88,7 +92,7 @@ export function FactSetsModal({ profile, onClose }: { profile: Profile; onClose:
         </div>
       ))}
       <button className="btn sun full" disabled={busy} onClick={save}>
-        {busy ? 'Saving…' : 'Save'}
+        {busy ? t('common.saving') : t('common.save')}
       </button>
     </Modal>
   );

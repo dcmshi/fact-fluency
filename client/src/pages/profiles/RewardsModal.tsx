@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Profile, RewardItem } from '@shared';
 import { api, qk } from '../../api';
@@ -15,6 +16,7 @@ const EFFECT_ICON: Record<string, string> = {
 };
 
 export function RewardsModal({ profile, onClose }: { profile: Profile; onClose: () => void }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [coins, setCoins] = useState(profile.coins);
   const [owned, setOwned] = useState<Set<string>>(new Set());
@@ -78,7 +80,7 @@ export function RewardsModal({ profile, onClose }: { profile: Profile; onClose: 
       if (isOwned) {
         if (item.kind === 'perk') {
           // Nothing to equip — remind what it's for instead of a dead tap.
-          setGoal('Your streak shield is ready — it saves your streak if you miss a day!');
+          setGoal(t('rewards.shieldGoal'));
         } else {
           await equip(item);
         }
@@ -93,12 +95,12 @@ export function RewardsModal({ profile, onClose }: { profile: Profile; onClose: 
       } else {
         // A locked tile is a goal, not a dead end (the strongest motivation
         // loop): tapping it says how far away it is.
-        setGoal(`${item.label} needs ${item.cost - coins} more ⭐ — keep playing!`);
+        setGoal(t('rewards.needMore', { label: item.label, n: item.cost - coins }));
       }
     } catch {
       // Refresh from the server so the UI reflects true ownership/coins.
       void queryClient.invalidateQueries({ queryKey: qk.rewards(profile.id) });
-      setError('Hmm, that didn’t work — try again.');
+      setError(t('errors.rewardFailed'));
     } finally {
       setBusy(null);
     }
@@ -125,9 +127,12 @@ export function RewardsModal({ profile, onClose }: { profile: Profile; onClose: 
   );
 
   return (
-    <Modal onClose={onClose} title={`${equippedAvatar} ${profile.displayName}'s rewards`}>
-      <div className="coin-balance" role="img" aria-label={`${coins} coins`}>
-        <span aria-hidden="true">⭐</span> {coins} coins
+    <Modal
+      onClose={onClose}
+      title={t('rewards.title', { avatar: equippedAvatar, name: profile.displayName })}
+    >
+      <div className="coin-balance" role="img" aria-label={t('rewards.coins', { count: coins })}>
+        <span aria-hidden="true">⭐</span> {t('rewards.coins', { count: coins })}
       </div>
       {error && <div className="error-banner">{error}</div>}
       {goal && (
@@ -135,11 +140,11 @@ export function RewardsModal({ profile, onClose }: { profile: Profile; onClose: 
           {goal}
         </div>
       )}
-      {section('Munchers', 'muncher')}
-      {section('Celebrations', 'effect')}
-      {section('Avatars', 'avatar')}
-      {section('Themes', 'theme')}
-      {section('Power-ups', 'perk')}
+      {section(t('rewards.sectionMunchers'), 'muncher')}
+      {section(t('rewards.sectionCelebrations'), 'effect')}
+      {section(t('rewards.sectionAvatars'), 'avatar')}
+      {section(t('rewards.sectionThemes'), 'theme')}
+      {section(t('rewards.sectionPowerups'), 'perk')}
     </Modal>
   );
 }
@@ -168,6 +173,7 @@ function RewardTile({
   busy: boolean;
   onClick: () => void;
 }) {
+  const { t } = useTranslation();
   const locked = !owned && coins < item.cost;
   // Locked tiles stay tappable — the tap shows how many coins to go (a goal,
   // not a dead control).
@@ -206,17 +212,18 @@ function RewardTile({
       <div className="reward-label">{item.label}</div>
       <div className="reward-status">
         {equipped ? (
-          '✓ On'
+          t('rewards.statusOn')
         ) : owned ? (
           item.kind === 'perk' ? (
-            '✓ Ready'
+            t('rewards.statusReady')
           ) : (
-            'Use'
+            t('rewards.statusUse')
           )
         ) : locked ? (
           // Show the goal, not just the price: "⭐ 80 · 45 to go!"
           <>
-            <span aria-hidden="true">⭐</span> {item.cost} · {item.cost - coins} to go!
+            <span aria-hidden="true">⭐</span> {item.cost} ·{' '}
+            {t('rewards.toGo', { n: item.cost - coins })}
           </>
         ) : (
           <>

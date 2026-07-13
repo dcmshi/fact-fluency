@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Box, CellState, DashboardView, DayTrend, ProgressGrid, TrickyFact } from '@shared';
 import { api, qk } from '../api';
-import { OP_HEX, OP_LABEL, OP_SYMBOL } from '../ops';
+import { OP_HEX, OP_SYMBOL } from '../ops';
 import './ProgressPage.css';
 
 /** Mastery shade: pale for unseen, deepening to the solid op color at box 5. */
@@ -21,6 +22,7 @@ function cellColor(op: keyof typeof OP_HEX, box: Box | null, state: CellState): 
 }
 
 export function ProgressPage() {
+  const { t } = useTranslation();
   const { profileId = '' } = useParams();
   const navigate = useNavigate();
   const {
@@ -63,7 +65,7 @@ export function ProgressPage() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch {
-      setExportError('Couldn’t export — try again.');
+      setExportError(t('progress.exportError'));
     }
   }
 
@@ -71,17 +73,17 @@ export function ProgressPage() {
     <div className="screen">
       <header className="hub-header">
         <button className="btn ghost" onClick={() => navigate('/')}>
-          ← Back
+          {t('common.back')}
         </button>
         <div className="brand" style={{ fontSize: '1.1rem' }}>
-          {dash ? `${dash.displayName}’s progress` : 'Progress'}
+          {dash ? t('progress.titleNamed', { name: dash.displayName }) : t('progress.title')}
         </div>
       </header>
 
       <div className="stack" style={{ maxWidth: 720 }}>
         {loadFailed && (
           <div className="card" role="alert" style={{ textAlign: 'center' }}>
-            <p className="muted">Couldn’t load progress.</p>
+            <p className="muted">{t('progress.loadError')}</p>
             <button
               className="btn ghost"
               onClick={() => {
@@ -89,7 +91,7 @@ export function ProgressPage() {
                 if (viewError) void refetchView();
               }}
             >
-              Try again
+              {t('common.tryAgain')}
             </button>
           </div>
         )}
@@ -101,9 +103,7 @@ export function ProgressPage() {
         )}
 
         {!view && !viewError && <GridSkeleton />}
-        {view?.grids.length === 0 && (
-          <p className="muted">No fact sets enabled yet — pick some from the profiles screen.</p>
-        )}
+        {view?.grids.length === 0 && <p className="muted">{t('progress.noSets')}</p>}
         {view?.grids.map((grid) => (
           <OperationGrid
             key={grid.operation}
@@ -115,7 +115,7 @@ export function ProgressPage() {
 
         {view && view.grids.length > 0 && (
           <div className="legend">
-            <span className="legend-label">Less practiced</span>
+            <span className="legend-label">{t('progress.legendLess')}</span>
             <div className="legend-swatches">
               {[null, 0, 1, 2, 3, 4, 5].map((b, i) => (
                 <span
@@ -127,12 +127,12 @@ export function ProgressPage() {
                 />
               ))}
             </div>
-            <span className="legend-label">Mastered</span>
+            <span className="legend-label">{t('progress.legendMastered')}</span>
           </div>
         )}
 
         <div className="export-row">
-          <span className="muted">Export this profile’s data:</span>
+          <span className="muted">{t('progress.exportLabel')}</span>
           <button className="btn ghost" onClick={() => download('csv')}>
             CSV
           </button>
@@ -180,6 +180,7 @@ function median(nums: number[]): number | null {
 }
 
 function Dashboard({ dash, profileId }: { dash: DashboardView; profileId: string }) {
+  const { t } = useTranslation();
   const { summary, trends, suggestion, weekly, trickiest } = dash;
   const typicalMs = median(trends.map((t) => t.medianMs).filter((m): m is number => m != null));
   // Tap-to-inspect caption for the trend chart (tooltips are hover-only).
@@ -204,47 +205,64 @@ function Dashboard({ dash, profileId }: { dash: DashboardView; profileId: string
     <section className="dash card rise">
       <div className="dash-cards">
         <StatCard
-          label="Mastered"
+          label={t('progress.statMastered')}
           value={`${summary.mastered}`}
-          sub={`of ${summary.totalFacts} facts`}
+          sub={t('progress.ofFacts', { count: summary.totalFacts })}
           accent="var(--add)"
         />
-        <StatCard label="Day streak" value={`🔥 ${dash.streak}`} sub="in a row" />
         <StatCard
-          label="Accuracy"
+          label={t('progress.statStreak')}
+          value={`🔥 ${dash.streak}`}
+          sub={t('progress.inARow')}
+        />
+        <StatCard
+          label={t('progress.statAccuracy')}
           value={summary.attempts ? `${Math.round(summary.accuracy * 100)}%` : '—'}
-          sub={`last ${dash.windowDays} days`}
+          sub={t('progress.lastDaysSub', { count: dash.windowDays })}
           accent="var(--mul)"
         />
         <StatCard
-          label="Typical speed"
+          label={t('progress.statSpeed')}
           value={typicalMs != null ? `${(typicalMs / 1000).toFixed(1)}s` : '—'}
-          sub="per answer"
+          sub={t('progress.perAnswer')}
           accent="var(--div)"
         />
       </div>
 
       {dash.speed && dash.speed.fasterPct >= 0.05 && (
         <div className="speed-note">
-          <span aria-hidden="true">⚡</span> Answering{' '}
-          <strong>{Math.round(dash.speed.fasterPct * 100)}% faster</strong> than earlier this window
-          — the fast bar adapts as {dash.displayName} speeds up.
+          <span aria-hidden="true">⚡</span> {t('progress.speedPrefix')}{' '}
+          <strong>
+            {t('progress.speedFaster', { pct: Math.round(dash.speed.fasterPct * 100) })}
+          </strong>{' '}
+          {t('progress.speedRest', { name: dash.displayName })}
         </div>
       )}
 
       {weekly.attempts > 0 && (
         <div className="weekly-recap">
-          <strong>This week:</strong> {weekly.sessions}{' '}
-          {weekly.sessions === 1 ? 'session' : 'sessions'} · {weekly.attempts} answers
-          {weekly.accuracy != null && <> · {Math.round(weekly.accuracy * 100)}% right</>}
+          <strong>{t('progress.thisWeek')}</strong> {weekly.sessions}{' '}
+          {weekly.sessions === 1 ? t('progress.session') : t('progress.sessions')} ·{' '}
+          {weekly.attempts} {t('progress.answers')}
+          {weekly.accuracy != null && (
+            <>
+              {' '}
+              · {Math.round(weekly.accuracy * 100)}% {t('progress.right')}
+            </>
+          )}
           {weekly.accuracyDelta != null && (
             <span className={weekly.accuracyDelta >= 0 ? 'delta-up' : 'delta-down'}>
               {' '}
               ({weekly.accuracyDelta >= 0 ? '+' : ''}
-              {Math.round(weekly.accuracyDelta * 100)}% vs last week)
+              {Math.round(weekly.accuracyDelta * 100)}% {t('progress.vsLastWeek')})
             </span>
           )}
-          {weekly.mastered > 0 && <> · {weekly.mastered} mastered</>}
+          {weekly.mastered > 0 && (
+            <>
+              {' '}
+              · {weekly.mastered} {t('progress.masteredWord')}
+            </>
+          )}
         </div>
       )}
 
@@ -254,32 +272,35 @@ function Dashboard({ dash, profileId }: { dash: DashboardView; profileId: string
             ✨
           </span>
           <div>
-            <strong>Ready for more!</strong> {suggestion.reason}{' '}
+            <strong>{t('progress.readyForMore')}</strong> {suggestion.reason}{' '}
             <button
               className="btn ghost enable-now"
               disabled={enableMut.isPending}
               onClick={() => enableMut.mutate()}
             >
-              {enableMut.isPending ? 'Enabling…' : 'Enable now'}
+              {enableMut.isPending ? t('progress.enabling') : t('progress.enableNow')}
             </button>
-            {enableMut.isError && <span className="muted"> Couldn’t enable — try again.</span>}
+            {enableMut.isError && <span className="muted"> {t('progress.enableError')}</span>}
           </div>
         </div>
       )}
 
       {trickiest.length > 0 && (
         <div className="trickiest">
-          <h3>Trickiest facts right now</h3>
+          <h3>{t('progress.trickiestTitle')}</h3>
           <div className="trickiest-chips">
-            {trickiest.map((t) => (
+            {trickiest.map((tf) => (
               <span
-                key={`${t.operation}-${t.operandA}-${t.operandB}`}
+                key={`${tf.operation}-${tf.operandA}-${tf.operandB}`}
                 className="trickiest-chip"
-                style={{ borderColor: OP_HEX[t.operation] }}
-                title={`${Math.round(t.accuracy * 100)}% right · ${(t.medianMs / 1000).toFixed(1)}s typical`}
+                style={{ borderColor: OP_HEX[tf.operation] }}
+                title={t('progress.trickiestTip', {
+                  pct: Math.round(tf.accuracy * 100),
+                  sec: (tf.medianMs / 1000).toFixed(1),
+                })}
               >
-                {t.operandA} {OP_SYMBOL[t.operation]} {t.operandB}
-                <span className="trickiest-acc"> {Math.round(t.accuracy * 100)}%</span>
+                {tf.operandA} {OP_SYMBOL[tf.operation]} {tf.operandB}
+                <span className="trickiest-acc"> {Math.round(tf.accuracy * 100)}%</span>
               </span>
             ))}
           </div>
@@ -343,35 +364,49 @@ function TrendChart({
   active: number;
   onPick?: (text: string) => void;
 }) {
-  const maxMs = Math.max(1, ...trends.map((t) => t.medianMs ?? 0));
+  const { t } = useTranslation();
+  const maxMs = Math.max(1, ...trends.map((d) => d.medianMs ?? 0));
+
+  // Tap/hover/SR caption for one day's bar.
+  const tip = (d: DayTrend): string => {
+    if (d.attempts === 0) return t('progress.tipNoPractice', { day: d.day });
+    const acc = `${Math.round(d.accuracy * 100)}% (${d.correct}/${d.attempts})`;
+    const speed =
+      d.medianMs != null ? `, ${(d.medianMs / 1000).toFixed(1)}s ${t('progress.typical')}` : '';
+    return `${d.day}: ${acc}${speed}`;
+  };
 
   return (
     <div className="trend">
       <div className="trend-head">
-        <h3>Last {windowDays} days</h3>
+        <h3>{t('progress.lastDaysTitle', { count: windowDays })}</h3>
         <span className="muted">
-          {active === 0 ? 'No practice yet' : `${active} active ${active === 1 ? 'day' : 'days'}`}
+          {active === 0
+            ? t('progress.noPracticeYet')
+            : active === 1
+              ? t('progress.activeDayOne', { count: active })
+              : t('progress.activeDayOther', { count: active })}
         </span>
       </div>
 
       {/* Each day is tappable/SR-readable — the hover title alone is invisible
           on touch (the primary device), keyboard, and screen readers. */}
       <div className="trend-bars">
-        {trends.map((t) => (
+        {trends.map((d) => (
           <button
             type="button"
             className="trend-col"
-            key={t.day}
-            title={tooltip(t)}
-            aria-label={tooltip(t)}
-            onClick={() => onPick?.(tooltip(t))}
+            key={d.day}
+            title={tip(d)}
+            aria-label={tip(d)}
+            onClick={() => onPick?.(tip(d))}
           >
             <div className="trend-track">
               <div
                 className="trend-bar"
                 style={{
-                  height: t.attempts ? `${Math.max(6, t.accuracy * 100)}%` : '0',
-                  background: accuracyColor(t),
+                  height: d.attempts ? `${Math.max(6, d.accuracy * 100)}%` : '0',
+                  background: accuracyColor(d),
                 }}
               />
             </div>
@@ -379,8 +414,8 @@ function TrendChart({
         ))}
       </div>
       <div className="trend-axis">
-        <span>Accuracy per day · {windowDays} days ago</span>
-        <span>today</span>
+        <span>{t('progress.axisAccuracy', { count: windowDays })}</span>
+        <span>{t('progress.today')}</span>
       </div>
 
       {/* Speed sparkline — median answer time on active days (lower is faster). */}
@@ -393,9 +428,9 @@ function TrendChart({
         >
           <polyline
             points={trends
-              .map((t, i) =>
-                t.medianMs != null
-                  ? `${(i / (trends.length - 1)) * 100},${26 - (t.medianMs / maxMs) * 24}`
+              .map((d, i) =>
+                d.medianMs != null
+                  ? `${(i / (trends.length - 1)) * 100},${26 - (d.medianMs / maxMs) * 24}`
                   : null,
               )
               .filter(Boolean)
@@ -408,9 +443,7 @@ function TrendChart({
           />
         </svg>
       )}
-      {active > 0 && (
-        <div className="trend-axis trend-axis-spark">Answer speed (lower is faster)</div>
-      )}
+      {active > 0 && <div className="trend-axis trend-axis-spark">{t('progress.axisSpeed')}</div>}
     </div>
   );
 }
@@ -427,6 +460,7 @@ function CertificateButton({
   kidName: string;
   operation: ProgressGrid['operation'];
 }) {
+  const { t, i18n } = useTranslation();
   const [printing, setPrinting] = useState(false);
 
   function print() {
@@ -438,7 +472,7 @@ function CertificateButton({
     });
   }
 
-  const today = new Date().toLocaleDateString(undefined, {
+  const today = new Date().toLocaleDateString(i18n.language, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -447,7 +481,7 @@ function CertificateButton({
   return (
     <>
       <button className="btn ghost print-cert" onClick={print}>
-        <span aria-hidden="true">🖨️</span> Print certificate
+        <span aria-hidden="true">🖨️</span> {t('progress.printCert')}
       </button>
       {printing && (
         <div className="certificate-sheet">
@@ -455,10 +489,13 @@ function CertificateButton({
             <div className="certificate-star" aria-hidden="true">
               ⭐
             </div>
-            <h1>Certificate of Mastery</h1>
-            <p className="certificate-name">{kidName || 'Super mathematician'}</p>
+            <h1>{t('progress.certTitle')}</h1>
+            <p className="certificate-name">{kidName || t('progress.certNameFallback')}</p>
             <p>
-              mastered <strong>every {OP_LABEL[operation].toLowerCase()} fact</strong>
+              {t('progress.certLine1')}{' '}
+              <strong>
+                {t('progress.certEveryFact', { op: t(`ops.${operation}`).toLowerCase() })}
+              </strong>
             </p>
             <p className="certificate-date">{today}</p>
             <p className="certificate-brand">✦ Fact Fluency</p>
@@ -476,6 +513,7 @@ function CertificateButton({
  * printing is armed, and the page's @media print hides everything else.
  */
 function WorksheetButton({ kidName, facts }: { kidName: string; facts: TrickyFact[] }) {
+  const { t, i18n } = useTranslation();
   const [printing, setPrinting] = useState(false);
   function print() {
     setPrinting(true);
@@ -484,7 +522,7 @@ function WorksheetButton({ kidName, facts }: { kidName: string; facts: TrickyFac
       setPrinting(false);
     });
   }
-  const today = new Date().toLocaleDateString(undefined, {
+  const today = new Date().toLocaleDateString(i18n.language, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -492,29 +530,32 @@ function WorksheetButton({ kidName, facts }: { kidName: string; facts: TrickyFac
   return (
     <>
       <button className="btn ghost print-cert" onClick={print}>
-        <span aria-hidden="true">🖨️</span> Print practice sheet
+        <span aria-hidden="true">🖨️</span> {t('progress.printSheet')}
       </button>
       {printing && (
         <div className="worksheet-sheet">
           <div className="worksheet">
-            <h1>Practice sheet</h1>
+            <h1>{t('progress.sheetTitle')}</h1>
             <p className="worksheet-sub">
-              {kidName || 'Superstar'}’s trickiest facts · {today}
+              {t('progress.sheetSub', {
+                name: kidName || t('progress.sheetNameFallback'),
+                date: today,
+              })}
             </p>
             <div className="worksheet-grid">
-              {facts.map((t) => (
+              {facts.map((f) => (
                 <div
-                  key={`${t.operation}-${t.operandA}-${t.operandB}`}
+                  key={`${f.operation}-${f.operandA}-${f.operandB}`}
                   className="worksheet-problem"
                 >
-                  {t.operandA} {OP_SYMBOL[t.operation]} {t.operandB} = ______
+                  {f.operandA} {OP_SYMBOL[f.operation]} {f.operandB} = ______
                 </div>
               ))}
             </div>
             <p className="worksheet-key">
-              Answer key:{' '}
+              {t('progress.answerKey')}{' '}
               {facts
-                .map((t) => `${t.operandA}${OP_SYMBOL[t.operation]}${t.operandB}=${t.answer}`)
+                .map((f) => `${f.operandA}${OP_SYMBOL[f.operation]}${f.operandB}=${f.answer}`)
                 .join('   ')}
             </p>
             <p className="worksheet-brand">✦ Fact Fluency</p>
@@ -523,13 +564,6 @@ function WorksheetButton({ kidName, facts }: { kidName: string; facts: TrickyFac
       )}
     </>
   );
-}
-
-function tooltip(t: DayTrend): string {
-  if (t.attempts === 0) return `${t.day}: no practice`;
-  const acc = `${Math.round(t.accuracy * 100)}% (${t.correct}/${t.attempts})`;
-  const speed = t.medianMs != null ? `, ${(t.medianMs / 1000).toFixed(1)}s typical` : '';
-  return `${t.day}: ${acc}${speed}`;
 }
 
 function OperationGrid({
@@ -541,6 +575,7 @@ function OperationGrid({
   kidName: string;
   threshold?: number;
 }) {
+  const { t } = useTranslation();
   const mastered = grid.cells.filter((c) => c.state === 'mastered').length;
   const fullyMastered = grid.cells.length > 0 && mastered === grid.cells.length;
   // Tap-to-inspect: the hover title is invisible on touch/keyboard/SR, so a
@@ -555,19 +590,22 @@ function OperationGrid({
           <span className="op-sym" style={{ color: OP_HEX[grid.operation] }} aria-hidden="true">
             {OP_SYMBOL[grid.operation]}
           </span>{' '}
-          {OP_LABEL[grid.operation]}
+          {t(`ops.${grid.operation}`)}
         </h2>
         <span className="grid-count">
-          {mastered} / {grid.cells.length} mastered
+          {mastered} / {grid.cells.length} {t('progress.masteredWord')}
           {threshold != null && (
-            <span className="grid-fastbar"> · fast under {(threshold / 1000).toFixed(1)}s</span>
+            <span className="grid-fastbar">
+              {' '}
+              · {t('progress.fastUnder', { sec: (threshold / 1000).toFixed(1) })}
+            </span>
           )}
         </span>
       </div>
       {fullyMastered && <CertificateButton kidName={kidName} operation={grid.operation} />}
       <div className="fact-grid">
         {grid.cells.map((c) => {
-          const label = `${c.operandA} ${OP_SYMBOL[grid.operation]} ${c.operandB} = ${c.answer} · ${c.state}`;
+          const label = `${c.operandA} ${OP_SYMBOL[grid.operation]} ${c.operandB} = ${c.answer} · ${t(`progress.state.${c.state}`)}`;
           return (
             <button
               type="button"

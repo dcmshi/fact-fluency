@@ -1,33 +1,26 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Profile, ProfileSettings } from '@shared';
 import { api, ApiError, qk } from '../../api';
 import { AvatarPicker } from '../../components/AvatarPicker';
 import { Modal } from '../../components/Modal';
-import { EDIT_ERROR_MESSAGES, FALLBACK_MESSAGE } from '../../messages';
+import { editErrorText } from '../../errors';
 
 type NumericKey = 'sessionCards' | 'sessionSeconds' | 'newPerSession';
 
-/** Labels/hints for the numeric session settings. The inclusive bounds come
- *  from /catalog (the server's own validation limits), so the form can't
- *  drift from what the server accepts; these are the offline fallback. */
-const SETTING_FIELDS: { key: NumericKey; label: string; hint: string }[] = [
+/** The numeric session settings and their i18n label/hint keys. The inclusive
+ *  bounds come from /catalog (the server's own validation limits), so the form
+ *  can't drift from what the server accepts; these are the offline fallback. */
+const SETTING_FIELDS = [
   {
     key: 'sessionCards',
-    label: 'Cards per session',
-    hint: 'How many questions a session aims for.',
+    labelKey: 'modals.cardsPerSession',
+    hintKey: 'modals.cardsPerSessionHint',
   },
-  {
-    key: 'sessionSeconds',
-    label: 'Session length (seconds)',
-    hint: 'Target time budget for a session.',
-  },
-  {
-    key: 'newPerSession',
-    label: 'New facts per session',
-    hint: 'How many fresh facts trickle in each time.',
-  },
-];
+  { key: 'sessionSeconds', labelKey: 'modals.sessionLength', hintKey: 'modals.sessionLengthHint' },
+  { key: 'newPerSession', labelKey: 'modals.newPerSession', hintKey: 'modals.newPerSessionHint' },
+] as const satisfies readonly { key: NumericKey; labelKey: string; hintKey: string }[];
 
 const FALLBACK_BOUNDS: Record<NumericKey, [number, number]> = {
   sessionCards: [5, 50],
@@ -44,6 +37,7 @@ export function SettingsModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [name, setName] = useState(profile.displayName);
   const [avatar, setAvatar] = useState(profile.avatar);
@@ -72,8 +66,7 @@ export function SettingsModal({
       void queryClient.invalidateQueries({ queryKey: qk.profiles });
       onSaved();
     },
-    onError: (e) =>
-      setError(EDIT_ERROR_MESSAGES[e instanceof ApiError ? e.code : ''] ?? FALLBACK_MESSAGE),
+    onError: (e) => setError(editErrorText(t, e instanceof ApiError ? e.code : '')),
   });
   const deleteMut = useMutation({
     mutationFn: () => api.deleteProfile(profile.id),
@@ -91,21 +84,24 @@ export function SettingsModal({
   }
 
   return (
-    <Modal onClose={onClose} title={`${profile.avatar} ${profile.displayName}'s settings`}>
+    <Modal
+      onClose={onClose}
+      title={t('modals.settingsTitle', { avatar: profile.avatar, name: profile.displayName })}
+    >
       {error && <div className="error-banner">{error}</div>}
       <div className="field">
-        <label htmlFor="edit-name">Name</label>
+        <label htmlFor="edit-name">{t('modals.name')}</label>
         <input id="edit-name" value={name} onChange={(e) => setName(e.target.value)} />
       </div>
       <div className="field">
-        <label>Buddy</label>
+        <label>{t('modals.buddy')}</label>
         <AvatarPicker value={avatar} onChange={setAvatar} />
       </div>
-      {SETTING_FIELDS.map(({ key, label, hint }) => {
+      {SETTING_FIELDS.map(({ key, labelKey, hintKey }) => {
         const [min, max] = bounds[key];
         return (
           <div className="field" key={key}>
-            <label htmlFor={`set-${key}`}>{label}</label>
+            <label htmlFor={`set-${key}`}>{t(labelKey)}</label>
             <input
               id={`set-${key}`}
               type="number"
@@ -115,7 +111,7 @@ export function SettingsModal({
               onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.valueAsNumber }))}
             />
             <span className="muted" style={{ fontSize: '0.85rem' }}>
-              {hint} ({min}–{max})
+              {t(hintKey)} ({min}–{max})
             </span>
           </div>
         );
@@ -128,14 +124,14 @@ export function SettingsModal({
             checked={values.comparisons !== false}
             onChange={(e) => setValues((v) => ({ ...v, comparisons: e.target.checked }))}
           />
-          Include “smaller / bigger” rounds
+          {t('modals.comparisons')}
         </label>
         <span className="muted" style={{ fontSize: '0.85rem' }}>
-          Off = every round asks for “the same as” — good for younger kids (K–1 starts this way).
+          {t('modals.comparisonsHint')}
         </span>
       </div>
 
-      <div className="settings-heading">Accessibility</div>
+      <div className="settings-heading">{t('modals.accessibility')}</div>
       <div className="field">
         <label className="toggle-row" htmlFor="set-easyread">
           <input
@@ -144,7 +140,7 @@ export function SettingsModal({
             checked={values.easyReadFont === true}
             onChange={(e) => setValues((v) => ({ ...v, easyReadFont: e.target.checked }))}
           />
-          Easy-read text
+          {t('modals.easyRead')}
         </label>
       </div>
       <div className="field">
@@ -155,7 +151,7 @@ export function SettingsModal({
             checked={values.highContrast === true}
             onChange={(e) => setValues((v) => ({ ...v, highContrast: e.target.checked }))}
           />
-          High contrast
+          {t('modals.highContrast')}
         </label>
       </div>
       <div className="field">
@@ -166,28 +162,27 @@ export function SettingsModal({
             checked={values.calmMode === true}
             onChange={(e) => setValues((v) => ({ ...v, calmMode: e.target.checked }))}
           />
-          No speed pressure (calm mode)
+          {t('modals.calmMode')}
         </label>
         <span className="muted" style={{ fontSize: '0.85rem' }}>
-          Hides the “super fast!” timing cues so practice feels relaxed.
+          {t('modals.calmModeHint')}
         </span>
       </div>
 
       <button className="btn sun full" disabled={busy || outOfRange || nameEmpty} onClick={save}>
-        {saveMut.isPending ? 'Saving…' : 'Save'}
+        {saveMut.isPending ? t('common.saving') : t('common.save')}
       </button>
 
       <div className="danger-zone">
-        {deleteMut.isError && <div className="error-banner">Couldn’t delete — try again.</div>}
+        {deleteMut.isError && <div className="error-banner">{t('errors.deleteFailed')}</div>}
         {!confirmingDelete ? (
           <button className="btn danger-link" onClick={() => setConfirmingDelete(true)}>
-            Delete {profile.displayName}’s profile
+            {t('modals.deleteProfile', { name: profile.displayName })}
           </button>
         ) : (
           <div className="confirm-delete">
             <p className="muted">
-              Delete <strong>{profile.displayName}</strong> and all their progress? This can’t be
-              undone.
+              {t('modals.deleteProfileConfirm', { name: profile.displayName })}
             </p>
             <div className="confirm-actions">
               <button
@@ -195,10 +190,10 @@ export function SettingsModal({
                 disabled={busy}
                 onClick={() => setConfirmingDelete(false)}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button className="btn danger" disabled={busy} onClick={() => deleteMut.mutate()}>
-                {deleteMut.isPending ? 'Deleting…' : 'Delete forever'}
+                {deleteMut.isPending ? t('modals.deleting') : t('modals.deleteForever')}
               </button>
             </div>
           </div>

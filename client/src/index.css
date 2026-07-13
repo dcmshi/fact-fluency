@@ -256,6 +256,19 @@ button {
 .muted {
   color: var(--ink-soft);
 }
+
+/* Compact language picker (components/LanguageSwitcher). */
+.lang-switcher {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 0.3rem 0.5rem;
+  cursor: pointer;
+}
 .error-banner {
   background: #ffe8e5;
   color: #b83a2d;

@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
 import { useAuth } from './auth';
 import { AuthPage } from './pages/AuthPage';
@@ -19,15 +20,17 @@ const ProgressPage = lazy(() =>
 );
 
 function LoadingScreen() {
+  const { t } = useTranslation();
   return (
     <div className="screen center-y">
-      <p className="muted">Loading…</p>
+      <p className="muted">{t('common.loading')}</p>
     </div>
   );
 }
 
 /** Offline banner + flush of any queued reports when connectivity returns. */
 function NetworkStatus() {
+  const { t } = useTranslation();
   const [offline, setOffline] = useState(!navigator.onLine);
   useEffect(() => {
     const goOnline = () => {
@@ -47,7 +50,7 @@ function NetworkStatus() {
   if (!offline) return null;
   return (
     <div className="offline-banner" role="status">
-      📡 Offline — your progress is saved and syncs when you reconnect.
+      {t('common.offline')}
     </div>
   );
 }

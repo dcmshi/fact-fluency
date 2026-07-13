@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { CalibrationAnswer, CalibrationQuestion } from '@shared';
@@ -15,6 +16,7 @@ type Phase = 'grade' | 'probe' | 'placing';
  * Any hiccup falls through to play — a warm-up must never block starting.
  */
 export function CalibratePage() {
+  const { t } = useTranslation();
   const { profileId = '' } = useParams();
   const navigate = useNavigate();
   const { data: catalog } = useQuery({ queryKey: qk.catalog, queryFn: api.catalog });
@@ -86,9 +88,9 @@ export function CalibratePage() {
           <div className="big-emoji" aria-hidden="true">
             ✨
           </div>
-          <h1>What grade are you in?</h1>
+          <h1>{t('calibrate.gradeTitle')}</h1>
           <p className="muted" style={{ marginTop: '-0.5rem' }}>
-            A quick warm-up so we start you at the right spot.
+            {t('calibrate.gradeSub')}
           </p>
           <div className="cal-grades">
             {(catalog?.gradeBands ?? []).map((b) => (
@@ -104,7 +106,7 @@ export function CalibratePage() {
             ))}
           </div>
           <button type="button" className="btn ghost" onClick={goPlay} disabled={busy}>
-            Skip — just play
+            {t('calibrate.skip')}
           </button>
         </div>
       </div>
@@ -118,7 +120,7 @@ export function CalibratePage() {
           <div className="big-emoji" aria-hidden="true">
             🎯
           </div>
-          <h1>Setting up your game…</h1>
+          <h1>{t('calibrate.placing')}</h1>
         </div>
       </div>
     );
@@ -129,9 +131,12 @@ export function CalibratePage() {
     <div className="screen center-y">
       <div className="stack rise" style={{ textAlign: 'center' }}>
         <div className="cal-head muted">
-          <span aria-hidden="true">⚡</span> Warm-up
+          <span aria-hidden="true">⚡</span> {t('calibrate.warmup')}
         </div>
-        <div className="cal-dots" aria-label={`Question ${index + 1} of ${questions.length}`}>
+        <div
+          className="cal-dots"
+          aria-label={t('calibrate.questionOf', { current: index + 1, total: questions.length })}
+        >
           {questions.map((_, i) => (
             <span key={i} className={`cal-dot ${i < index ? 'done' : i === index ? 'here' : ''}`} />
           ))}
