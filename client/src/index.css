@@ -394,42 +394,120 @@ body[data-theme='midnight'] {
   border: 0;
 }
 
-/* Landing-page info section (AuthPage) — quiet, below-the-fold content. */
+/* ---------------------------------------------------------------------------
+   Landing page (AuthPage): a full-screen play "hero" and a scrollable info
+   panel below it, linked by two-way scroll cues.
+   =========================================================================== */
+.screen.auth {
+  /* The hero owns the first screen's vertical rhythm; keep only side padding. */
+  padding-block: 0;
+}
+.auth-hero {
+  width: 100%;
+  /* Exactly one screen tall (border-box includes the padding) so the "Learn
+     more" cue lands right at the fold as a scroll invitation. svh avoids the
+     mobile URL-bar jump; vh is the fallback. */
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-block: clamp(1rem, 3vw, 2.5rem);
+}
+.auth-hero-body {
+  flex: 1;
+  width: 100%;
+  display: grid;
+  place-items: center;
+}
+
+/* Scroll cues: a small label + a chunky arrow badge that echoes the brand
+   glyph and pressable buttons (hard offset shadow). The down cue stays quiet so
+   it never competes with Play; the up cue is sun-colored to pull the reader
+   back to playing. Both bob/bounce (stilled under prefers-reduced-motion via
+   the global rule). */
+.scroll-cue {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.7rem;
+  border: none;
+  background: none;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+}
+.cue-arrow {
+  display: grid;
+  place-items: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: 999px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.scroll-cue[data-dir='down'] .cue-arrow {
+  background: var(--card);
+  border: 2px solid var(--line);
+  color: var(--ink-soft);
+  box-shadow: 0 3px 0 var(--line);
+  animation: cue-bob 1.7s ease-in-out infinite;
+}
+.scroll-cue[data-dir='up'] {
+  margin-bottom: 1.1rem;
+  color: var(--ink);
+}
+.scroll-cue[data-dir='up'] .cue-arrow {
+  background: var(--sun);
+  color: var(--on-sun);
+  box-shadow: 0 4px 0 var(--sun-shadow);
+  animation: cue-bounce 1.5s ease-in-out infinite;
+}
+.scroll-cue:hover .cue-arrow {
+  filter: brightness(1.05);
+}
+@keyframes cue-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(5px);
+  }
+}
+@keyframes cue-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  35% {
+    transform: translateY(-6px);
+  }
+  65% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Below-the-fold info panel — its own scroll target, capped to the auth column
+   width and centered by the screen's align-items. */
 .landing-info {
-  margin-top: 1.75rem;
+  width: 100%;
+  max-width: 460px;
+  padding-bottom: clamp(2rem, 6vw, 4rem);
   color: var(--ink-soft);
   font-size: 0.92rem;
   line-height: 1.55;
-}
-/* A soft "Learn more" divider introduces the section, instead of a hard rule
-   butting up against the auth card. The flanking lines are drawn with
-   pseudo-elements so the label sits centered on the divider. */
-.landing-info__label {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  margin-bottom: 1.4rem;
-  color: var(--ink-soft);
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 0.78rem;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-.landing-info__label::before,
-.landing-info__label::after {
-  content: '';
-  flex: 1;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--line);
 }
 .landing-info h2 {
   color: var(--ink);
   font-size: 1.05rem;
   margin: 1rem 0 0.35rem;
 }
-.landing-info__label + h2 {
+.landing-info h2:first-of-type {
   margin-top: 0;
 }
 .landing-info p {
