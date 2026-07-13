@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { Box, CellState, DashboardView, DayTrend, ProgressGrid } from '@shared';
+import type { Box, CellState, DashboardView, DayTrend, ProgressGrid, TrickyFact } from '@shared';
 import { api, qk } from '../api';
 import { OP_HEX, OP_LABEL, OP_SYMBOL } from '../ops';
 import './ProgressPage.css';
@@ -283,6 +283,7 @@ function Dashboard({ dash, profileId }: { dash: DashboardView; profileId: string
               </span>
             ))}
           </div>
+          <WorksheetButton kidName={dash.displayName} facts={trickiest} />
         </div>
       )}
 
@@ -461,6 +462,62 @@ function CertificateButton({
             </p>
             <p className="certificate-date">{today}</p>
             <p className="certificate-brand">✦ Fact Fluency</p>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * Print-friendly practice sheet of the kid's trickiest facts — off-screen
+ * practice a parent can hand over (COMPETITORS.md — the printable-reports gap).
+ * Same print pattern as the mastery certificate: the sheet renders only while
+ * printing is armed, and the page's @media print hides everything else.
+ */
+function WorksheetButton({ kidName, facts }: { kidName: string; facts: TrickyFact[] }) {
+  const [printing, setPrinting] = useState(false);
+  function print() {
+    setPrinting(true);
+    requestAnimationFrame(() => {
+      window.print();
+      setPrinting(false);
+    });
+  }
+  const today = new Date().toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+  return (
+    <>
+      <button className="btn ghost print-cert" onClick={print}>
+        <span aria-hidden="true">🖨️</span> Print practice sheet
+      </button>
+      {printing && (
+        <div className="worksheet-sheet">
+          <div className="worksheet">
+            <h1>Practice sheet</h1>
+            <p className="worksheet-sub">
+              {kidName || 'Superstar'}’s trickiest facts · {today}
+            </p>
+            <div className="worksheet-grid">
+              {facts.map((t) => (
+                <div
+                  key={`${t.operation}-${t.operandA}-${t.operandB}`}
+                  className="worksheet-problem"
+                >
+                  {t.operandA} {OP_SYMBOL[t.operation]} {t.operandB} = ______
+                </div>
+              ))}
+            </div>
+            <p className="worksheet-key">
+              Answer key:{' '}
+              {facts
+                .map((t) => `${t.operandA}${OP_SYMBOL[t.operation]}${t.operandB}=${t.answer}`)
+                .join('   ')}
+            </p>
+            <p className="worksheet-brand">✦ Fact Fluency</p>
           </div>
         </div>
       )}

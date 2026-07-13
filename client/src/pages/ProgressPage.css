@@ -296,22 +296,56 @@
 
 /* Printable mastery certificate: hidden on screen; when printing, it is the
    only thing on the page. */
-.certificate-sheet {
+.certificate-sheet,
+.worksheet-sheet {
   display: none;
 }
 @media print {
   body * {
     visibility: hidden;
   }
-  .certificate-sheet {
+  .certificate-sheet,
+  .worksheet-sheet {
     display: block;
     visibility: visible;
     position: fixed;
     inset: 0;
     background: #fff;
   }
-  .certificate-sheet * {
+  .certificate-sheet *,
+  .worksheet-sheet * {
     visibility: visible;
+  }
+  .worksheet {
+    margin: 4vh 6vw;
+    font-family: Georgia, 'Times New Roman', serif;
+    color: #2b2440;
+  }
+  .worksheet h1 {
+    font-size: 1.8rem;
+    margin: 0;
+  }
+  .worksheet-sub {
+    color: #6b6480;
+    margin: 0.2rem 0 1.4rem;
+  }
+  .worksheet-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.1rem 2rem;
+    font-size: 1.35rem;
+  }
+  .worksheet-problem {
+    font-variant-numeric: tabular-nums;
+  }
+  .worksheet-key {
+    margin-top: 1.6rem;
+    font-size: 0.72rem;
+    color: #6b6480;
+  }
+  .worksheet-brand {
+    margin-top: 1rem;
+    font-weight: 700;
   }
   .certificate {
     height: 90vh;
