@@ -4,6 +4,7 @@
  */
 import { createApp } from './app';
 import { createDb } from './db';
+import { attachRaceLive } from './race/live';
 
 const PORT = Number(process.env.PORT ?? 3001);
 const DATABASE_URL = process.env.DATABASE_URL ?? 'sqlite:./data/fact-fluency.sqlite';
@@ -26,12 +27,14 @@ async function main() {
   pruneTimer.unref?.(); // don't keep the process alive for the timer
 
   const app = createApp(db, isProd);
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     // eslint-disable-next-line no-console
     console.log(
       `Fact Fluency API listening on http://localhost:${PORT} (${isProd ? 'prod' : 'dev'})`,
     );
   });
+  // Live-race WebSocket rooms ride the same HTTP server (MULTIPLAYER.md §2).
+  attachRaceLive(server, db);
 }
 
 main().catch((err) => {
