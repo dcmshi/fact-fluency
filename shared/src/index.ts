@@ -377,6 +377,52 @@ export interface LiveStanding {
 }
 
 // ---------------------------------------------------------------------------
+// Number Feast — real-time "sushi-go-round" math arena (FEAST.md)
+// ---------------------------------------------------------------------------
+
+/** A numbered plate on the belt, as broadcast to clients. `pos` is 0→1 along
+ *  the belt. The correct/answer flag is deliberately NOT sent — the kid reads
+ *  the fact and decides; the server validates grabs. */
+export interface FeastPlateView {
+  id: number;
+  value: number;
+  pos: number;
+}
+
+/** A player as broadcast to clients (score + stun state, no server internals). */
+export interface FeastPlayerView {
+  profileId: string;
+  name: string;
+  avatar: string;
+  muncher: string;
+  score: number;
+  stunned: boolean;
+  isBot: boolean;
+}
+
+/** One real-time tick of arena state pushed over the feast WebSocket. */
+export interface FeastSnapshot {
+  factA: number;
+  factOp: Operation;
+  factB: number;
+  timeLeftMs: number;
+  plates: FeastPlateView[];
+  players: FeastPlayerView[];
+}
+
+/** Final ranking of a feast round. */
+export interface FeastStanding {
+  profileId: string;
+  name: string;
+  avatar: string;
+  score: number;
+  placement: number;
+  isBot: boolean;
+  /** Present only in the final `finished` broadcast. */
+  coinsEarned?: number;
+}
+
+// ---------------------------------------------------------------------------
 // Progress view — the adult fact grid (DESIGN.md §7)
 // ---------------------------------------------------------------------------
 
