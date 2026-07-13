@@ -1,0 +1,131 @@
+.howto {
+  /* long-form content: keep the column top-aligned, not vertically centered */
+  justify-content: flex-start;
+}
+
+.howto a.btn {
+  text-decoration: none;
+}
+
+.howto-header {
+  width: 100%;
+  max-width: 760px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.75rem;
+}
+.howto-header .brand {
+  text-decoration: none;
+  color: inherit;
+}
+
+.howto-body {
+  width: 100%;
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+  padding-bottom: 3rem;
+}
+
+.howto-hero h1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 6vw, 2.8rem);
+  line-height: 1.1;
+  margin: 0 0 0.6rem;
+}
+.howto-lede {
+  color: var(--ink-soft);
+  font-size: 1.1rem;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 62ch;
+}
+.howto-lede.sm {
+  font-size: 1rem;
+  margin-bottom: 0.6rem;
+}
+
+.howto-section-title {
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  margin: 0 0 1rem;
+}
+
+.howto-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.howto-step {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 1.1rem 1.2rem;
+  box-shadow: 0 1px 0 var(--line);
+}
+.howto-step h3 {
+  font-family: var(--font-display);
+  font-size: 1.12rem;
+  margin: 0 0 0.35rem;
+}
+.howto-step p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+.howto-research {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.8rem;
+}
+.howto-research-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  background: var(--paper-2);
+  border-radius: var(--r-md);
+  padding: 1rem 1.1rem;
+}
+.howto-research-card strong {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+.howto-research-card span {
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* The honest "what we claim / privacy" callout — the page's signature moment,
+   framed in the warm accent so it reads as a deliberate promise. */
+.howto-callout {
+  background: var(--card);
+  border: 2px solid var(--sun);
+  border-radius: var(--r-lg);
+  padding: 1.5rem 1.6rem;
+}
+.howto-callout h2 {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  margin: 0 0 0.5rem;
+}
+.howto-callout p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.howto-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: center;
+}
+.howto-cta .btn {
+  width: 100%;
+  max-width: 320px;
+}

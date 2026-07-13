@@ -162,7 +162,7 @@ Legend: ✓ yes · ~ partial/embedded · ✗ no · ? unclear
 
 | Product               | Spaced repetition | Speed/fluency gate | Adaptive throttle | All 4 ops | Parent/teacher dashboard | Multiplayer/social | Free tier       | Offline | No kid login   |
 | --------------------- | ----------------- | ------------------ | ----------------- | --------- | ------------------------ | ------------------ | --------------- | ------- | -------------- |
-| **Fact Fluency (us)** | ✓ Leitner         | ✓ per-kid adaptive | ✓ ~80% target     | ✓         | ✓                        | ✗                  | ✓ full, no ads  | ✓ PWA   | ✓ tap profile  |
+| **Fact Fluency (us)** | ✓ Leitner         | ✓ per-kid adaptive | ✓ ~80% target     | ✓         | ✓                        | ✓ async + live     | ✓ full, no ads  | ✓ PWA   | ✓ tap profile  |
 | XtraMath              | ✓                 | ~ fixed 3/6/12s    | ~ freq-adaptive   | ✓         | ✓                        | ✗                  | ✓ core          | ✗       | ~ PIN/name     |
 | Reflex                | ✓ proprietary     | ✓                  | ~ adaptive        | ✓         | ✓                        | ~ (games)          | ✗ trial only    | ✗       | ✗ password     |
 | Prodigy Math Facts    | ? unconfirmed     | ✓ 3×@6s            | ~ configurable    | ✓         | ✓ fluency grids          | ✓ (pet races)      | ✓ 1 session/day | ✗       | ✗ login        |
@@ -208,6 +208,11 @@ of the profile-keeping options.
 
 ## 4. Gaps / where competitors are ahead
 
+> Build status is tracked in the §5 checklist below. Several gaps here are now
+> closed (multiplayer, standards, strategy teaching, most of localization &
+> accessibility, printable worksheets); the open ones are efficacy/credibility,
+> classroom/SSO, game-world depth, narrated audio, and emailed reports.
+
 - **Multiplayer / social.** Biggest gap. 99math, Arcademics, Boddle Racers,
   Prodigy, Sumdog all lean on live or matched competition; we have none.
 - **Efficacy research / credibility.** Reflex (multiple i-Ready studies),
@@ -230,45 +235,63 @@ of the profile-keeping options.
   Timez Attack offer immersive worlds and store presence; a single mechanic +
   PWA is lighter and risks novelty fatigue over months.
 
-## 5. Top differentiation opportunities (ranked)
+## 5. Top differentiation opportunities (ranked) — status checklist
 
 Filtered to fit the product's philosophy (short, non-tedious, fluency-first,
 warm) and to be _better than_, not just match, the field.
 
-1. **Non-punitive async multiplayer** ("ghost race" vs. your own best, or
+**Status** (updated 2026-07-13): ✅ done · ⚠️ partial · ⬜ not started. Summary:
+**8 of 12** substantially shipped; open = efficacy page (#6), classroom/SSO (#9),
+game skins (#10); partial = emailed recap (#2), narrated audio (#5), sticker book
+(#11).
+
+1. ✅ **Non-punitive async multiplayer** ("ghost race" vs. your own best, or
    sibling/family async challenges) — closes the #1 gap without importing
    99math's stressful live leaderboards. **Effort: M**
-2. **Weekly parent recap as an emailed/printable PDF + trickiest-facts
+   — _Shipped: async ghost race + live WebSocket rooms (see MULTIPLAYER.md)._
+2. ⚠️ **Weekly parent recap as an emailed/printable PDF + trickiest-facts
    worksheet** — cheap, high perceived value, offline-friendly. **Effort: S**
-3. **Strategy hint on a miss** (show the near-fact / double / count-on /
+   — _Shipped: printable trickiest-facts worksheet + mastery certificate, and
+   the in-dashboard weekly recap. Open: emailed PDF delivery (no mailer wired)._
+3. ✅ **Strategy hint on a miss** (show the near-fact / double / count-on /
    make-ten), not just right/wrong — Reflex-style coaching, lightweight and warm.
    **Effort: M**
-4. **Make the per-kid adaptive speed threshold a headline, explained feature**
+   — _Shipped: study-card strategy hints (engine `strategyHint`)._
+4. ✅ **Make the per-kid adaptive speed threshold a headline, explained feature**
    (with a visible "getting faster" trend) — turn an engine strength into a
    marketing wedge. **Effort: S**
-5. **Spanish localization + narrated audio for pre/emerging readers** — XtraMath
+   — _Shipped: dashboard speed trend + fast-bar threshold shown per operation._
+5. ⚠️ **Spanish localization + narrated audio for pre/emerging readers** — XtraMath
    proves demand; audio also serves accessibility and the K–1 market. **Effort:
    M**
-6. **Publish a transparent methodology + efficacy page; add opt-in anonymized
+   — _Shipped: full localization in English, Spanish, French, Simplified Chinese
+   (react-i18next; server prose emitted as translation keys). Open: narrated
+   audio._
+6. ⬜ **Publish a transparent methodology + efficacy page; add opt-in anonymized
    outcome tracking to seed a real study** — attacks the credibility gap vs.
    Reflex/Zearn. **Effort: M writeup / L for a study**
-7. **Gentle accessibility/dyscalculia mode** (no-timer "confidence" setting,
+7. ✅ **Gentle accessibility/dyscalculia mode** (no-timer "confidence" setting,
    reduced-motion, dyslexia-friendly font, high-contrast, subitizing visuals) —
    inclusive, on-brand, unmatched by the arcade competitors. **Effort: M**
-8. **Standards mapping surfaced in the dashboard** (CCSS 2.OA.2 / 3.OA.7, etc.) —
+   — _Shipped: calm (no-timer) mode, easy-read font, high-contrast toggle._
+8. ✅ **Standards mapping surfaced in the dashboard** (CCSS 2.OA.2 / 3.OA.7, etc.) —
    mostly labeling; lowers teacher-adoption friction. **Effort: S**
-9. **Lightweight classroom mode** (class-code join + optional Clever/Google SSO +
+   — _Shipped: per-set ON/BC/CCSS standards labels in the Facts view._
+9. ⬜ **Lightweight classroom mode** (class-code join + optional Clever/Google SSO +
    simple roster) — opens the school channel; keep it optional so home UX stays
    login-free. **Effort: L**
-10. **Multiple game skins over the same engine** (rotate mini-games beyond
+10. ⬜ **Multiple game skins over the same engine** (rotate mini-games beyond
     munch-the-grid) — counters single-mechanic fatigue; reuses the SR/fluency
     core. **Effort: M**
-11. **Calm reward meta** (collectible muncher "sticker book," milestone-linked
+11. ⚠️ **Calm reward meta** (collectible muncher "sticker book," milestone-linked
     themes, Duolingo-style streak-freeze) — extends motivation without
     punishment. **Effort: S–M**
-12. **Marketed anti-grind guarantee** (parent-set daily goal + a hard "done for
+    — _Shipped: streak-freeze (streak shield) + unlockable themes/munchers/effects.
+    Open: a collectible "sticker book" gallery view._
+12. ✅ **Marketed anti-grind guarantee** (parent-set daily goal + a hard "done for
     today" stop) — turns a core principle into a claim no competitor makes.
     **Effort: S**
+    — _Shipped as a soft "done for today" nudge (never a hard block, by design)._
 
 ## Honest uncertainties
 

@@ -64,6 +64,7 @@ export const fr: typeof en = {
     family3:
       'Des pièces, des personnages à débloquer, des thèmes et des séries pour la motivation.',
     family4: 'Gratuit, sans pub — et tu peux l’essayer tout de suite sans compte.',
+    howItWorks: 'Comment ça marche',
   },
   profiles: {
     account: 'Compte',
@@ -382,5 +383,54 @@ export const fr: typeof en = {
       'div-0-10': 'Division 0–10',
       'div-0-12': 'Division 0–12',
     },
+  },
+  methodology: {
+    pageTitle: 'Comment fonctionne Fact Fluency — Méthode et recherche',
+    play: 'Jouer',
+    title: 'Comment fonctionne Fact Fluency',
+    subtitle:
+      'La version honnête : ce que fait l’app, pourquoi elle est conçue ainsi, et sur quelles sciences de l’apprentissage elle s’appuie.',
+    methodHeading: 'La méthode',
+    goalTitle: 'L’objectif, c’est la fluidité, pas seulement l’exactitude',
+    goalBody:
+      'La fluidité, c’est retrouver un calcul correctement et rapidement — automatiquement, sans compter. Cela libère l’attention de l’enfant pour les maths plus difficiles à venir. Finir par trouver la bonne réponse n’est pas la ligne d’arrivée ; ici, la vitesse est un signal de premier plan.',
+    spacingTitle: 'Répétition espacée (boîtes de Leitner)',
+    spacingBody:
+      'Chaque calcul progresse dans les boîtes 0–5. Bien répondu, il monte d’une boîte et revient plus tard ; raté, il redescend et revient plus tôt. Les calculs que l’enfant connaît déjà sont revus moins souvent, les fragiles plus souvent, pour que le temps de pratique aille là où il le faut vraiment.',
+    gateTitle: 'Le seuil de fluidité : correct ET rapide',
+    gateBody:
+      'Un calcul n’est maîtrisé que lorsqu’il est répondu correctement et sous le seuil de vitesse de l’enfant. Une bonne réponse mais lente continue d’être travaillée — c’est la différence entre « le sait » et « le maîtrise ».',
+    adaptiveTitle: 'Un seuil de vitesse ajusté à chaque enfant',
+    adaptiveBody:
+      'Le seuil « assez rapide » n’est pas un chronomètre fixe. Il s’adapte au rythme habituel de chaque enfant (dans des limites raisonnables), pour qu’un débutant ne soit jamais bousculé et qu’un rapide reste stimulé.',
+    throttleTitle: 'Maintenu autour de 80 % de réussite',
+    throttleBody:
+      'Les nouveaux calculs arrivent seulement au rythme que l’enfant peut suivre — l’app vise environ 80 % de réussite. Quand une séance devient difficile, les nouveautés se mettent en pause et la révision répare ; quand c’est facile, il en arrive davantage. Assez difficile pour apprendre, assez facile pour rester motivé.',
+    warmTitle: 'Courtes, et jamais punitives',
+    warmBody:
+      'Les séances durent environ trois minutes (ou 20 questions), avec une ligne d’arrivée claire. Les retours sont bienveillants : une réponse lente, c’est « bel effort, continue ! », jamais un buzzer. Les pièces, les séries et les personnages font la motivation. Aucune punition, aucune corvée.',
+    researchHeading: 'La recherche sur laquelle elle repose',
+    researchIntro:
+      'Fact Fluency n’a pas inventé ces idées — elle applique des principes bien établis sur la façon dont on apprend et on mémorise :',
+    r1Term: 'L’effet d’espacement',
+    r1Body:
+      'Une pratique répartie dans le temps produit une mémorisation à long terme bien plus solide que le bachotage.',
+    r2Term: 'La pratique de récupération',
+    r2Body:
+      'Se rappeler activement une réponse — plutôt que la relire — est ce qui construit une mémoire durable.',
+    r3Term: 'L’automatisation',
+    r3Body:
+      'Quand les calculs sont rapides et sans effort, la mémoire de travail se libère pour le raisonnement et les problèmes à plusieurs étapes.',
+    r4Term: 'La difficulté optimale',
+    r4Body:
+      'On apprend le plus vite quand la pratique est exigeante mais réussie la plupart du temps ; la recherche évoque souvent près de 85 %, d’où notre cible d’environ 80 %.',
+    honestTitle: 'Ce que nous affirmons — et ce que nous n’affirmons pas',
+    honestBody:
+      'Nous sommes transparents volontairement. Fact Fluency repose sur les principes ci-dessus, mais nous ne publions pas encore nos propres études d’efficacité, et nous n’enjoliverons pas des chiffres que nous n’avons pas. Une étude de résultats anonyme et facultative est prévue ; d’ici là, ceci est notre justification honnête, pas une promesse de résultats.',
+    privacyTitle: 'Notre promesse sur les données de votre enfant',
+    privacyBody:
+      'Nous ne vendrons jamais les données de votre enfant, ne les partagerons pas avec des annonceurs et ne les utiliserons pas pour lui faire de la publicité. Il n’y a ni pub ni traqueurs tiers. Les enfants ne se connectent pas — les profils sont dans le compte d’un adulte — et nous ne conservons que ce qui est nécessaire à sa pratique, rien de plus.',
+    ctaPlay: 'Essaie — joue gratuitement',
+    ctaBack: '← Retour à l’accueil',
   },
 };

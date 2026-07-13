@@ -64,6 +64,7 @@ export const en = {
     family2: 'A parent dashboard with accuracy trends, trickiest facts, and weekly recaps.',
     family3: 'Coins, unlockable characters, themes, and streaks keep motivation up.',
     family4: 'Free to use, no ads — and you can try it instantly without an account.',
+    howItWorks: 'How it works',
   },
   profiles: {
     account: 'Account',
@@ -385,5 +386,55 @@ export const en = {
       'div-0-10': 'Division 0–10',
       'div-0-12': 'Division 0–12',
     },
+  },
+  // Public methodology / efficacy page (/how-it-works).
+  methodology: {
+    pageTitle: 'How Fact Fluency Works — Method & Research',
+    play: 'Play',
+    title: 'How Fact Fluency works',
+    subtitle:
+      'The honest version — what the app does, why it’s built this way, and the learning science it draws on.',
+    methodHeading: 'The method',
+    goalTitle: 'The goal is fluency, not just accuracy',
+    goalBody:
+      'Fluency means recalling a fact correctly and quickly — automatically, without counting. That frees a child’s attention for the harder math ahead. Getting the answer right eventually isn’t the finish line; speed is a first-class signal here.',
+    spacingTitle: 'Spaced repetition (Leitner boxes)',
+    spacingBody:
+      'Every fact moves through boxes 0–5. Answer one well and it climbs a box and comes back later; miss it and it drops back and returns sooner. Facts a child already knows are reviewed less often and shaky ones more often, so practice time lands where it’s actually needed.',
+    gateTitle: 'The fluency gate: correct AND fast',
+    gateBody:
+      'A fact only counts as mastered when it’s answered correctly and within the child’s speed threshold. A right-but-slow answer keeps practicing — that’s the difference between “knows it” and “has it down.”',
+    adaptiveTitle: 'A speed threshold tuned to each child',
+    adaptiveBody:
+      'The “fast enough” cutoff isn’t a fixed timer. It adapts to each child’s own typical pace (kept within sensible bounds), so a newer learner is never rushed and a quick one is still challenged.',
+    throttleTitle: 'Kept at about 80% success',
+    throttleBody:
+      'New facts trickle in only as fast as a child can handle — the app aims for roughly an 80% success rate. When a session gets hard, new facts pause and review does the repair; when it’s easy, more flow in. Hard enough to learn, easy enough to stay motivated.',
+    warmTitle: 'Short, and never punitive',
+    warmBody:
+      'Sessions are about three minutes (or 20 questions), with a clear finish line. Feedback is warm — a slow answer is “nice effort, keep going,” never a buzzer. Coins, streaks, and characters do the motivating. No punishment, no grind.',
+    researchHeading: 'The research it’s built on',
+    researchIntro:
+      'Fact Fluency didn’t invent these ideas — it applies well-established principles from how people learn and remember:',
+    r1Term: 'The spacing effect',
+    r1Body:
+      'Practice spread out over time produces far stronger long-term recall than cramming it together.',
+    r2Term: 'Retrieval practice',
+    r2Body:
+      'Actively recalling an answer — rather than re-reading it — is what builds durable, lasting memory.',
+    r3Term: 'Automaticity',
+    r3Body:
+      'Once facts are fast and effortless, working memory is freed up for reasoning and multi-step problems.',
+    r4Term: 'Optimal difficulty',
+    r4Body:
+      'Learning is fastest when practice is challenging but mostly successful; research often points near 85%, which is why we target about 80%.',
+    honestTitle: 'What we claim — and what we don’t',
+    honestBody:
+      'We’re transparent on purpose. Fact Fluency is grounded in the principles above, but we don’t yet publish our own efficacy studies, and we won’t dress up numbers we don’t have. An opt-in, anonymized outcome study is on our roadmap; until then, this is our honest rationale, not a results claim.',
+    privacyTitle: 'Our promise on your child’s data',
+    privacyBody:
+      'We will never sell your child’s data, share it with advertisers, or use it to advertise to them. There are no ads and no third-party trackers. Kids don’t log in — profiles sit behind a grown-up’s account — and we keep only what’s needed to run their practice, nothing more.',
+    ctaPlay: 'Try it — play for free',
+    ctaBack: '← Back to home',
   },
 };

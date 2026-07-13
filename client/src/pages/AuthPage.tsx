@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ApiError } from '../api';
 import { useAuth } from '../auth';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
@@ -99,6 +99,9 @@ export function AuthPage() {
             </h1>
             <p className="muted" style={{ textAlign: 'center', marginTop: '-0.4rem' }}>
               {t('landing.tagline')}
+            </p>
+            <p className="hero-more">
+              <Link to="/how-it-works">{t('landing.howItWorks')} →</Link>
             </p>
 
             <button
@@ -212,6 +215,12 @@ export function AuthPage() {
           <li>{t('landing.family3')}</li>
           <li>{t('landing.family4')}</li>
         </ul>
+
+        <div className="landing-more">
+          <Link to="/how-it-works" className="btn ghost">
+            {t('landing.howItWorks')} →
+          </Link>
+        </div>
       </section>
     </div>
   );

@@ -64,6 +64,7 @@ export const es: typeof en = {
       'Un panel para adultos con tendencias de precisión, las operaciones más difíciles y resúmenes semanales.',
     family3: 'Monedas, personajes desbloqueables, temas y rachas mantienen la motivación.',
     family4: 'Gratis y sin anuncios, y puedes probarlo al instante sin crear una cuenta.',
+    howItWorks: 'Cómo funciona',
   },
   profiles: {
     account: 'Cuenta',
@@ -384,5 +385,54 @@ export const es: typeof en = {
       'div-0-10': 'División 0–10',
       'div-0-12': 'División 0–12',
     },
+  },
+  methodology: {
+    pageTitle: 'Cómo funciona Fact Fluency — Método e investigación',
+    play: 'Jugar',
+    title: 'Cómo funciona Fact Fluency',
+    subtitle:
+      'La versión honesta: qué hace la app, por qué está hecha así y en qué ciencia del aprendizaje se basa.',
+    methodHeading: 'El método',
+    goalTitle: 'El objetivo es la fluidez, no solo la precisión',
+    goalBody:
+      'Fluidez significa recordar una operación de forma correcta y rápida, automáticamente, sin contar. Eso libera la atención del niño para las matemáticas más difíciles que vienen. Acertar tarde o temprano no es la meta; aquí la velocidad es una señal de primer nivel.',
+    spacingTitle: 'Repetición espaciada (cajas de Leitner)',
+    spacingBody:
+      'Cada operación avanza por las cajas 0–5. Si se responde bien, sube una caja y vuelve más tarde; si se falla, baja y regresa antes. Las operaciones que el niño ya domina se repasan menos y las inseguras más, para que el tiempo de práctica caiga donde de verdad hace falta.',
+    gateTitle: 'El umbral de fluidez: correcto Y rápido',
+    gateBody:
+      'Una operación solo cuenta como dominada cuando se responde correctamente y dentro del umbral de velocidad del niño. Una respuesta correcta pero lenta sigue practicándose: esa es la diferencia entre “la sabe” y “la tiene dominada”.',
+    adaptiveTitle: 'Un umbral de velocidad ajustado a cada niño',
+    adaptiveBody:
+      'El límite de “suficientemente rápido” no es un cronómetro fijo. Se adapta al ritmo habitual de cada niño (dentro de límites razonables), para que quien empieza nunca se sienta apurado y quien va rápido siga teniendo reto.',
+    throttleTitle: 'Se mantiene alrededor del 80% de aciertos',
+    throttleBody:
+      'Las operaciones nuevas entran solo al ritmo que el niño puede asumir: la app busca cerca de un 80% de aciertos. Cuando una sesión se pone difícil, las nuevas se pausan y el repaso hace la reparación; cuando es fácil, entran más. Bastante difícil para aprender, bastante fácil para seguir motivado.',
+    warmTitle: 'Cortas y nunca punitivas',
+    warmBody:
+      'Las sesiones duran unos tres minutos (o 20 preguntas), con una meta clara. Los comentarios son cálidos: una respuesta lenta es “¡buen esfuerzo, sigue!”, nunca un pitido de error. Las monedas, las rachas y los personajes son la motivación. Sin castigos, sin monotonía.',
+    researchHeading: 'La investigación en la que se basa',
+    researchIntro:
+      'Fact Fluency no inventó estas ideas: aplica principios bien establecidos sobre cómo aprendemos y recordamos:',
+    r1Term: 'El efecto de espaciamiento',
+    r1Body:
+      'La práctica repartida en el tiempo produce un recuerdo a largo plazo mucho más sólido que estudiarlo todo de golpe.',
+    r2Term: 'La práctica de recuperación',
+    r2Body:
+      'Recordar activamente una respuesta —en lugar de volver a leerla— es lo que crea una memoria duradera.',
+    r3Term: 'La automaticidad',
+    r3Body:
+      'Cuando las operaciones son rápidas y sin esfuerzo, la memoria de trabajo queda libre para razonar y resolver problemas de varios pasos.',
+    r4Term: 'La dificultad óptima',
+    r4Body:
+      'Se aprende más rápido cuando la práctica es desafiante pero casi siempre exitosa; la investigación suele señalar cerca del 85%, por eso apuntamos a alrededor del 80%.',
+    honestTitle: 'Lo que afirmamos y lo que no',
+    honestBody:
+      'Somos transparentes a propósito. Fact Fluency se basa en los principios anteriores, pero todavía no publicamos nuestros propios estudios de eficacia y no vamos a maquillar cifras que no tenemos. Un estudio de resultados anónimo y voluntario está en nuestros planes; hasta entonces, esto es nuestra justificación honesta, no una afirmación de resultados.',
+    privacyTitle: 'Nuestra promesa sobre los datos de tu hijo',
+    privacyBody:
+      'Nunca venderemos los datos de tu hijo, ni los compartiremos con anunciantes, ni los usaremos para mostrarle publicidad. No hay anuncios ni rastreadores de terceros. Los niños no inician sesión —los perfiles están dentro de la cuenta de un adulto— y solo guardamos lo necesario para su práctica, nada más.',
+    ctaPlay: 'Pruébalo: juega gratis',
+    ctaBack: '← Volver al inicio',
   },
 };

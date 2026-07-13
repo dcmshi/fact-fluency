@@ -576,6 +576,24 @@ body[data-theme='midnight'] {
 .landing-info li {
   margin-bottom: 0.25rem;
 }
+.landing-more {
+  margin-top: 1.3rem !important;
+  text-align: center;
+}
+.landing-more .btn {
+  text-decoration: none;
+}
+/* Above-the-fold "How it works" link in the auth hero. */
+.hero-more {
+  text-align: center;
+  margin-top: -0.3rem;
+}
+.hero-more a {
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
 
 /* Loading skeletons — shimmer placeholders shown while data loads. */
 .skeleton {

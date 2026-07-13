@@ -18,6 +18,11 @@ const RacePage = lazy(() => import('./pages/RacePage').then((m) => ({ default: m
 const ProgressPage = lazy(() =>
   import('./pages/ProgressPage').then((m) => ({ default: m.ProgressPage })),
 );
+// Public methodology page — available logged-out or in; lazy so it stays out of
+// the auth entry bundle.
+const HowItWorksPage = lazy(() =>
+  import('./pages/HowItWorksPage').then((m) => ({ default: m.HowItWorksPage })),
+);
 
 function LoadingScreen() {
   const { t } = useTranslation();
@@ -65,9 +70,12 @@ function AppRoutes() {
   // guest account lands, accountId flips and the routes below take over.
   if (!accountId) {
     return (
-      <Routes>
-        <Route path="*" element={<AuthPage />} />
-      </Routes>
+      <Suspense fallback={<LoadingScreen />}>
+        <Routes>
+          <Route path="/how-it-works" element={<HowItWorksPage />} />
+          <Route path="*" element={<AuthPage />} />
+        </Routes>
+      </Suspense>
     );
   }
 
@@ -75,6 +83,7 @@ function AppRoutes() {
     <Suspense fallback={<LoadingScreen />}>
       <Routes>
         <Route path="/" element={<ProfilesPage />} />
+        <Route path="/how-it-works" element={<HowItWorksPage />} />
         <Route path="/calibrate/:profileId" element={<CalibratePage />} />
         <Route path="/race/:profileId" element={<RacePage />} />
         <Route path="/play/:profileId" element={<PlayPage />} />
