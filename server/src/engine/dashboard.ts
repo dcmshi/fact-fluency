@@ -4,7 +4,7 @@
  * "enable this next" suggestion. No DB/HTTP/time-of-day reached for here: the
  * caller buckets attempts into account-timezone days and passes them in.
  */
-import type { Operation } from '@shared';
+import type { Operation, SpeedTrend } from '@shared';
 
 import { OPERATIONS } from './operations';
 
@@ -68,6 +68,22 @@ export function buildTrends<T extends AttemptLike & { answeredAt: number }>(
     (byDay.get(key) ?? byDay.set(key, []).get(key)!).push(a);
   }
   return dayKeys.map((day) => ({ day, ...summarizeAttempts(byDay.get(day) ?? []) }));
+}
+
+/**
+ * "Getting faster" signal: split the window's *active* days in half and compare
+ * the median correct-answer speed of the earlier half to the recent half. Needs
+ * a few active days before it's meaningful (a single fast day isn't a trend).
+ * Positive `fasterPct` ⇒ the kid is answering faster than earlier in the window.
+ */
+export function speedTrend(trends: { medianMs: number | null }[]): SpeedTrend | null {
+  const active = trends.filter((t): t is { medianMs: number } => t.medianMs != null);
+  if (active.length < 4) return null;
+  const half = Math.floor(active.length / 2);
+  const prior = median(active.slice(0, half).map((t) => t.medianMs));
+  const recent = median(active.slice(active.length - half).map((t) => t.medianMs));
+  if (prior == null || recent == null || prior <= 0) return null;
+  return { recentMs: recent, priorMs: prior, fasterPct: (prior - recent) / prior };
 }
 
 /** Per-set mastery, for the "what to enable next" heuristic. */

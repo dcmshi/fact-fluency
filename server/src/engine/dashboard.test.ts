@@ -2,10 +2,33 @@ import { describe, expect, it } from 'vitest';
 import {
   buildTrends,
   median,
+  speedTrend,
   summarizeAttempts,
   suggestNextSet,
   type SetMastery,
 } from './dashboard';
+
+describe('speedTrend', () => {
+  const days = (ms: (number | null)[]) => ms.map((medianMs) => ({ medianMs }));
+
+  it('returns null without enough active days', () => {
+    expect(speedTrend([])).toBeNull();
+    expect(speedTrend(days([2000, null, 1800]))).toBeNull(); // only 2 active
+  });
+
+  it('reports getting faster when recent days are quicker', () => {
+    const t = speedTrend(days([4000, 4000, null, 2000, 2000]));
+    expect(t).not.toBeNull();
+    expect(t!.priorMs).toBe(4000);
+    expect(t!.recentMs).toBe(2000);
+    expect(t!.fasterPct).toBeCloseTo(0.5); // half the time
+  });
+
+  it('reports negative when slowing down', () => {
+    const t = speedTrend(days([2000, 2000, 3000, 3000]));
+    expect(t!.fasterPct).toBeLessThan(0);
+  });
+});
 
 describe('median', () => {
   it('returns null for empty, the middle for odd, the mean for even', () => {

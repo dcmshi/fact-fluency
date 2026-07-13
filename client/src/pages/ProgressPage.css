@@ -135,6 +135,19 @@
   font-size: 0.85rem;
   color: var(--ink-soft);
 }
+/* The kid's personalized "fast enough" bar for this operation. */
+.grid-fastbar {
+  font-weight: 700;
+  color: var(--div);
+}
+/* "Getting faster" callout — speed progress, not just accuracy. */
+.speed-note {
+  background: color-mix(in srgb, var(--div) 14%, var(--card));
+  border-radius: var(--r-md);
+  padding: 0.6rem 0.9rem;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
 
 .fact-grid {
   display: grid;

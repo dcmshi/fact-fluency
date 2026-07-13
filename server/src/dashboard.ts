@@ -6,9 +6,10 @@
 import type { DashboardView, DayTrend, Operation, Profile, TrickyFact, WeeklyRecap } from '@shared';
 import { SEED_CATALOG } from './data/catalog';
 import type { Db } from './db';
-import { buildTrends, suggestNextSet, type SetMastery } from './engine/dashboard';
+import { buildTrends, speedTrend, suggestNextSet, type SetMastery } from './engine/dashboard';
 import { generateFactsForSets } from './engine/facts';
 import { dayInTz } from './engine/scheduling';
+import { computeThresholds } from './session/service';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WINDOW_DAYS = 14;
@@ -133,5 +134,7 @@ export async function getDashboardView(
     suggestion,
     trickiest,
     weekly,
+    thresholds: await computeThresholds(db, profileId),
+    speed: speedTrend(trends),
   };
 }

@@ -344,6 +344,18 @@ export interface WeeklyRecap {
   mastered: number;
 }
 
+/** "Getting faster" signal — recent vs earlier typical answer speed over the
+ *  window. The app's differentiator is a per-kid *adaptive* fast bar, so this
+ *  makes progress on speed (not just accuracy) visible to parents. */
+export interface SpeedTrend {
+  /** Median correct-answer speed (ms) over the recent half of active days. */
+  recentMs: number;
+  /** …over the earlier half. */
+  priorMs: number;
+  /** (priorMs - recentMs) / priorMs — positive means faster now than before. */
+  fasterPct: number;
+}
+
 export interface DashboardView {
   displayName: string;
   streak: number;
@@ -353,4 +365,9 @@ export interface DashboardView {
   suggestion: SetSuggestion | null;
   trickiest: TrickyFact[];
   weekly: WeeklyRecap;
+  /** Per-operation adaptive "fast enough" cutoffs (ms) — the personalized speed
+   *  bar, surfaced so parents can see it (competitors use fixed timers). */
+  thresholds: Thresholds;
+  /** Recent-vs-earlier speed trend, or null without enough active days. */
+  speed: SpeedTrend | null;
 }

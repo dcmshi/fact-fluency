@@ -105,7 +105,12 @@ export function ProgressPage() {
           <p className="muted">No fact sets enabled yet — pick some from the profiles screen.</p>
         )}
         {view?.grids.map((grid) => (
-          <OperationGrid key={grid.operation} grid={grid} kidName={dash?.displayName ?? ''} />
+          <OperationGrid
+            key={grid.operation}
+            grid={grid}
+            kidName={dash?.displayName ?? ''}
+            threshold={dash?.thresholds[grid.operation]}
+          />
         ))}
 
         {view && view.grids.length > 0 && (
@@ -218,6 +223,14 @@ function Dashboard({ dash, profileId }: { dash: DashboardView; profileId: string
           accent="var(--div)"
         />
       </div>
+
+      {dash.speed && dash.speed.fasterPct >= 0.05 && (
+        <div className="speed-note">
+          <span aria-hidden="true">⚡</span> Answering{' '}
+          <strong>{Math.round(dash.speed.fasterPct * 100)}% faster</strong> than earlier this window
+          — the fast bar adapts as {dash.displayName} speeds up.
+        </div>
+      )}
 
       {weekly.attempts > 0 && (
         <div className="weekly-recap">
@@ -462,7 +475,15 @@ function tooltip(t: DayTrend): string {
   return `${t.day}: ${acc}${speed}`;
 }
 
-function OperationGrid({ grid, kidName }: { grid: ProgressGrid; kidName: string }) {
+function OperationGrid({
+  grid,
+  kidName,
+  threshold,
+}: {
+  grid: ProgressGrid;
+  kidName: string;
+  threshold?: number;
+}) {
   const mastered = grid.cells.filter((c) => c.state === 'mastered').length;
   const fullyMastered = grid.cells.length > 0 && mastered === grid.cells.length;
   // Tap-to-inspect: the hover title is invisible on touch/keyboard/SR, so a
@@ -481,6 +502,9 @@ function OperationGrid({ grid, kidName }: { grid: ProgressGrid; kidName: string 
         </h2>
         <span className="grid-count">
           {mastered} / {grid.cells.length} mastered
+          {threshold != null && (
+            <span className="grid-fastbar"> · fast under {(threshold / 1000).toFixed(1)}s</span>
+          )}
         </span>
       </div>
       {fullyMastered && <CertificateButton kidName={kidName} operation={grid.operation} />}
