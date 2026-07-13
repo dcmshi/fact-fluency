@@ -64,6 +64,14 @@ export function PlayPage() {
 
   useTheme(session?.theme);
 
+  // Apply the kid's accessibility toggles to the play screen (COMPETITORS.md).
+  useEffect(() => {
+    const a = session?.accessibility;
+    document.body.classList.toggle('ff-easy-read', a?.easyReadFont === true);
+    document.body.classList.toggle('ff-high-contrast', a?.highContrast === true);
+    return () => document.body.classList.remove('ff-easy-read', 'ff-high-contrast');
+  }, [session?.accessibility]);
+
   const current = queue[0] ?? null;
 
   /** All queue changes go through here so the ref and state never diverge. */
@@ -186,7 +194,11 @@ export function PlayPage() {
       // feedback renders instantly — no waiting on the answer round trip, and
       // an offline kid still hears "super fast!". The server recomputes `fast`
       // authoritatively for scheduling; this copy is presentation-only.
-      const fast = r.correct && r.responseMs <= s.thresholds[current.fact.operation];
+      // Calm mode (accessibility) hides speed feedback entirely — no fast
+      // sparkle, no "super fast" — so there's no time pressure. The server
+      // still scores speed authoritatively for scheduling.
+      const calm = s.accessibility?.calmMode === true;
+      const fast = !calm && r.correct && r.responseMs <= s.thresholds[current.fact.operation];
       if (fast) playFast(); // the fluency win gets its sparkle (sound.ts)
       setAnnounce(
         r.correct

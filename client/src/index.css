@@ -315,6 +315,26 @@ button {
   }
 }
 
+/* --- Accessibility toggles (per-kid, applied to the play screen via body
+   classes in PlayPage; reduced-motion is handled by the media query above). --- */
+body.ff-easy-read {
+  letter-spacing: 0.03em;
+  word-spacing: 0.08em;
+}
+body.ff-easy-read .munch-num,
+body.ff-easy-read .equation,
+body.ff-easy-read .munch-expr,
+body.ff-easy-read .study-tag {
+  font-weight: 800;
+}
+body.ff-high-contrast {
+  --line: #8d7a55;
+  --ink-soft: #453f5c;
+}
+body.ff-high-contrast .munch-cell {
+  border-width: 4px;
+}
+
 /* ===========================================================================
    Unlockable palette themes (roadmap v1.1). Applied as body[data-theme="…"]
    so the whole page (incl. the paper background) re-themes. Operation colors

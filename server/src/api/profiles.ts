@@ -138,7 +138,12 @@ export function createProfileRouter(db: Db): Router {
         if (typeof incoming !== 'object' || incoming === null) {
           return res.status(400).json({ error: 'invalid_settings' });
         }
-        if ('comparisons' in incoming && typeof incoming.comparisons !== 'boolean') {
+        if (
+          ('comparisons' in incoming && typeof incoming.comparisons !== 'boolean') ||
+          ('easyReadFont' in incoming && typeof incoming.easyReadFont !== 'boolean') ||
+          ('highContrast' in incoming && typeof incoming.highContrast !== 'boolean') ||
+          ('calmMode' in incoming && typeof incoming.calmMode !== 'boolean')
+        ) {
           return res.status(400).json({ error: 'invalid_settings' });
         }
         merged = {
@@ -146,6 +151,9 @@ export function createProfileRouter(db: Db): Router {
           sessionSeconds: incoming.sessionSeconds ?? profile.settings.sessionSeconds,
           newPerSession: incoming.newPerSession ?? profile.settings.newPerSession,
           comparisons: incoming.comparisons ?? profile.settings.comparisons ?? true,
+          easyReadFont: incoming.easyReadFont ?? profile.settings.easyReadFont ?? false,
+          highContrast: incoming.highContrast ?? profile.settings.highContrast ?? false,
+          calmMode: incoming.calmMode ?? profile.settings.calmMode ?? false,
         };
         if (invalidSetting(merged)) {
           return res.status(400).json({ error: 'invalid_settings' });

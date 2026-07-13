@@ -83,6 +83,13 @@ export interface ProfileSettings {
   /** Include smaller/bigger (`<`/`>`) munch rounds; false = equality only
    *  (young or pre-reading kids). Absent on older rows = true. */
   comparisons?: boolean;
+  // Accessibility toggles (COMPETITORS.md) — all default off/absent.
+  /** A clearer, more spaced type treatment for easier reading. */
+  easyReadFont?: boolean;
+  /** Stronger contrast for low-vision / bright-room use. */
+  highContrast?: boolean;
+  /** Calm mode: hide fast/slow speed feedback so there's no time pressure. */
+  calmMode?: boolean;
 }
 
 export interface Profile {
@@ -221,6 +228,8 @@ export interface SessionResponse {
   muncher: string;
   /** The kid's equipped celebration-effect key (burst on a correct munch). */
   effect: string;
+  /** Per-kid accessibility toggles applied on the play screen (COMPETITORS.md). */
+  accessibility: { easyReadFont: boolean; highContrast: boolean; calmMode: boolean };
 }
 
 export interface AnswerRequest {

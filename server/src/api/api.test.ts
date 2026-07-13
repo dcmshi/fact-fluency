@@ -547,6 +547,9 @@ describe('profiles', () => {
       sessionSeconds: 180,
       newPerSession: 3,
       comparisons: true,
+      easyReadFont: false,
+      highContrast: false,
+      calmMode: false,
     });
 
     // newPerSession: 0 is valid (review-only) — not treated as "unset".
@@ -571,6 +574,9 @@ describe('profiles', () => {
       sessionSeconds: 180,
       newPerSession: 0,
       comparisons: false,
+      easyReadFont: false,
+      highContrast: false,
+      calmMode: false,
     });
 
     // Out-of-range and non-integer values are rejected.

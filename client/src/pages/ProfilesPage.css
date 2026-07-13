@@ -324,6 +324,16 @@
   background: color-mix(in srgb, var(--add) 14%, var(--card));
 }
 
+/* Settings: a small section heading (e.g. Accessibility). */
+.settings-heading {
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0.7rem 0 0.1rem;
+}
+
 /* Settings: labelled checkbox row (comparisons toggle). */
 .toggle-row {
   display: flex;

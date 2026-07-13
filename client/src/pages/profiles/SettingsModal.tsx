@@ -6,7 +6,7 @@ import { AvatarPicker } from '../../components/AvatarPicker';
 import { Modal } from '../../components/Modal';
 import { EDIT_ERROR_MESSAGES, FALLBACK_MESSAGE } from '../../messages';
 
-type NumericKey = Exclude<keyof ProfileSettings, 'comparisons'>;
+type NumericKey = 'sessionCards' | 'sessionSeconds' | 'newPerSession';
 
 /** Labels/hints for the numeric session settings. The inclusive bounds come
  *  from /catalog (the server's own validation limits), so the form can't
@@ -134,6 +134,45 @@ export function SettingsModal({
           Off = every round asks for “the same as” — good for younger kids (K–1 starts this way).
         </span>
       </div>
+
+      <div className="settings-heading">Accessibility</div>
+      <div className="field">
+        <label className="toggle-row" htmlFor="set-easyread">
+          <input
+            id="set-easyread"
+            type="checkbox"
+            checked={values.easyReadFont === true}
+            onChange={(e) => setValues((v) => ({ ...v, easyReadFont: e.target.checked }))}
+          />
+          Easy-read text
+        </label>
+      </div>
+      <div className="field">
+        <label className="toggle-row" htmlFor="set-contrast">
+          <input
+            id="set-contrast"
+            type="checkbox"
+            checked={values.highContrast === true}
+            onChange={(e) => setValues((v) => ({ ...v, highContrast: e.target.checked }))}
+          />
+          High contrast
+        </label>
+      </div>
+      <div className="field">
+        <label className="toggle-row" htmlFor="set-calm">
+          <input
+            id="set-calm"
+            type="checkbox"
+            checked={values.calmMode === true}
+            onChange={(e) => setValues((v) => ({ ...v, calmMode: e.target.checked }))}
+          />
+          No speed pressure (calm mode)
+        </label>
+        <span className="muted" style={{ fontSize: '0.85rem' }}>
+          Hides the “super fast!” timing cues so practice feels relaxed.
+        </span>
+      </div>
+
       <button className="btn sun full" disabled={busy || outOfRange || nameEmpty} onClick={save}>
         {saveMut.isPending ? 'Saving…' : 'Save'}
       </button>

@@ -12,6 +12,9 @@ export const DEFAULT_SETTINGS: ProfileSettings = {
   sessionSeconds: 180,
   newPerSession: 3,
   comparisons: true,
+  easyReadFont: false,
+  highContrast: false,
+  calmMode: false,
 };
 
 /** Bounds cover the numeric knobs only — `comparisons` is a boolean toggle. */

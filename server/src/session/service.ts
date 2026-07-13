@@ -229,6 +229,11 @@ export async function startSession(
     theme: profile.theme,
     muncher,
     effect,
+    accessibility: {
+      easyReadFont: profile.settings.easyReadFont === true,
+      highContrast: profile.settings.highContrast === true,
+      calmMode: profile.settings.calmMode === true,
+    },
   };
 
   // Resume an interrupted session reopened the same day; otherwise discard a

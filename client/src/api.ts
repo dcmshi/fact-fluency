@@ -74,7 +74,7 @@ export const api = {
       gradeBands: GradeBand[];
       /** Inclusive [min, max] per numeric profile setting — the server's own
        *  validation bounds, so the settings form can't drift from them. */
-      settingBounds: Record<Exclude<keyof ProfileSettings, 'comparisons'>, [number, number]>;
+      settingBounds: Record<'sessionCards' | 'sessionSeconds' | 'newPerSession', [number, number]>;
     }>('GET', '/catalog'),
 
   // profiles
