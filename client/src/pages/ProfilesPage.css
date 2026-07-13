@@ -109,6 +109,16 @@
   flex-wrap: wrap;
   gap: 0.4rem;
 }
+/* Curriculum-alignment caption for each enabled set (standards signal). */
+.set-standards {
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+.set-standards strong {
+  color: var(--ink);
+}
 .set-pill {
   border: 2px solid var(--line);
   background: #fffdf8;

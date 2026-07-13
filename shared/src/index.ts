@@ -32,6 +32,9 @@ export interface FactSet {
   operation: Operation;
   label: string;
   rangeSpec: RangeSpec;
+  /** The curriculum expectation this set maps to (Ontario/BC + Common Core) —
+   *  shown to adults as a standards-alignment signal. */
+  standards?: string;
 }
 
 /** A starting preset: a grade band maps to the fact sets to enable at

@@ -5,24 +5,29 @@
  */
 import type { FactSet, GradeBand } from '@shared';
 
+// Curriculum expectations each set maps to (Ontario/BC + Common Core), shown to
+// adults as a standards-alignment signal (COMPETITORS.md — the alignment gap).
 export const SEED_CATALOG: FactSet[] = [
   {
     id: 'add-0-5',
     operation: 'add',
     label: 'Addition 0–5',
     rangeSpec: { aMin: 0, aMax: 5, bMin: 0, bMax: 5 },
+    standards: 'Adding within 5 · ON K–1 · CCSS K.OA.5',
   },
   {
     id: 'add-0-10',
     operation: 'add',
     label: 'Addition 0–10',
     rangeSpec: { aMin: 0, aMax: 10, bMin: 0, bMax: 10 },
+    standards: 'Addition facts to 20 · ON G2 · BC G3 · CCSS 2.OA.2',
   },
   {
     id: 'add-0-12',
     operation: 'add',
     label: 'Addition 0–12',
     rangeSpec: { aMin: 0, aMax: 12, bMin: 0, bMax: 12 },
+    standards: 'Addition facts · ON G2–3 · CCSS 2.OA.2',
   },
 
   {
@@ -30,12 +35,14 @@ export const SEED_CATALOG: FactSet[] = [
     operation: 'sub',
     label: 'Subtraction within 10',
     rangeSpec: { aMin: 0, aMax: 10, bMin: 0, bMax: 10 },
+    standards: 'Subtraction within 10 · ON G1 · CCSS 1.OA.6',
   },
   {
     id: 'sub-0-20',
     operation: 'sub',
     label: 'Subtraction within 20',
     rangeSpec: { aMin: 0, aMax: 20, bMin: 0, bMax: 20 },
+    standards: 'Subtraction facts to 20 · ON G2 · BC G3 · CCSS 2.OA.2',
   },
 
   {
@@ -43,18 +50,21 @@ export const SEED_CATALOG: FactSet[] = [
     operation: 'mul',
     label: 'Multiplication 0–5',
     rangeSpec: { aMin: 0, aMax: 5, bMin: 0, bMax: 5 },
+    standards: '×/÷ 2, 5, 10 facts · ON G3 · CCSS 3.OA.7',
   },
   {
     id: 'mul-0-10',
     operation: 'mul',
     label: 'Multiplication 0–10',
     rangeSpec: { aMin: 0, aMax: 10, bMin: 0, bMax: 10 },
+    standards: 'Multiplication facts to 100 · ON G4 · BC G4–5 · CCSS 3.OA.7',
   },
   {
     id: 'mul-0-12',
     operation: 'mul',
     label: 'Multiplication 0–12',
     rangeSpec: { aMin: 0, aMax: 12, bMin: 0, bMax: 12 },
+    standards: 'Times tables to 12 · ON G4 · CCSS 3.OA.7',
   },
 
   {
@@ -62,18 +72,21 @@ export const SEED_CATALOG: FactSet[] = [
     operation: 'div',
     label: 'Division 0–5',
     rangeSpec: { aMin: 0, aMax: 5, bMin: 0, bMax: 5 },
+    standards: 'Division facts (small) · ON G3 · CCSS 3.OA.7',
   },
   {
     id: 'div-0-10',
     operation: 'div',
     label: 'Division 0–10',
     rangeSpec: { aMin: 0, aMax: 10, bMin: 0, bMax: 10 },
+    standards: 'Division facts to 100 · ON G4 · BC G4–5 · CCSS 3.OA.7',
   },
   {
     id: 'div-0-12',
     operation: 'div',
     label: 'Division 0–12',
     rangeSpec: { aMin: 0, aMax: 12, bMin: 0, bMax: 12 },
+    standards: 'Division facts · ON G4 · CCSS 3.OA.7',
   },
 ];
 

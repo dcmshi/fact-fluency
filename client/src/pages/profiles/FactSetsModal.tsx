@@ -77,6 +77,14 @@ export function FactSetsModal({ profile, onClose }: { profile: Profile; onClose:
               </button>
             ))}
           </div>
+          {/* Standards alignment for whatever's enabled — a parent/teacher signal. */}
+          {sets
+            .filter((s) => enabled.has(s.id) && s.standards)
+            .map((s) => (
+              <div key={`std-${s.id}`} className="set-standards">
+                <strong>{s.label.replace(/^[A-Za-z]+ /, '')}</strong> · {s.standards}
+              </div>
+            ))}
         </div>
       ))}
       <button className="btn sun full" disabled={busy} onClick={save}>
