@@ -14,6 +14,7 @@ import { attemptsToCsv, buildExport } from '../export';
 import { getProgressView } from '../progress';
 import { equipReward, getRewards, unlockReward } from '../rewards';
 import * as calibration from '../session/calibrate';
+import * as races from '../session/race';
 import * as sessions from '../session/service';
 import { createProfileRouter } from './profiles';
 
@@ -83,6 +84,45 @@ export function createApiRouter(db: Db, isProd: boolean): Router {
     handle(async (req, res) => {
       const result = await sessions.complete(db, req.accountId!, req.params.id, Date.now());
       res.json(result);
+    }),
+  );
+
+  // --- multiplayer race (MULTIPLAYER.md) ---
+  router.post(
+    '/profiles/:id/races',
+    requireAuth,
+    owned,
+    handle(async (req, res) => {
+      res.status(201).json(await races.createRace(db, req.profile!, Date.now()));
+    }),
+  );
+
+  router.get(
+    '/profiles/:id/races',
+    requireAuth,
+    owned,
+    handle(async (req, res) => {
+      res.json({ races: await races.listRaces(db, req.profile!) });
+    }),
+  );
+
+  router.get(
+    '/profiles/:id/races/:raceId',
+    requireAuth,
+    owned,
+    handle(async (req, res) => {
+      res.json(await races.getRaceForPlay(db, req.profile!, req.params.raceId));
+    }),
+  );
+
+  router.post(
+    '/profiles/:id/races/:raceId/run',
+    requireAuth,
+    owned,
+    handle(async (req, res) => {
+      res.json(
+        await races.submitRaceRun(db, req.profile!, req.params.raceId, req.body, Date.now()),
+      );
     }),
   );
 

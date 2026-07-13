@@ -433,6 +433,45 @@ describe('profiles', () => {
     ).toBe(400);
   });
 
+  it('runs a race: create → run beats the bot → lobby + result', async () => {
+    const agent = await authed();
+    const pid = (await agent.post('/api/profiles').send({ displayName: 'Racer', avatar: '🦊' }))
+      .body.profile.id;
+
+    const created = await agent.post(`/api/profiles/${pid}/races`);
+    expect(created.status).toBe(201);
+    const { raceId, deck, ghost } = created.body;
+    expect(raceId).toBeTruthy();
+    expect(deck.length).toBeGreaterThan(0);
+    expect(ghost.isBot).toBe(true);
+    expect(ghost.perRoundMs).toHaveLength(deck.length);
+
+    // A blazing time beats the bot → first place, coins above the floor.
+    const run = await agent.post(`/api/profiles/${pid}/races/${raceId}/run`).send({
+      perRoundMs: deck.map(() => 500),
+      totalMs: deck.length * 500,
+      correctCount: deck.length,
+    });
+    expect(run.status).toBe(200);
+    expect(run.body.placement).toBe(1);
+    expect(run.body.coinsEarned).toBeGreaterThan(0);
+    expect(run.body.standings.some((s: { isYou: boolean }) => s.isYou)).toBe(true);
+    expect(run.body.personalBest).toBe(true);
+
+    // Lobby lists it as played; get-for-play returns the same deck.
+    const lobby = await agent.get(`/api/profiles/${pid}/races`);
+    expect(lobby.body.races[0].id).toBe(raceId);
+    expect(lobby.body.races[0].played).toBe(true);
+    expect((await agent.get(`/api/profiles/${pid}/races/${raceId}`)).body.deck).toHaveLength(
+      deck.length,
+    );
+
+    // A malformed run is rejected.
+    expect(
+      (await agent.post(`/api/profiles/${pid}/races/${raceId}/run`).send({ totalMs: 'x' })).status,
+    ).toBe(400);
+  });
+
   it('validates profile creation input', async () => {
     const agent = await authed();
     expect(

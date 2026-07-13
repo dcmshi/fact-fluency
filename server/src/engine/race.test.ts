@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { generateFacts } from './facts';
 import { makeRng } from './munch';
-import { buildRaceDeck, placementCoins, RACE_COIN_FLOOR, RACE_COIN_TOP, rankRuns } from './race';
+import {
+  buildBotGhost,
+  buildRaceDeck,
+  placementCoins,
+  RACE_COIN_FLOOR,
+  RACE_COIN_TOP,
+  rankRuns,
+} from './race';
 
 const MUL = generateFacts('mul', { aMin: 0, aMax: 9, bMin: 0, bMax: 9 });
 
@@ -22,6 +29,19 @@ describe('buildRaceDeck', () => {
   it('samples — not just the easiest-first head of the universe', () => {
     const deck = buildRaceDeck(MUL, makeRng(9), 6);
     expect(deck.map((f) => f.id)).not.toEqual(MUL.slice(0, 6).map((f) => f.id));
+  });
+});
+
+describe('buildBotGhost', () => {
+  it('produces one beatable split per round, deterministically', () => {
+    const a = buildBotGhost(6, makeRng(3));
+    const b = buildBotGhost(6, makeRng(3));
+    expect(a).toHaveLength(6);
+    expect(a).toEqual(b);
+    for (const ms of a) {
+      expect(ms).toBeGreaterThanOrEqual(3500);
+      expect(ms).toBeLessThan(5500);
+    }
   });
 });
 

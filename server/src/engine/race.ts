@@ -38,6 +38,16 @@ export function buildRaceDeck(facts: Fact[], rng: () => number, count = RACE_ROU
   return shuffled.slice(0, Math.min(count, shuffled.length));
 }
 
+/**
+ * Bot opponent splits (ms per round) — a friendly, beatable ~3.5–5.5s/round
+ * pace, so a solo racer (or a first race with no human ghost yet) always has
+ * someone to chase. Deterministic via rng (seed it from the race id so the same
+ * race always faces the same bot).
+ */
+export function buildBotGhost(rounds: number, rng: () => number): number[] {
+  return Array.from({ length: rounds }, () => 3500 + Math.floor(rng() * 2000));
+}
+
 export interface RaceRunLike {
   profileId: string;
   /** Total time to clear the deck (ms); lower is better. */

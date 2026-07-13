@@ -268,6 +268,65 @@ export interface SessionSummary {
 }
 
 // ---------------------------------------------------------------------------
+// Multiplayer race (MULTIPLAYER.md) — a short seeded deck, ranked by time.
+// ---------------------------------------------------------------------------
+
+/** An opponent to race against: a prior run's splits, or a generated bot. */
+export interface RaceGhost {
+  name: string;
+  avatar: string;
+  /** Per-round times (ms); the ghost's car advances on these. */
+  perRoundMs: number[];
+  totalMs: number;
+  isBot: boolean;
+}
+
+/** A joinable/recent race for the lobby. */
+export interface RaceSummary {
+  id: string;
+  createdByName: string;
+  createdByAvatar: string;
+  factCount: number;
+  createdAt: number;
+  /** Runs recorded so far (how many have raced it). */
+  runCount: number;
+  /** This profile has already run it (→ "rematch" vs "join"). */
+  played: boolean;
+}
+
+/** Start/join response: the shared deck + an opponent to chase. */
+export interface RaceStartResponse {
+  raceId: string;
+  deck: Card[];
+  ghost: RaceGhost;
+}
+
+/** A finished run the client reports (client-timed; server sanity-clamps). */
+export interface RaceRunRequest {
+  perRoundMs: number[];
+  totalMs: number;
+  correctCount: number;
+}
+
+export interface RaceStanding {
+  name: string;
+  avatar: string;
+  totalMs: number;
+  placement: number;
+  isBot: boolean;
+  isYou: boolean;
+}
+
+/** Result of submitting a run: your placement, the field, and coins earned. */
+export interface RaceResult {
+  placement: number;
+  racers: number;
+  coinsEarned: number;
+  standings: RaceStanding[];
+  personalBest: boolean;
+}
+
+// ---------------------------------------------------------------------------
 // Progress view — the adult fact grid (DESIGN.md §7)
 // ---------------------------------------------------------------------------
 
