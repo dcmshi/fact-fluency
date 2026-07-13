@@ -550,6 +550,7 @@ describe('profiles', () => {
       easyReadFont: false,
       highContrast: false,
       calmMode: false,
+      narrate: false,
     });
 
     // newPerSession: 0 is valid (review-only) — not treated as "unset".
@@ -577,6 +578,7 @@ describe('profiles', () => {
       easyReadFont: false,
       highContrast: false,
       calmMode: false,
+      narrate: false,
     });
 
     // Out-of-range and non-integer values are rejected.

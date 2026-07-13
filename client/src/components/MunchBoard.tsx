@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Fact, MunchBoard as Board, MunchRelation } from '@shared';
 import { onInteractive } from '../keys';
 import { OP_SYMBOL } from '../ops';
@@ -6,14 +7,6 @@ import { CelebrationBurst } from './CelebrationBurst';
 import { Muncher, type MuncherState } from './Muncher';
 import './MunchBoard.css';
 
-// Kid-friendly wording (drives both the on-screen prompt and the SR announce):
-// "smaller/bigger" reads more easily for young/pre-reading kids than the formal
-// "less/greater than".
-const RELATION_PHRASE: Record<MunchRelation, string> = {
-  '=': 'the same as',
-  '<': 'smaller than',
-  '>': 'bigger than',
-};
 // Symbol for the on-screen comparison that follows the fact expression, e.g.
 // "0 + 0 < ?". The expression sits on the left and the number to munch ("?") on
 // the right, so the symbol is the *flip* of the munch relation: we munch cells
@@ -23,12 +16,6 @@ const RELATION_SYMBOL: Record<MunchRelation, string> = {
   '=': '=',
   '<': '>',
   '>': '<',
-};
-const OP_WORD: Record<string, string> = {
-  add: 'plus',
-  sub: 'minus',
-  mul: 'times',
-  div: 'divided by',
 };
 
 function satisfies(relation: MunchRelation, target: number, value: number): boolean {
@@ -65,6 +52,11 @@ export function MunchBoard({
   onComplete: (r: RoundResult) => void;
   announce?: (msg: string) => void;
 }) {
+  const { t } = useTranslation();
+  // Kid-friendly relation wording, localized (drives the on-screen prompt and
+  // the SR announce): "smaller/bigger" reads more easily than "less/greater".
+  const relPhrase = (r: MunchRelation): string =>
+    r === '=' ? t('munch.relSame') : r === '<' ? t('munch.relSmaller') : t('munch.relBigger');
   const { size, cells, relation, target } = board;
   const correctIdx = useMemo(() => {
     const s = new Set<number>();
@@ -121,7 +113,12 @@ export function MunchBoard({
 
   useEffect(() => {
     announce?.(
-      `Munch everything ${RELATION_PHRASE[relation]} ${fact.operandA} ${OP_WORD[fact.operation] ?? fact.operation} ${fact.operandB}.`,
+      t('munch.announceStart', {
+        rel: relPhrase(relation),
+        a: fact.operandA,
+        op: t(`play.opWords.${fact.operation}`),
+        b: fact.operandB,
+      }),
     );
     // announce only once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -152,7 +149,9 @@ export function MunchBoard({
       const left = [...correctIdx].filter((i) => !eatenRef.current.has(i)).length;
       if (left > 0) {
         announce?.(
-          isCorrect ? `Munched ${cells[idx]}. ${left} left.` : `Oops — ${cells[idx]} isn't one.`,
+          isCorrect
+            ? t('munch.announceMunched', { n: cells[idx], left })
+            : t('munch.announceWrong', { n: cells[idx] }),
         );
       }
       onMunch(isCorrect);
@@ -186,7 +185,7 @@ export function MunchBoard({
         );
       }
     },
-    [correctIdx, cells, announce, onMunch, onComplete, reactMuncher],
+    [correctIdx, cells, announce, onMunch, onComplete, reactMuncher, t],
   );
 
   const move = useCallback(
@@ -250,13 +249,15 @@ export function MunchBoard({
   return (
     <div className="munch">
       <div className="munch-prompt">
-        <span className="munch-instruction">Munch everything {RELATION_PHRASE[relation]}</span>
+        <span className="munch-instruction">
+          {t('munch.munchEverything', { rel: relPhrase(relation) })}
+        </span>
         <span className="munch-expr">
           {fact.operandA} <span className="munch-op">{OP_SYMBOL[fact.operation]}</span>{' '}
           {fact.operandB} <span className="munch-rel">{RELATION_SYMBOL[relation]}</span>{' '}
           <span className="munch-target">?</span>
         </span>
-        <span className="munch-remaining">{remaining} left</span>
+        <span className="munch-remaining">{t('munch.left', { count: remaining })}</span>
       </div>
 
       {/* role=group, not grid: no row/gridcell structure is exposed, and grid
@@ -266,7 +267,7 @@ export function MunchBoard({
         className="munch-grid"
         style={{ gridTemplateColumns: `repeat(${size}, 1fr)` }}
         role="group"
-        aria-label={`Munch grid, ${remaining} cells left`}
+        aria-label={t('munch.gridLabel', { count: remaining })}
       >
         {cells.map((v, i) => {
           const isEaten = eaten.has(i);
@@ -283,7 +284,7 @@ export function MunchBoard({
                 setPos(i);
                 munchAt(i);
               }}
-              aria-label={isEaten ? 'munched' : String(v)}
+              aria-label={isEaten ? t('munch.munched') : String(v)}
               aria-disabled={isEaten}
               // Roving tabindex: one tab stop (the muncher's cell); arrows/WASD
               // move it, so Tab exits the 25-cell grid in one step.
@@ -302,10 +303,8 @@ export function MunchBoard({
       </div>
 
       <div className="munch-hint muted">
-        <span className="hint-kbd">
-          Arrow keys / WASD to move · Space to munch · or tap a number
-        </span>
-        <span className="hint-touch">Tap a number to munch it</span>
+        <span className="hint-kbd">{t('munch.hintKbd')}</span>
+        <span className="hint-touch">{t('munch.hintTouch')}</span>
       </div>
     </div>
   );

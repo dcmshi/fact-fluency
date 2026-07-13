@@ -142,7 +142,8 @@ export function createProfileRouter(db: Db): Router {
           ('comparisons' in incoming && typeof incoming.comparisons !== 'boolean') ||
           ('easyReadFont' in incoming && typeof incoming.easyReadFont !== 'boolean') ||
           ('highContrast' in incoming && typeof incoming.highContrast !== 'boolean') ||
-          ('calmMode' in incoming && typeof incoming.calmMode !== 'boolean')
+          ('calmMode' in incoming && typeof incoming.calmMode !== 'boolean') ||
+          ('narrate' in incoming && typeof incoming.narrate !== 'boolean')
         ) {
           return res.status(400).json({ error: 'invalid_settings' });
         }
@@ -154,6 +155,7 @@ export function createProfileRouter(db: Db): Router {
           easyReadFont: incoming.easyReadFont ?? profile.settings.easyReadFont ?? false,
           highContrast: incoming.highContrast ?? profile.settings.highContrast ?? false,
           calmMode: incoming.calmMode ?? profile.settings.calmMode ?? false,
+          narrate: incoming.narrate ?? profile.settings.narrate ?? false,
         };
         if (invalidSetting(merged)) {
           return res.status(400).json({ error: 'invalid_settings' });

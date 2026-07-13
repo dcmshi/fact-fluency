@@ -168,6 +168,20 @@ export function SettingsModal({
           {t('modals.calmModeHint')}
         </span>
       </div>
+      <div className="field">
+        <label className="toggle-row" htmlFor="set-narrate">
+          <input
+            id="set-narrate"
+            type="checkbox"
+            checked={values.narrate === true}
+            onChange={(e) => setValues((v) => ({ ...v, narrate: e.target.checked }))}
+          />
+          {t('modals.narrate')}
+        </label>
+        <span className="muted" style={{ fontSize: '0.85rem' }}>
+          {t('modals.narrateHint')}
+        </span>
+      </div>
 
       <button className="btn sun full" disabled={busy || outOfRange || nameEmpty} onClick={save}>
         {saveMut.isPending ? t('common.saving') : t('common.save')}

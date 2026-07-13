@@ -15,6 +15,7 @@ export const DEFAULT_SETTINGS: ProfileSettings = {
   easyReadFont: false,
   highContrast: false,
   calmMode: false,
+  narrate: false,
 };
 
 /** Bounds cover the numeric knobs only — `comparisons` is a boolean toggle. */

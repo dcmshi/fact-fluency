@@ -11,6 +11,7 @@ import { spliceInject } from '../injects';
 import { onInteractive } from '../keys';
 import { OP_CLASS, OP_SYMBOL } from '../ops';
 import { isMuted, playComplete, playCorrect, playFast, playWrong, setMuted } from '../sound';
+import { speak, speechAvailable, stopSpeaking } from '../speech';
 import { enqueueAnswer, flushAnswers, markPendingComplete } from '../syncQueue';
 import { useTheme } from '../useTheme';
 import './PlayPage.css';
@@ -21,7 +22,7 @@ const REHEARSAL_GAP = 3;
 type Phase = 'loading' | 'study' | 'munch' | 'done' | 'error';
 
 export function PlayPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { profileId = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -73,6 +74,9 @@ export function PlayPage() {
   }, [session?.accessibility]);
 
   const current = queue[0] ?? null;
+  // Narrated audio (accessibility): read prompts aloud on-device when the kid's
+  // profile opts in. Off by default; parent-set per profile.
+  const narrate = session?.accessibility?.narrate === true;
 
   /** All queue changes go through here so the ref and state never diverge. */
   const applyQueue = useCallback((fn: (q: Card[]) => Card[]) => {
@@ -85,6 +89,42 @@ export function PlayPage() {
     setRoundNonce((n) => n + 1);
     setPhase('munch');
   }, []);
+
+  // Speak the study card's equation (with the answer, which is shown here).
+  const narrateStudy = useCallback(() => {
+    if (!current) return;
+    const f = current.fact;
+    const text = `${studySeen ? t('play.srRemember') : t('play.srNew')}. ${spokenEq(
+      f.operandA,
+      f.operation,
+      f.operandB,
+      current.answer,
+    )}.`;
+    speak(text, i18n.resolvedLanguage ?? 'en');
+  }, [current, studySeen, t, spokenEq, i18n]);
+
+  // Auto-narrate on the study card and at the start of each munch round (the
+  // munch prompt is spoken as a question — no answer — so it doesn't give it
+  // away). Stop any narration when leaving play.
+  useEffect(() => {
+    if (!narrate || phase !== 'study') return;
+    narrateStudy();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, current?.fact.id]);
+  useEffect(() => {
+    if (!narrate || phase !== 'munch' || !current) return;
+    const f = current.fact;
+    speak(
+      t('play.equationPrompt', {
+        a: f.operandA,
+        op: t(`play.opWords.${f.operation}`),
+        b: f.operandB,
+      }),
+      i18n.resolvedLanguage ?? 'en',
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, roundNonce]);
+  useEffect(() => () => stopSpeaking(), []);
 
   const goNext = useCallback(
     async (nextQueue: Card[]) => {
@@ -343,6 +383,16 @@ export function PlayPage() {
                 <span aria-hidden="true">💡</span>{' '}
                 {tLabel(t, current.strategy.key, '', current.strategy.params)}
               </div>
+            )}
+            {narrate && speechAvailable() && (
+              <button
+                type="button"
+                className="btn ghost narrate-btn"
+                onClick={narrateStudy}
+                aria-label={t('play.replayAudio')}
+              >
+                🔊
+              </button>
             )}
             <button
               className={`btn sun full ${studyReady ? 'ready-pulse' : ''}`}

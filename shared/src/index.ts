@@ -90,6 +90,9 @@ export interface ProfileSettings {
   highContrast?: boolean;
   /** Calm mode: hide fast/slow speed feedback so there's no time pressure. */
   calmMode?: boolean;
+  /** Narrated audio: read prompts aloud (on-device speech) for pre/emerging
+   *  readers. */
+  narrate?: boolean;
 }
 
 export interface Profile {
@@ -241,7 +244,12 @@ export interface SessionResponse {
   /** The kid's equipped celebration-effect key (burst on a correct munch). */
   effect: string;
   /** Per-kid accessibility toggles applied on the play screen (COMPETITORS.md). */
-  accessibility: { easyReadFont: boolean; highContrast: boolean; calmMode: boolean };
+  accessibility: {
+    easyReadFont: boolean;
+    highContrast: boolean;
+    calmMode: boolean;
+    narrate: boolean;
+  };
 }
 
 export interface AnswerRequest {

@@ -233,6 +233,7 @@ export async function startSession(
       easyReadFont: profile.settings.easyReadFont === true,
       highContrast: profile.settings.highContrast === true,
       calmMode: profile.settings.calmMode === true,
+      narrate: profile.settings.narrate === true,
     },
   };
 
