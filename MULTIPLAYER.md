@@ -79,13 +79,28 @@ ghost? }`. `ghost` = the target run (your best, or a challenged sibling's).
 
 ## Phase 2 — live rooms (real-time)
 
-- A **WebSocket** layer (Render supports WS; a `ws`/socket.io endpoint can ride
-  the existing Express service). Room keyed by the race `code`: join → ready →
-  countdown → each client emits "round cleared" ticks → server broadcasts
-  positions → live bars.
-- Handle disconnect/reconnect (a dropped player becomes a ghost at their
-  last-known position). If WS is unavailable/offline, **fall back to the Phase 1
-  async path** — same deck, same result screen.
+- A **raw `ws`** server attached to the existing Express HTTP server (Render
+  supports WS on the same web service); the client uses the **native WebSocket**
+  API. Path e.g. `/api/race-ws?raceId=…&profileId=…` (Vite dev proxies it with
+  `ws: true`).
+- **Room lifecycle**, keyed by the race id: join → lobby (who's in + ready) →
+  host starts → countdown → racing (each client emits a "round cleared" tick →
+  server broadcasts everyone's rounds) → finished (server ranks by finish time,
+  broadcasts final standings).
+- **Ephemeral + separate** (decision 5): room state is in-memory only; a finish
+  awards placement coins server-side but writes **no** `race_run`.
+- **Disconnect/reconnect**: a dropped player is kept in the room, frozen at
+  their last position; reconnecting with the same raceId + profileId resumes.
+- **Fallback**: if the socket can't connect (offline / WS blocked), RacePage
+  falls back to the Phase 1 async path — same deck, race the ghost.
+
+### Build slices (Phase 2)
+
+1. Pure room model + standings (engine/raceRoom.ts) — testable.
+2. `ws` server + room manager + message protocol — smoke-tested with a Node WS
+   client driving two players.
+3. Client: a WebSocket hook + RacePage live mode (lobby → countdown → live
+   bars) + the async fallback + Vite dev proxy.
 
 ## Fairness
 
@@ -107,14 +122,18 @@ ghost? }`. `ghost` = the target run (your best, or a challenged sibling's).
    last place still earns a guaranteed minimum (non-punitive — everyone leaves
    with something). Solo ghost/time-trial: a small participation reward plus a
    bonus for beating the ghost / setting a personal best.
-4. **Phase 2 transport (socket.io vs raw `ws`) — deferred to Phase 2, and not a
-   latency decision.** For a low-tick-rate race with a few players, per-message
-   latency is effectively identical (network RTT dominates; raw `ws` is only
-   microseconds/bytes leaner). Leaning **socket.io** for its built-in
-   reconnection, rooms, and transport fallback (which cover the flaky-WiFi
-   cases we'd otherwise hand-roll), with the client **lazy-loaded into the race
-   chunk** so it doesn't bloat the main bundle. Raw `ws` stays viable if we want
-   zero extra deps.
+4. **Phase 2 transport: raw `ws` (server) + native WebSocket (client).** The
+   race protocol is tiny (join / ready / countdown / progress / finish) and
+   rooms are small, so native WebSocket — zero client-bundle cost, no new
+   dependency, no service-worker interference — wins over socket.io's ~20 KB +
+   fallback machinery here. We hand-roll minimal reconnect (reconnect →
+   re-join with raceId + profileId). Not a latency decision: per-message latency
+   is identical; network RTT dominates.
+5. **Live rooms are ephemeral and separate from the async leaderboard.** A live
+   race's standings live only in in-memory room state; finishing awards
+   placement coins but does NOT write a `race_run`, so live results never mix
+   with the async ghost leaderboard. (This also drops the offline-sync
+   follow-up: only async runs persist.)
 
 ## Suggested build order
 
