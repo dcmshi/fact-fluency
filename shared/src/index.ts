@@ -256,6 +256,12 @@ export interface SessionSummary {
   allMastered: boolean;
   /** The facts that reached mastery *this session* — celebration chips. */
   masteredFacts: Fact[];
+  /** A Streak Shield was consumed on this completion to save a missed-day
+   *  streak — surfaced as a celebratory moment on the summary. */
+  streakSaved: boolean;
+  /** The kid currently owns a Streak Shield (ready to save a future missed
+   *  day) — shown as a small "shield ready" status. */
+  streakShieldReady: boolean;
 }
 
 // ---------------------------------------------------------------------------

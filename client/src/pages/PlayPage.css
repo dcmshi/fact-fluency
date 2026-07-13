@@ -183,6 +183,24 @@
   padding: 0.35rem 1rem;
   box-shadow: 0 3px 0 #f0c79a;
 }
+/* Streak shield: the celebratory "your streak was saved" moment (blue, distinct
+   from the fire streak), and a quiet "ready" status when it's just armed. */
+.shield-ribbon {
+  align-self: center;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: #1e40af;
+  background: #dbe8ff;
+  border-radius: 999px;
+  padding: 0.35rem 1rem;
+  box-shadow: 0 3px 0 #b6ccf5;
+}
+.shield-note {
+  align-self: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
 
 .summary-stats {
   display: grid;

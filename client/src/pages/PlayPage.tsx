@@ -394,6 +394,17 @@ export function PlayPage() {
               <span aria-hidden="true">🔥</span> {summary.streak}-day streak!
             </div>
           )}
+          {summary.streakSaved && (
+            <div className="shield-ribbon">
+              <span aria-hidden="true">🛡️</span> Your streak shield saved your {summary.streak}-day
+              streak!
+            </div>
+          )}
+          {!summary.streakSaved && summary.streakShieldReady && (
+            <div className="shield-note">
+              <span aria-hidden="true">🛡️</span> Streak shield ready
+            </div>
+          )}
           {summary.masteredFacts.length > 0 && (
             <div className="mastered-chips">
               <span className="mastered-chips-label">Mastered today:</span>

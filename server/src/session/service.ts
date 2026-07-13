@@ -81,11 +81,12 @@ async function bumpStreak(
   profileId: string,
   timezone: string,
   now: number,
-): Promise<number> {
+): Promise<{ streak: number; shieldUsed: boolean }> {
   const today = dayInTz(timezone, now);
   const { streak, lastPlayedDay } = await db.getProfileStreak(profileId);
-  if (lastPlayedDay === today) return streak;
+  if (lastPlayedDay === today) return { streak, shieldUsed: false };
   let next: number;
+  let shieldUsed = false;
   if (lastPlayedDay === previousDay(today)) {
     next = streak + 1;
   } else if (
@@ -97,11 +98,12 @@ async function bumpStreak(
     (await db.removeUnlock(profileId, STREAK_SHIELD_ID))
   ) {
     next = streak + 1;
+    shieldUsed = true;
   } else {
     next = 1;
   }
   await db.setProfileStreak(profileId, next, today);
-  return next;
+  return { streak: next, shieldUsed };
 }
 
 /**
@@ -472,13 +474,20 @@ export async function complete(
     firstCompletion &&
     (await db.completeSessionAndAward(sessionId, now, session.profileId, pointsEarned));
   let streak: number;
+  let streakSaved = false;
   if (won) {
     const timezone = (await db.getAccountTimezone(accountId)) ?? 'UTC';
-    streak = await bumpStreak(db, session.profileId, timezone, now);
+    const bumped = await bumpStreak(db, session.profileId, timezone, now);
+    streak = bumped.streak;
+    streakSaved = bumped.shieldUsed;
   } else {
     streak = (await db.getProfileStreak(session.profileId)).streak;
   }
-  const { coins } = await db.getProfileReward(session.profileId);
+  const [{ coins }, unlocks] = await Promise.all([
+    db.getProfileReward(session.profileId),
+    db.listUnlocks(session.profileId),
+  ]);
+  const streakShieldReady = unlocks.includes(STREAK_SHIELD_ID);
 
   // Facts that reached box 5 (mastered) this session. Load all progress once
   // and look up in-memory rather than querying per fact (avoids an N+1 over the
@@ -511,5 +520,7 @@ export async function complete(
     coins,
     allMastered,
     masteredFacts,
+    streakSaved,
+    streakShieldReady,
   };
 }
