@@ -125,6 +125,34 @@
   font-size: 1.1rem;
   color: var(--sun-shadow);
 }
+/* My score pops each time I grab a correct plate (the span is remounted with a
+   changing key to replay this). */
+.feast-player.you .feast-player-score {
+  animation: feast-score-pop 0.45s ease-out;
+}
+@keyframes feast-score-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.6);
+    color: var(--add);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Respect reduced-motion: keep the belt legible but drop the decorative pop and
+   the tap-scale. The plate glide stays — it's the game, not decoration. */
+@media (prefers-reduced-motion: reduce) {
+  .feast-player.you .feast-player-score {
+    animation: none;
+  }
+  .feast-plate:active {
+    transform: translate(-50%, -50%);
+  }
+}
 
 .feast-hint {
   font-size: 0.85rem;

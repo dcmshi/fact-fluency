@@ -15,13 +15,15 @@ export type Rng = () => number;
 
 // --- Tunables (ms unless noted) -------------------------------------------
 export const ROUND_MS = 90_000;
-/** A plate crosses the belt (pos 0→1) in this long. */
-const PLATE_TRAVEL_MS = 6000;
+/** A plate crosses the belt (pos 0→1) in this long. A relaxed pace so young
+ *  kids get enough time to read a plate and tap it. */
+const PLATE_TRAVEL_MS = 7000;
 /** Spawn cadence and belt capacity. */
 const SPAWN_INTERVAL_MS = 700;
 const MAX_PLATES = 14;
-/** Share of spawns that match the current answer (rest are distractors). */
-const CORRECT_SPAWN_CHANCE = 0.42;
+/** Share of spawns that match the current answer (rest are distractors). Kept
+ *  around half so there's always a scoring opportunity on the belt. */
+const CORRECT_SPAWN_CHANCE = 0.5;
 /** The displayed fact rotates this often. */
 const FACT_ROTATE_MS = 6500;
 /** Stun after a wrong grab, and after being bumped. */

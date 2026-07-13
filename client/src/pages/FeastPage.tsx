@@ -38,6 +38,8 @@ export function FeastPage() {
   const [standings, setStandings] = useState<FeastStanding[] | null>(null);
   const [ready, setReady] = useState(false);
   const [wsError, setWsError] = useState<string | null>(null);
+  // Bumped on each of my correct grabs to replay the score-pop animation.
+  const [pulse, setPulse] = useState(0);
 
   const wsRef = useRef<WebSocket | null>(null);
   const myScore = useRef(0);
@@ -68,7 +70,10 @@ export function FeastPage() {
           // Local feedback from my own score/stun changes.
           const me = (msg as FeastSnapshot).players.find((pl) => pl.profileId === profileId);
           if (me) {
-            if (me.score > myScore.current) playCorrect();
+            if (me.score > myScore.current) {
+              playCorrect();
+              setPulse((n) => n + 1);
+            }
             if (me.stunned && !myStunned.current) playWrong();
             myScore.current = me.score;
             myStunned.current = me.stunned;
@@ -281,7 +286,11 @@ export function FeastPage() {
                 )}
               </span>
               <span className="feast-player-name">{you ? t('feast.you') : p.name}</span>
-              <span className="feast-player-score">{p.score}</span>
+              {/* Keying my score by `pulse` remounts it on each correct grab so
+                  the pop animation replays. */}
+              <span className="feast-player-score" key={you ? pulse : undefined}>
+                {p.score}
+              </span>
             </button>
           );
         })}
