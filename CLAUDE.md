@@ -10,10 +10,18 @@ repetition** with a **fluency gate** (correct _and_ fast). An adult
 (parent/teacher) account holds multiple kid profiles. Runs locally or as a small
 single-service deploy on Render. See `DESIGN.md`.
 
+Beyond the core Number Munchers solo mode there are two multiplayer games — an
+async/live **Race** (`MULTIPLAYER.md`) and the real-time **Number Feast** arena
+(`FEAST.md`) — a public `/how-it-works` methodology page, and full UI
+localization in **en/es/fr/zh** (`COMPETITORS.md` tracks the competitive
+feature backlog).
+
 ## Stack
 
-- **Frontend:** Vite + React + TypeScript
-- **Backend:** Node + Express + TypeScript, cookie-based adult auth
+- **Frontend:** Vite + React + TypeScript; react-i18next for localization (en/
+  es/fr/zh)
+- **Backend:** Node + Express + TypeScript, cookie-based adult auth; raw `ws`
+  WebSocket servers for the live multiplayer games
 - **DB:** SQLite (dev / small deploy), swappable to Postgres (Render) via one DB
   adapter
 - **Deploy:** single service — Express serves the built SPA in production
@@ -25,13 +33,20 @@ npm-workspaces monorepo (`shared` / `server` / `client`):
 ```
 /shared        Type-only package (Fact, DTOs…), consumed via `import type`
 /server        Express API + static serving (CommonJS)
-  /engine      Pure scheduling/fluency logic (NO framework/DB imports) + tests
-  /db          DB adapter interface + (later) migrations
+  /engine      Pure scheduling/fluency logic + game engines (race, feast) — NO
+               framework/DB imports; injected time/rng; the most-tested code
+  /db          DB adapter interface + migrations
   /api         Route handlers
-  /data        Seed catalog
+  /session     Session/race orchestration (IO around the engine)
+  /race        Live Race WebSocket server (MULTIPLAYER.md)
+  /feast       Live Number Feast WebSocket server + tick loop (FEAST.md)
+  /data        Seed catalog + reward/settings data
 /client        Vite + React SPA
-DESIGN.md
-CLAUDE.md
+  /pages       Route screens (Auth, Profiles, Play, Progress, Race, Feast, …)
+  /i18n        react-i18next setup + en/es/fr/zh dictionaries (es/fr/zh typed
+               `typeof en`, so a missing key fails the build)
+  /components  Shared UI (Muncher, MunchBoard, Modal, …)
+DESIGN.md  CLAUDE.md  MULTIPLAYER.md  FEAST.md  COMPETITORS.md
 ```
 
 > `shared` is **type-only** — everything imports it with `import type`, so it's
@@ -128,6 +143,16 @@ otherwise skip the devDependencies the build needs.
   the loaded `Profile`, not `(accountId, profileId)` pairs.
 - Keep response-time handling honest: capture `responseMs` on the client, but
   treat the server as source of truth for scheduling decisions.
+- **Localize every user-facing string.** Add new copy to all four dictionaries
+  in `client/src/i18n/` (the build enforces it — es/fr/zh are typed `typeof en`).
+  Never build user-facing prose on the server; emit a `LocalizedText {key,
+params}` (see `Card.strategy`, `SetSuggestion.reason`) or a stable id the
+  client resolves via `tLabel()`. Standards codes (`FactSet.standards`) stay
+  as-is.
+- **Live games** (`race/`, `feast/`) are server-authoritative WebSocket rooms:
+  the pure engine holds game state, the WS layer owns IO + the tick loop, and
+  results are ephemeral (only coins persist). Both WS servers attach to the one
+  HTTP server and each claim only their own upgrade path.
 
 ## Git
 

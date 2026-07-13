@@ -480,6 +480,8 @@ GET  /api/profiles/:id/progress  -> fact grid + trends for the dashboard
   users only for now
 - ~~Fact-family framing (link `7×8` ↔ `56÷7`) for transfer~~ — shipped
   (study-card framing, mastery seeding, and the in-progress sibling nudge)
+- ~~Multiplayer, localization, accessibility, a methodology page, more game
+  types~~ — shipped post-v1; see **§13** and `COMPETITORS.md` §5
 
 ---
 
@@ -555,3 +557,38 @@ new _interaction layer_ over the same brain.
   operation stats, dashboard, coins/themes, streaks all carry over unchanged.
 - **Non-punitive (§4.8):** no chasing enemies, no visible countdown. Study-first
   still teaches a brand-new fact before its first munch round.
+
+## 13. Post-v1 additions (shipped)
+
+Built after v1/v1.1 while working the competitive-feature backlog
+(`COMPETITORS.md` §5). All reuse the same fact/scheduling brain unless noted; the
+spaced-repetition engine and its state are never touched by the games.
+
+- **Multiplayer.** An async/live **Race** (chase a ghost of your own best run or
+  a live WebSocket room) — see `MULTIPLAYER.md`. And **Number Feast**, a
+  real-time server-authoritative "sushi-go-round" arena (a belt of numbered
+  plates; tap the ones matching the fact for points; bump rivals; solo-vs-bots
+  or live) — see `FEAST.md`. Both are ephemeral (only coins persist) and share
+  the fact pool via a pure engine + a WS tick loop.
+- **Localization (en/es/fr/zh).** react-i18next; `client/src/i18n` holds the
+  dictionaries (es/fr/zh typed `typeof en`). Server-generated prose is emitted
+  as `LocalizedText {key, params}` (e.g. `Card.strategy`, `SetSuggestion.reason`)
+  or resolved by id, so all copy lives client-side and the server needs no
+  locale. Device-level detection + a switcher.
+- **Accessibility.** Per-profile toggles: **narrated audio** (on-device Web
+  Speech API, reads prompts aloud for pre-readers), a **calm** no-speed-pressure
+  mode, **easy-read font**, and **high-contrast**; plus `prefers-reduced-motion`
+  support and the existing SR/keyboard work.
+- **Strategy coaching.** A missed/new fact shows a warm derivation hint on its
+  study card (double / make-ten / count-on / times-shortcut / inverse).
+- **Parent credibility & reports.** A public `/how-it-works` methodology page
+  (honest — no invented efficacy claims — with a children's-data promise);
+  curriculum-standards labels in the Facts view; a printable trickiest-facts
+  worksheet alongside the mastery certificate.
+- **Reward meta.** A collectible **sticker-book** gallery over the reward
+  catalog (owned vs. locked), on top of the existing unlockables + streak
+  shield.
+
+Still deferred (external dependencies / decisions): emailed PDF recaps (needs a
+domain + email vendor), opt-in anonymized outcome tracking (COPPA/consent), and
+classroom mode + Clever/Google SSO (vendor-gated).

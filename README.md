@@ -40,21 +40,36 @@ muncher you drive by keyboard or tap (shown here in the unlockable _Ocean_ theme
   env-tunable for calibration).
 - **Number Munchers play mode** — a 5×5 grid; munch everything equal to /
   smaller than / bigger than the fact's answer. Calm and non-punitive (no
-  chasing enemies, no on-screen countdown); K–1 profiles start equality-only.
+  chasing enemies, no on-screen countdown); K–1 profiles start equality-only. A
+  missed fact gets a warm derivation strategy on its study card.
+- **Multiplayer games** — a **Race** mode (chase an async ghost of your own best
+  run, or live WebSocket rooms), and **Number Feast**, a real-time
+  "sushi-go-round" arena (grab the plates matching the fact for points, bump
+  your rivals; solo-vs-bots or live). Both are non-punitive and never touch the
+  spaced-repetition schedule — only coins.
 - **Adult dashboard** — 14-day accuracy & speed trends, a mastery summary, a
-  "This week" recap, the trickiest facts right now, and a one-tap "Enable now"
-  next-set suggestion. Fully-mastered operations get a printable certificate.
+  "This week" recap, the trickiest facts right now (with a printable practice
+  worksheet), curriculum-standards labels, and a one-tap "Enable now" next-set
+  suggestion. Fully-mastered operations get a printable certificate.
 - **Rewards** — coins earned per session unlock munchers, celebration effects,
   avatars (some seasonal), palette themes, and a streak-shield power-up that
-  saves a streak across one missed day.
+  saves a streak across one missed day — all shown in a collectible **sticker
+  book** gallery.
 - **Fact grid, daily streaks, fact-family transfer** (mastering `56 ÷ 7` seeds
   and nudges `7 × 8` on the review schedule).
 - **PWA + offline-resilient sync** — installable (real maskable/apple icons); a
   flaky connection never loses practice (answers queue locally, replay on
   reconnect, and missed facts still get their in-session re-show offline).
-- **Accessible & friendly** — screen-reader announcements (including per-munch
-  feedback), roving-tabindex keyboard play, sound effects with a mute toggle,
-  loading skeletons, theme-aware contrast.
+- **Localized in four languages** — English, Spanish, French, and Simplified
+  Chinese (device-level, with a switcher); even server-generated prose is
+  localized.
+- **Accessible & friendly** — on-device **narrated audio** for pre/emerging
+  readers, a calm (no-timer) mode, easy-read font and high-contrast toggles,
+  screen-reader announcements (including per-munch feedback), roving-tabindex
+  keyboard play, sound with a mute toggle, and `prefers-reduced-motion` support.
+- **Transparent by design** — a public [`/how-it-works`](https://fact-fluency.onrender.com/how-it-works)
+  methodology page explains the learning science honestly (no invented efficacy
+  claims), with a clear promise on children's data.
 
 See **[DESIGN.md](DESIGN.md)** for the full product/architecture rationale and
 **[CLAUDE.md](CLAUDE.md)** for the quick operational reference.
