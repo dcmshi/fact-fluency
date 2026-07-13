@@ -40,7 +40,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:3001',
+      // ws:true so the live-race WebSocket upgrade (/api/race-ws) is proxied too.
+      '/api': { target: 'http://localhost:3001', ws: true },
     },
   },
 });

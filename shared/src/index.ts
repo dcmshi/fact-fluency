@@ -329,6 +329,19 @@ export interface RaceResult {
   personalBest: boolean;
 }
 
+/** A live-room standing pushed over the race WebSocket (Phase 2, live rooms). */
+export interface LiveStanding {
+  profileId: string;
+  name: string;
+  avatar: string;
+  rounds: number;
+  finishMs: number | null;
+  connected: boolean;
+  placement: number;
+  /** Present only in the final `finished` broadcast. */
+  coinsEarned?: number;
+}
+
 // ---------------------------------------------------------------------------
 // Progress view — the adult fact grid (DESIGN.md §7)
 // ---------------------------------------------------------------------------
