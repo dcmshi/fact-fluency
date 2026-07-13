@@ -7,6 +7,11 @@ import { createDb } from './db';
 import { attachRaceLive } from './race/live';
 
 const PORT = Number(process.env.PORT ?? 3001);
+// Bind all IPv4 interfaces by default. Without an explicit host, Node binds to
+// IPv6 `::`, which on Render (and some hosts without dual-stack) leaves the
+// service unreachable on IPv4 — its port scanner then reports "no open ports
+// detected" and the deploy times out. 0.0.0.0 is what Render expects.
+const HOST = process.env.HOST ?? '0.0.0.0';
 const DATABASE_URL = process.env.DATABASE_URL ?? 'sqlite:./data/fact-fluency.sqlite';
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -27,11 +32,9 @@ async function main() {
   pruneTimer.unref?.(); // don't keep the process alive for the timer
 
   const app = createApp(db, isProd);
-  const server = app.listen(PORT, () => {
+  const server = app.listen(PORT, HOST, () => {
     // eslint-disable-next-line no-console
-    console.log(
-      `Fact Fluency API listening on http://localhost:${PORT} (${isProd ? 'prod' : 'dev'})`,
-    );
+    console.log(`Fact Fluency API listening on ${HOST}:${PORT} (${isProd ? 'prod' : 'dev'})`);
   });
   // Live-race WebSocket rooms ride the same HTTP server (MULTIPLAYER.md §2).
   attachRaceLive(server, db);
