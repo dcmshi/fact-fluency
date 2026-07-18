@@ -20,11 +20,13 @@ import { SEED_CATALOG } from '../data/catalog';
 import type { Db, RaceRecord } from '../db';
 import { HttpError } from '../httpError';
 import { generateFactsForSets } from '../engine/facts';
-import { buildBoard, makeRng, pickRelation, seedFrom } from '../engine/munch';
+import { makeRng, seedFrom } from '../engine/munch';
+import { buildChoices } from '../engine/placement';
 import {
   buildBotGhost,
   buildRaceDeck,
   placementCoins,
+  RACE_CHOICES,
   RACE_ROUNDS,
   rankRuns,
 } from '../engine/race';
@@ -35,19 +37,14 @@ const BOT_AVATAR = '🤖';
 const MAX_RACE_MS = 10 * 60 * 1000;
 const clampMs = (ms: number) => Math.round(Math.min(Math.max(0, ms), MAX_RACE_MS));
 
-/** Build the playable deck: one munch board per fact, seeded per (race, fact,
- *  index) so it's reproducible and identical for every racer. Mirrors the
- *  session loop; equality-only when the profile has comparisons off. */
-function buildDeckCards(
-  facts: ReturnType<typeof generateFactsForSets>,
-  raceId: string,
-  comparisons: boolean | undefined,
-): Card[] {
+/** Build the playable deck: one tap-the-answer question per fact, seeded per
+ *  (race, fact, index) so it's reproducible and identical for every racer.
+ *  Strictly the `=` form — a race is always "solve a op b". */
+function buildDeckCards(facts: ReturnType<typeof generateFactsForSets>, raceId: string): Card[] {
   return facts.map((fact, i) => {
     const rng = makeRng(seedFrom(`${raceId}:${fact.id}:${i}`));
-    const relation = comparisons === false ? '=' : pickRelation(fact.answer, rng);
-    const board = buildBoard({ target: fact.answer, relation, rng });
-    return { fact, answer: fact.answer, isNew: false, board };
+    const choices = buildChoices(fact, rng, RACE_CHOICES);
+    return { fact, answer: fact.answer, isNew: false, choices };
   });
 }
 
@@ -83,7 +80,7 @@ export async function createRace(
 
   const raceId = randomUUID();
   const facts = buildRaceDeck(generateFactsForSets(sets), makeRng(seedFrom(raceId)), RACE_ROUNDS);
-  const deck = buildDeckCards(facts, raceId, profile.settings.comparisons);
+  const deck = buildDeckCards(facts, raceId);
   await db.createRace({
     id: raceId,
     accountId: profile.accountId,

@@ -199,8 +199,11 @@ export interface Card {
   family?: FactHint;
   /** A warm derivation strategy shown on the study card (new facts only). */
   strategy?: LocalizedText;
-  /** The munch grid for this round (server-generated). */
+  /** The munch grid for this round (solo / legacy race rounds). */
   board?: MunchBoard;
+  /** Tap-the-answer choices for a race round: one correct + distractors,
+   *  shuffled. Present on race decks; the client renders these as buttons. */
+  choices?: number[];
 }
 
 // ---------------------------------------------------------------------------

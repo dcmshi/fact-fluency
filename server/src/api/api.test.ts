@@ -443,6 +443,15 @@ describe('profiles', () => {
     const { raceId, deck, ghost } = created.body;
     expect(raceId).toBeTruthy();
     expect(deck.length).toBeGreaterThan(0);
+    expect(
+      deck.every(
+        (c: { choices?: number[]; board?: unknown; fact: { answer: number } }) =>
+          Array.isArray(c.choices) &&
+          c.choices.length === 5 &&
+          c.choices.includes(c.fact.answer) &&
+          c.board === undefined,
+      ),
+    ).toBe(true);
     expect(ghost.isBot).toBe(true);
     expect(ghost.perRoundMs).toHaveLength(deck.length);
 

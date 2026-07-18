@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { Operation } from '@shared';
+import type { Fact, Operation } from '@shared';
 import { generateFacts } from './facts';
 import { makeRng } from './munch';
 import {
   buildCalibrationProbe,
+  buildChoices,
   CALIBRATION_EDGE_BOX,
   CALIBRATION_KNOWN_BOX,
   placeFromCalibration,
@@ -106,5 +107,31 @@ describe('placeFromCalibration', () => {
     expect(boxOf(seeds, 'add:5+5')).toBe(5);
     expect(boxOf(seeds, 'add:0+0')).toBe(5); // easier than the frontier → also mastered
     expect(boxOf(seeds, 'add:1+4')).toBe(CALIBRATION_EDGE_BOX);
+  });
+});
+
+describe('buildChoices', () => {
+  const fact = (answer: number, a = 6, b = 7): Fact => ({
+    id: `mul:${a}x${b}`,
+    operation: 'mul',
+    operandA: a,
+    operandB: b,
+    answer,
+  });
+
+  it('returns `count` distinct choices with exactly one correct, none negative', () => {
+    const c = buildChoices(fact(42), makeRng(3), 5);
+    expect(c).toHaveLength(5);
+    expect(new Set(c).size).toBe(5);
+    expect(c.filter((n) => n === 42)).toHaveLength(1);
+    expect(c.every((n) => n >= 0)).toBe(true);
+  });
+
+  it('handles a tiny answer without dupes or negatives', () => {
+    const c = buildChoices(fact(1, 0, 1), makeRng(1), 5);
+    expect(c).toHaveLength(5);
+    expect(new Set(c).size).toBe(5);
+    expect(c.every((n) => n >= 0)).toBe(true);
+    expect(c).toContain(1);
   });
 });
