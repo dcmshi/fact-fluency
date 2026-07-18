@@ -73,7 +73,12 @@ export function FeastPage() {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const ws = new WebSocket(`${proto}://${location.host}/api/feast-ws?profileId=${profileId}`);
     wsRef.current = ws;
+    // React 18 StrictMode double-invokes this effect in dev: the first socket is
+    // closed mid-handshake by the cleanup below. Ignore that aborted socket's
+    // error/messages so it can't mask the second, live connection.
+    let cancelled = false;
     ws.onmessage = (ev) => {
+      if (cancelled) return;
       const msg = JSON.parse(ev.data as string);
       switch (msg.type) {
         case 'joined':
@@ -133,8 +138,13 @@ export function FeastPage() {
           break;
       }
     };
-    ws.onerror = () => setWsError(t('feast.wsError'));
-    return () => ws.close();
+    ws.onerror = () => {
+      if (!cancelled) setWsError(t('feast.wsError'));
+    };
+    return () => {
+      cancelled = true;
+      ws.close();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileId]);
 
