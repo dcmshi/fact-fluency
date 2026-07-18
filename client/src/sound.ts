@@ -85,6 +85,16 @@ export function playWrong(): void {
   });
 }
 
+/** The displayed fact just changed: a bright, quick two-note "ding" so kids
+ *  notice the new target while they're busy steering. Distinct from
+ *  correct/wrong so it never reads as a score cue. */
+export function playFactChange(): void {
+  play(() => {
+    note(880.0, 0, 0.09, 'triangle', 0.14); // A5
+    note(1174.66, 0.07, 0.13, 'triangle', 0.14); // D6
+  });
+}
+
 /** Session complete: a short ascending fanfare. */
 export function playComplete(): void {
   play(() => {
