@@ -6,6 +6,7 @@ import type { LiveStanding, RaceResult, RaceStartResponse } from '@shared';
 import { api, qk } from '../api';
 import { MunchBoard, type RoundResult } from '../components/MunchBoard';
 import { Muncher } from '../components/Muncher';
+import { RaceQuiz } from '../components/RaceQuiz';
 import { playComplete, playCorrect, playWrong } from '../sound';
 import './RacePage.css';
 
@@ -439,15 +440,25 @@ export function RacePage() {
       </div>
 
       <div className="play-center">
-        <MunchBoard
-          key={roundIndex}
-          board={current.board!}
-          fact={current.fact}
-          muncher={deck.muncher}
-          effect={deck.effect}
-          onMunch={(correct) => (correct ? playCorrect() : playWrong())}
-          onComplete={onRoundComplete}
-        />
+        {current.choices ? (
+          <RaceQuiz
+            key={roundIndex}
+            fact={current.fact}
+            choices={current.choices}
+            onAnswer={(correct) => (correct ? playCorrect() : playWrong())}
+            onComplete={onRoundComplete}
+          />
+        ) : (
+          <MunchBoard
+            key={roundIndex}
+            board={current.board!}
+            fact={current.fact}
+            muncher={deck.muncher}
+            effect={deck.effect}
+            onMunch={(correct) => (correct ? playCorrect() : playWrong())}
+            onComplete={onRoundComplete}
+          />
+        )}
       </div>
     </div>
   );
