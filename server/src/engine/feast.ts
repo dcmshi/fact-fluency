@@ -224,6 +224,25 @@ export function applyGrab(
   return 'wrong';
 }
 
+const clamp01 = (n: number): number => (n < 0 ? 0 : n > 1 ? 1 : n);
+
+/** A player reports its muncher position + tongue aim (render-only relay). The
+ *  server keeps this only to broadcast to other clients; it is NOT trusted for
+ *  scoring (correctness is decided in applyGrab). Mutates `state`. */
+export function applyMove(
+  state: FeastState,
+  playerId: string,
+  rimPos: number,
+  aim: number,
+  firing: boolean,
+): void {
+  const player = state.players.find((p) => p.profileId === playerId);
+  if (!player) return;
+  player.rimPos = clamp01(rimPos);
+  player.aim = clamp01(aim);
+  player.firing = firing;
+}
+
 /** A player bumps a rival, stunning them briefly (on a cooldown). Mutates
  *  `state`. Returns whether the bump landed. */
 export function applyBump(state: FeastState, byId: string, targetId: string, now: number): boolean {

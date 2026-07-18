@@ -3,6 +3,7 @@ import type { Fact } from '@shared';
 import {
   applyBump,
   applyGrab,
+  applyMove,
   createFeastState,
   feastSnapshot,
   feastStandings,
@@ -68,6 +69,19 @@ describe('applyGrab', () => {
     const s = base();
     expect(applyGrab(s, 'a', 999, 100)).toBe('ignored');
     expect(applyGrab(s, 'ghost', 1, 100)).toBe('ignored');
+  });
+});
+
+describe('applyMove', () => {
+  it('sets and clamps the mover’s position/aim and ignores unknown players', () => {
+    const s = createFeastState(players('a'), POOL, 0, rng0);
+    applyMove(s, 'a', 1.4, -0.2, true); // out of range → clamped
+    expect(s.players[0].rimPos).toBe(1);
+    expect(s.players[0].aim).toBe(0);
+    expect(s.players[0].firing).toBe(true);
+    // unknown player: no throw, no change elsewhere
+    expect(() => applyMove(s, 'ghost', 0.5, 0.5, false)).not.toThrow();
+    expect(s.players[0].rimPos).toBe(1);
   });
 });
 
