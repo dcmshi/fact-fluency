@@ -27,14 +27,15 @@ const CORRECT_SPAWN_CHANCE = 0.5;
 /** The displayed fact rotates this often. */
 const FACT_ROTATE_MS = 6500;
 /** Stun after a wrong grab, and after being bumped. */
-const WRONG_STUN_MS = 1200;
+const WRONG_STUN_MS = 1500;
 const BUMP_STUN_MS = 900;
 /** A player can bump again only after this cooldown. */
 const BUMP_COOLDOWN_MS = 2500;
-/** Bots: reaction window between grab attempts, and how often they're right. */
-const BOT_MIN_REACT_MS = 450;
-const BOT_MAX_REACT_MS = 1200;
-const BOT_ACCURACY = 0.82;
+/** Bots: reaction window between grab attempts, and how often they're right.
+ *  Deliberately forgiving — this is a kids' game (DESIGN.md §4). */
+const BOT_MIN_REACT_MS = 700;
+const BOT_MAX_REACT_MS = 1600;
+const BOT_ACCURACY = 0.7;
 /** Bots only consider plates in this on-belt window (mimics "reachable"). */
 const BOT_WINDOW: readonly [number, number] = [0.15, 0.85];
 /** Bots steer their muncher toward a target at this speed (belt units per ms). */

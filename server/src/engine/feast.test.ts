@@ -168,9 +168,23 @@ describe('stepFeast', () => {
     );
     s.plates = [{ id: 1, value: s.answer, pos: 0.5, correct: true }];
     s.lastSpawnAt = 1e12; // isolate the bot's grab from new spawns
-    stepFeast(s, 500, 5, rng0); // now past botReactAt (450)
+    stepFeast(s, 800, 5, rng0); // now past botReactAt (700)
     expect(s.players[0].score).toBe(1);
     expect(s.plates).toHaveLength(0);
+  });
+
+  it('does not let a bot grab before the reaction floor', () => {
+    const s = createFeastState(
+      [{ profileId: 'bot1', name: 'Bot', avatar: '🤖', muncher: 'cat', isBot: true }],
+      POOL,
+      0,
+      rng0,
+    );
+    s.plates = [{ id: 1, value: s.answer, pos: 0.5, correct: true }];
+    s.lastSpawnAt = 1e12;
+    stepFeast(s, 500, 5, rng0); // 500 < BOT_MIN_REACT_MS (700)
+    expect(s.players[0].score).toBe(0);
+    expect(s.plates).toHaveLength(1);
   });
 });
 
