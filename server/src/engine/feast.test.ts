@@ -156,6 +156,9 @@ describe('feastStandings + snapshot', () => {
         stunnedUntil: 0,
         bumpReadyAt: 0,
         botReactAt: 0,
+        rimPos: 0,
+        aim: 0,
+        firing: false,
       },
       {
         profileId: 'b',
@@ -167,6 +170,9 @@ describe('feastStandings + snapshot', () => {
         stunnedUntil: 0,
         bumpReadyAt: 0,
         botReactAt: 0,
+        rimPos: 0,
+        aim: 0,
+        firing: false,
       },
     ];
     const ranked = feastStandings(roster);
@@ -184,6 +190,19 @@ describe('feastStandings + snapshot', () => {
     expect(snap.players[0].stunned).toBe(true);
     expect(snap).not.toHaveProperty('answer');
     expect(snap.plates.every((p) => !('correct' in p))).toBe(true);
+  });
+
+  it('spreads munchers along the belt and exposes rimPos/aim/firing (no answer leak)', () => {
+    const s = createFeastState(players('a', 'b'), POOL, 0, rng0);
+    // Two players → seeded at 0.25 and 0.75 so they do not stack.
+    expect(s.players[0].rimPos).toBeCloseTo(0.25, 5);
+    expect(s.players[1].rimPos).toBeCloseTo(0.75, 5);
+    expect(s.players[0].aim).toBeCloseTo(0.25, 5);
+    expect(s.players[0].firing).toBe(false);
+
+    const snap = feastSnapshot(s, 0);
+    expect(snap.players[0]).toMatchObject({ rimPos: 0.25, aim: 0.25, firing: false });
+    expect(snap).not.toHaveProperty('answer');
   });
 });
 

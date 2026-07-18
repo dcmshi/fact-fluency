@@ -56,6 +56,9 @@ export interface FeastPlayer {
   stunnedUntil: number;
   bumpReadyAt: number;
   botReactAt: number; // bots only: next allowed grab attempt
+  rimPos: number; // 0→1 position along the belt (client-owned for humans)
+  aim: number; // 0→1 belt direction the tongue points at
+  firing: boolean; // tongue currently extended (render-only)
 }
 
 export interface FeastState {
@@ -138,12 +141,15 @@ export function createFeastState(
     factB: 0,
     answer: 0,
     plates: [],
-    players: players.map((p) => ({
+    players: players.map((p, i) => ({
       ...p,
       score: 0,
       stunnedUntil: 0,
       bumpReadyAt: 0,
       botReactAt: now + randInt(rng, BOT_MIN_REACT_MS, BOT_MAX_REACT_MS),
+      rimPos: (i + 0.5) / Math.max(1, players.length),
+      aim: (i + 0.5) / Math.max(1, players.length),
+      firing: false,
     })),
     pool,
     endsAt: now + roundMs,
@@ -262,6 +268,9 @@ export function feastSnapshot(state: FeastState, now: number): FeastSnapshot {
       score: p.score,
       stunned: isStunned(p, now),
       isBot: p.isBot,
+      rimPos: p.rimPos,
+      aim: p.aim,
+      firing: p.firing,
     })),
   };
 }
