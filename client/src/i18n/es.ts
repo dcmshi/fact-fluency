@@ -186,6 +186,7 @@ export const es: typeof en = {
     coinsPlus: '+{{count}} monedas',
     raceAgain: 'Correr de nuevo',
     roundOf: 'Ronda {{current}} de {{total}}',
+    tapAnswer: '¡Toca la respuesta!',
     youLabel: 'Tú',
     botName: 'Robo-corredor',
   },

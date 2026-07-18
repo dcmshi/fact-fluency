@@ -184,6 +184,7 @@ export const en = {
     coinsPlus: '+{{count}} coins',
     raceAgain: 'Race again',
     roundOf: 'Round {{current}} of {{total}}',
+    tapAnswer: 'Tap the answer!',
     youLabel: 'You',
     botName: 'Robo-racer',
   },

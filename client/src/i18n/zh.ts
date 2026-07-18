@@ -178,6 +178,7 @@ export const zh: typeof en = {
     coinsPlus: '+{{count}} 金币',
     raceAgain: '再比一次',
     roundOf: '第 {{current}} 轮，共 {{total}} 轮',
+    tapAnswer: '点击答案！',
     youLabel: '你',
     botName: '机器人赛手',
   },
