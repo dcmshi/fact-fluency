@@ -5,10 +5,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import type { FeastSnapshot, FeastStanding } from '@shared';
 import { Muncher } from '../components/Muncher';
 import { OP_SYMBOL } from '../ops';
-import { playComplete, playCorrect, playWrong } from '../sound';
+import { playComplete, playCorrect, playFactChange, playWrong } from '../sound';
 import {
   clamp01,
   fracFromPoint,
+  inBumpRange,
   invPlateFrac,
   pickTarget,
   plateFrac,
@@ -64,6 +65,9 @@ export function FeastPage() {
   const seededPos = useRef(false); // have we placed the muncher at the server's seed yet?
   const [selfRender, setSelfRender] = useState({ pos: 0.5, aim: 0.5 });
   const [firing, setFiring] = useState(0); // >0 while the tongue is out
+  const lastFact = useRef(''); // detect fact rotation to fire the cue
+  const [factPulse, setFactPulse] = useState(0); // remounts the fact banner to replay its pop
+  const bumpAt = useRef(0); // local anti-spam gate for positional bump
 
   useEffect(() => {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -84,12 +88,22 @@ export function FeastPage() {
           setPhase('countdown');
           setCountdown(Math.ceil((msg.ms ?? 0) / 1000));
           seededPos.current = false; // re-seed the muncher position for a rematch
+          lastFact.current = ''; // avoid a spurious cue on the first snapshot of a rematch
           break;
         case 'snapshot': {
           setPhase('playing');
           setSnap(msg as FeastSnapshot);
           platesRef.current = (msg as FeastSnapshot).plates;
           snapRef.current = msg as FeastSnapshot;
+          // Fact rotated → cue + banner pop so kids notice the new target.
+          {
+            const fk = `${(msg as FeastSnapshot).factA}${(msg as FeastSnapshot).factOp}${(msg as FeastSnapshot).factB}`;
+            if (lastFact.current && lastFact.current !== fk) {
+              playFactChange();
+              setFactPulse((n) => n + 1);
+            }
+            lastFact.current = fk;
+          }
           // Local feedback from my own score/stun changes.
           const me = (msg as FeastSnapshot).players.find((pl) => pl.profileId === profileId);
           if (me) {
@@ -162,6 +176,18 @@ export function FeastPage() {
       if (t - lastSent > 80) {
         lastSent = t;
         send({ type: 'move', rimPos: selfPos.current, aim: selfAim.current, firing: firing > 0 });
+      }
+      // Positional bump: steer into a rival to stun them (server enforces the
+      // real cooldown; this local gate just avoids spamming the socket).
+      if (!meNow?.stunned && t - bumpAt.current > 400) {
+        for (const other of snapRef.current?.players ?? []) {
+          if (other.profileId === profileId) continue;
+          if (inBumpRange(selfPos.current, other.rimPos)) {
+            bumpAt.current = t;
+            send({ type: 'bump', targetId: other.profileId });
+            break;
+          }
+        }
       }
       raf = requestAnimationFrame(loop);
     };
@@ -321,7 +347,7 @@ export function FeastPage() {
           <span aria-hidden="true">← </span>
           {t('play.quit')}
         </button>
-        <div className="feast-fact" aria-live="polite">
+        <div className="feast-fact" aria-live="polite" key={factPulse}>
           {snap ? (
             <>
               {snap.factA} <span className="feast-op">{OP_SYMBOL[snap.factOp]}</span> {snap.factB}{' '}

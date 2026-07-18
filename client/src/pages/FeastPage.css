@@ -17,6 +17,19 @@
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  animation: feast-fact-pulse 0.4s ease-out;
+}
+@keyframes feast-fact-pulse {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.25);
+    color: var(--sun-shadow);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 .feast-op {
   color: var(--ink-soft);
@@ -93,6 +106,19 @@
 .feast-muncher.stunned {
   opacity: 0.6;
 }
+.feast-muncher.you.stunned {
+  filter: grayscale(0.7);
+  animation: feast-wobble 0.4s ease-in-out infinite;
+}
+@keyframes feast-wobble {
+  0%,
+  100% {
+    rotate: -6deg;
+  }
+  50% {
+    rotate: 6deg;
+  }
+}
 /* Tongue: shoots inward (toward the ring center) from the rim when firing. */
 .feast-muncher.you::after {
   content: '';
@@ -125,11 +151,6 @@
   width: min(80vw, 260px);
   font-size: 1.3rem;
   letter-spacing: 0.05em;
-}
-@media (prefers-reduced-motion: reduce) {
-  .feast-muncher.you::after {
-    transition: none;
-  }
 }
 
 /* Players row — tap a rival to bump them. */
@@ -206,6 +227,15 @@
   }
   .feast-plate:active {
     transform: translate(-50%, -50%);
+  }
+  .feast-fact {
+    animation: none;
+  }
+  .feast-muncher.you.stunned {
+    animation: none;
+  }
+  .feast-muncher.you::after {
+    transition: none;
   }
 }
 
