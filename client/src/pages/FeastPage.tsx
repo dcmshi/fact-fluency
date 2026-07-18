@@ -5,6 +5,7 @@ import type { FeastSnapshot, FeastStanding } from '@shared';
 import { Muncher } from '../components/Muncher';
 import { OP_SYMBOL } from '../ops';
 import { playComplete, playCorrect, playWrong } from '../sound';
+import { plateFrac, pointOnCircle } from './feastArena';
 import './FeastPage.css';
 
 type Phase = 'connecting' | 'lobby' | 'countdown' | 'playing' | 'finished';
@@ -248,50 +249,62 @@ export function FeastPage() {
         <div className={`feast-timer ${seconds <= 10 ? 'low' : ''}`}>{seconds}s</div>
       </header>
 
-      {/* The belt. Plates are positioned by `pos` (0→1) and glide via a CSS
-          transition; tapping one sends a grab. */}
-      <div className="feast-belt" aria-label={t('feast.beltLabel')}>
-        {snap?.plates.map((plate) => (
-          <button
-            key={plate.id}
-            className="feast-plate"
-            style={{ left: `${plate.pos * 100}%` }}
-            onClick={() => send({ type: 'grab', plateId: plate.id })}
-            disabled={me?.stunned}
-            aria-label={String(plate.value)}
-          >
-            {plate.value}
-          </button>
-        ))}
+      {/* The round belt. Plates ride an inner ring; munchers sit on the rim.
+          Positions come from the shared 0→1 belt coordinate via feastArena. */}
+      <div className="feast-ring" aria-label={t('feast.beltLabel')}>
+        <div className="feast-ring-track" aria-hidden="true" />
+        {snap?.plates.map((plate) => {
+          const { x, y } = pointOnCircle(50, 50, 38, plateFrac(plate.pos));
+          return (
+            <button
+              key={plate.id}
+              className="feast-plate"
+              style={{ left: `${x}%`, top: `${y}%` }}
+              onClick={() => send({ type: 'grab', plateId: plate.id })}
+              disabled={me?.stunned}
+              aria-label={String(plate.value)}
+            >
+              {plate.value}
+            </button>
+          );
+        })}
+        {snap?.players.map((p) => {
+          const { x, y } = pointOnCircle(50, 50, 48, p.rimPos);
+          const you = p.profileId === profileId;
+          return (
+            <span
+              key={p.profileId}
+              className={`feast-muncher ${you ? 'you' : ''} ${p.stunned ? 'stunned' : ''}`}
+              style={{ left: `${x}%`, top: `${y}%` }}
+            >
+              <Muncher animal={p.muncher} state={p.stunned ? 'bleh' : 'still'} size={44} />
+              {p.stunned && (
+                <span className="feast-stun" aria-hidden="true">
+                  💫
+                </span>
+              )}
+            </span>
+          );
+        })}
       </div>
 
-      {/* Players: tap a rival to bump them. */}
+      {/* Display-only scoreboard (bumping is positional now). */}
       <div className="feast-players">
         {snap?.players.map((p) => {
           const you = p.profileId === profileId;
           return (
-            <button
+            <span
               key={p.profileId}
               className={`feast-player ${you ? 'you' : ''} ${p.stunned ? 'stunned' : ''}`}
-              onClick={() => !you && send({ type: 'bump', targetId: p.profileId })}
-              disabled={you}
-              aria-label={you ? p.name : t('feast.bumpLabel', { name: p.name })}
             >
-              <span className="feast-player-muncher">
-                <Muncher animal={p.muncher} state={p.stunned ? 'bleh' : 'still'} size={32} />
-                {p.stunned && (
-                  <span className="feast-stun" aria-hidden="true">
-                    💫
-                  </span>
-                )}
-              </span>
+              <span aria-hidden="true">{p.avatar}</span>
               <span className="feast-player-name">{you ? t('feast.you') : p.name}</span>
               {/* Keying my score by `pulse` remounts it on each correct grab so
                   the pop animation replays. */}
               <span className="feast-player-score" key={you ? pulse : undefined}>
                 {p.score}
               </span>
-            </button>
+            </span>
           );
         })}
       </div>
