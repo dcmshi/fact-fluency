@@ -37,6 +37,8 @@ const BOT_MAX_REACT_MS = 1200;
 const BOT_ACCURACY = 0.82;
 /** Bots only consider plates in this on-belt window (mimics "reachable"). */
 const BOT_WINDOW: readonly [number, number] = [0.15, 0.85];
+/** Bots steer their muncher toward a target at this speed (belt units per ms). */
+const BOT_MOVE_SPEED = 0.0006;
 
 // --- State ----------------------------------------------------------------
 export interface FeastPlate {
@@ -87,6 +89,13 @@ export interface PlayerInit {
 const randInt = (rng: Rng, lo: number, hi: number): number =>
   lo + Math.floor(rng() * (hi - lo + 1));
 const pick = <T>(rng: Rng, xs: readonly T[]): T => xs[Math.floor(rng() * xs.length)];
+
+/** Move `cur` toward `target` by at most `step`, staying within [0,1]. */
+const ease = (cur: number, target: number, step: number): number => {
+  const d = target - cur;
+  if (Math.abs(d) <= step) return target;
+  return cur + Math.sign(d) * step;
+};
 
 /** Set the current fact and recompute which plates now count as correct. */
 function setFact(state: FeastState, fact: Fact): void {
@@ -189,14 +198,38 @@ export function stepFeast(state: FeastState, now: number, dtMs: number, rng: Rng
     state.plates.push({ id: state.nextPlateId++, value, pos: 0, correct: value === state.answer });
   }
 
-  // Bots: grab a correct plate on the belt after their reaction delay.
+  // Bots: steer toward the nearest reachable correct plate every step (cosmetic
+  // movement), and grab on the reaction timer with BOT_ACCURACY.
   for (const bot of state.players) {
-    if (!bot.isBot || isStunned(bot, now) || now < bot.botReactAt) continue;
+    if (!bot.isBot || isStunned(bot, now)) continue;
+
+    // Ease toward the nearest correct plate inside the reachable window.
+    let steerTo: number | null = null;
+    let bestD = Infinity;
+    for (const p of state.plates) {
+      if (!p.correct || p.pos < BOT_WINDOW[0] || p.pos > BOT_WINDOW[1]) continue;
+      const d = Math.abs(p.pos - bot.rimPos);
+      if (d < bestD) {
+        bestD = d;
+        steerTo = p.pos;
+      }
+    }
+    if (steerTo !== null) {
+      bot.rimPos = ease(bot.rimPos, steerTo, BOT_MOVE_SPEED * dtMs);
+      bot.aim = bot.rimPos;
+    }
+
+    // Grab on the reaction timer (accuracy roll unchanged from before).
+    bot.firing = false;
+    if (now < bot.botReactAt) continue;
     const target =
       rng() < BOT_ACCURACY
         ? state.plates.find((p) => p.correct && p.pos >= BOT_WINDOW[0] && p.pos <= BOT_WINDOW[1])
         : state.plates.find((p) => !p.correct && p.pos >= BOT_WINDOW[0] && p.pos <= BOT_WINDOW[1]);
-    if (target) applyGrab(state, bot.profileId, target.id, now);
+    if (target) {
+      bot.firing = true;
+      applyGrab(state, bot.profileId, target.id, now);
+    }
     bot.botReactAt = now + randInt(rng, BOT_MIN_REACT_MS, BOT_MAX_REACT_MS);
   }
 }

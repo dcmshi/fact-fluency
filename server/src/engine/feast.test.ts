@@ -142,6 +142,23 @@ describe('stepFeast', () => {
     expect(s.plates.find((p) => p.id === 2)?.correct).toBe(true);
   });
 
+  it('eases a bot’s rimPos toward the nearest correct plate before it grabs', () => {
+    const s = createFeastState(
+      [{ profileId: 'bot1', name: 'Bot', avatar: '🤖', muncher: 'cat', isBot: true }],
+      POOL,
+      0,
+      rng0,
+    );
+    s.players[0].rimPos = 0.5;
+    s.plates = [{ id: 1, value: s.answer, pos: 0.3, correct: true }];
+    s.lastSpawnAt = 1e12; // no new spawns
+    // now (100) < botReactAt → the bot moves but does not grab yet.
+    stepFeast(s, 100, 100, rng0);
+    expect(s.players[0].rimPos).toBeLessThan(0.5);
+    expect(s.players[0].rimPos).toBeGreaterThan(0.3);
+    expect(s.plates).toHaveLength(1); // not grabbed
+  });
+
   it('lets a bot grab a correct plate once its reaction window passes', () => {
     const s = createFeastState(
       [{ profileId: 'bot1', name: 'Bot', avatar: '🤖', muncher: 'cat', isBot: true }],
