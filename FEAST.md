@@ -6,13 +6,17 @@ the product philosophy.
 
 ## What it is
 
-A belt of numbered plates scrolls past. The current fact (e.g. `6 × 7`) and a
-countdown timer sit at the top. Players **tap** the plates whose value matches
-the answer to score points; a wrong tap is consumed and briefly **stuns** them
-(wasabi); tapping a rival **bumps** them (a short stun, on a cooldown) so you can
-grab a contested plate. The displayed fact rotates every few seconds. When the
-timer runs out, the highest score wins and earns placement coins. 1–4 players:
-solo vs. bots, or live with siblings on other devices (same account).
+Numbered plates orbit a **circular** conveyor (a Pokémon-Stadium
+_Sushi-Go-Round_). The current fact (e.g. `6 × 7`) and a countdown timer sit at
+the top. Each player rides a **movable muncher** on the ring's rim: point to
+steer it around the rim and aim its tongue, then **fire** to munch the plate you
+aimed at. Munching a plate whose value matches the answer scores a point; a wrong
+munch is consumed and briefly **stuns** you (wasabi); steering **into** a rival
+**bumps** them (a short stun, on a cooldown) so you can grab a contested plate. A
+**sound cue** fires each time the displayed fact rotates so kids notice the new
+target. When the timer runs out, the highest score wins and earns placement
+coins. 1–4 players: solo vs. bots, or live with siblings on other devices (same
+account).
 
 Like Race, Feast **never touches the spaced-repetition scheduler or the attempt
 log** — it's pure play; only coins are credited.
@@ -21,15 +25,23 @@ log** — it's pure play; only coins are credited.
 
 Race is request/response: each player runs their **own** deck in parallel and
 reports `progress`/`finish`; the server just ranks scores. Feast is a **shared,
-server-authoritative real-time playfield**: one belt of plates that everyone
+server-authoritative real-time playfield**: one ring of plates that everyone
 sees and competes over, driven by a server **tick loop** (~15 Hz) that
-broadcasts snapshots. Clients render and send discrete inputs (`grab`, `bump`);
-they never own game state.
+broadcasts snapshots.
 
-Tap-to-grab means players have **no belt position** — the only spatial thing is
-the plates. That deliberately removes movement/collision physics: "bumping" is a
-discrete tap on a rival's muncher, not a positional collision. Much simpler to
-sync, still fun.
+**Authority split.** The server stays authoritative for game _truth_ — plates
+(a scalar `pos` 0→1), the current fact, score, stun, and bump cooldown — and
+decides correctness when a `grab` arrives (the answer is never sent to clients).
+The **client owns the spatial/aiming layer**: its muncher's rim position, the
+tongue's aim + reach, and the hit-detection that turns an aimed fire into a
+`grab`. Everyone — plates, human munchers, bot munchers — lives in one linear
+`[0,1]` belt coordinate; the client alone maps it onto a screen circle (the pure
+geometry lives in `client/src/pages/feastArena.ts`). This deliberately reverses
+the earlier "no player position / no aiming physics" decision; it's acceptable
+under the light-anti-cheat stance (kids share one account), because a mis-aimed
+or cheating client still can't invent points — the server owns correctness.
+Muncher positions are relayed (see the broadcast shape) purely so everyone can
+render everyone.
 
 ## Architecture
 
@@ -38,8 +50,11 @@ sync, still fun.
   (`feast.test.ts`). State is mutated in place (game-loop style).
   - `createFeastState(players, pool, now, rng)` — seed the round.
   - `stepFeast(state, now, dt, rng)` — move/spawn/despawn plates, rotate the
-    fact (recomputing plate correctness), drive bot grabs.
-  - `applyGrab` / `applyBump` — validated, authoritative mutations.
+    fact (recomputing plate correctness), steer bot munchers toward their target
+    and drive bot grabs.
+  - `applyGrab` / `applyBump` / `applyMove` — validated, authoritative mutations
+    (`applyMove` just relays a human muncher's rim position/aim, never trusted
+    for scoring).
   - `feastStandings` / `feastSnapshot` — ranking and the client-facing view
     (the answer and per-plate correctness are **never** sent to clients).
   - Tunables live at the top (`ROUND_MS`, spawn cadence, plate speed, stun/bump
@@ -49,17 +64,24 @@ sync, still fun.
   in-memory rooms, lobby → countdown → playing → finished, a `setInterval` tick
   that steps the engine and broadcasts `feastSnapshot`. Bots run server-side in
   the tick. Coins via `placementCoins` on finish.
-- **Client** — `client/src/pages/FeastPage.tsx` (slice 3): connect, lobby,
-  countdown, arena (belt + munchers + fact + timer + scores), tap-to-grab /
-  tap-to-bump, light interpolation between snapshots. Reuses `Muncher`,
-  `CelebrationBurst`, `sound`, and the RacePage WS pattern.
+- **Client** — `client/src/pages/FeastPage.tsx`: connect, lobby, countdown,
+  circular arena (ring belt + rim munchers + fact + timer + scores). Point to
+  steer + aim (an rAF loop eases the muncher toward the pointer); click / a FIRE
+  button / Space shoots the tongue → the nearest in-reach plate is `grab`bed
+  (tapping a plate directly is an accessibility fallback). It sends a throttled
+  `move` so others render it, plays a cue + pulses the banner on a fact change,
+  bumps a rival on rim proximity, and freezes on a stun. Pure belt geometry +
+  hit-detection is isolated (and unit-tested) in `feastArena.ts`. Reuses
+  `Muncher`, `sound`, and the RacePage WS pattern.
 
 ## Broadcast shape (`@shared`)
 
 `FeastSnapshot { factA, factOp, factB, timeLeftMs, plates: {id,value,pos}[],
-players: {profileId,name,avatar,muncher,score,stunned,isBot}[] }` per tick, and
-`FeastStanding` for the final results. Inputs: `{ready} | {grab, plateId} |
-{bump, targetId} | {addBot}`.
+players: {profileId,name,avatar,muncher,score,stunned,isBot,rimPos,aim,firing}[]
+}` per tick, and `FeastStanding` for the final results. `rimPos`/`aim` (0→1 belt
+coordinate) and `firing` are render-only relay fields. Inputs: `{ready} |
+{grab, plateId} | {bump, targetId} | {move, rimPos, aim, firing} | {addBot} |
+{again}`.
 
 ## Decisions
 
