@@ -10,7 +10,8 @@
  * play. There's no discovery/lobby list, so no persisted entity is needed.
  *
  * Protocol (JSON):
- *   client → server: {ready}, {addBot}, {grab, plateId}, {bump, targetId}, {again}
+ *   client → server: {ready}, {addBot}, {grab, plateId}, {bump, targetId},
+ *                    {move, rimPos, aim, firing}, {again}
  *   server → client: {joined}, {lobby, players}, {countdown, ms}, {snapshot,...},
  *                    {finished, standings}, {error, code}
  */
@@ -25,6 +26,7 @@ import { generateFactsForSets } from '../engine/facts';
 import {
   applyBump,
   applyGrab,
+  applyMove,
   createFeastState,
   feastSnapshot,
   feastStandings,
@@ -189,7 +191,14 @@ function joinRoom(
   r.players.set(profile.id, player);
 
   ws.on('message', (raw) => {
-    let msg: { type?: string; plateId?: unknown; targetId?: unknown };
+    let msg: {
+      type?: string;
+      plateId?: unknown;
+      targetId?: unknown;
+      rimPos?: unknown;
+      aim?: unknown;
+      firing?: unknown;
+    };
     try {
       msg = JSON.parse(raw.toString());
     } catch {
@@ -223,7 +232,14 @@ function onMessage(
   db: Db,
   room: FeastRoom,
   player: FeastConn,
-  msg: { type?: string; plateId?: unknown; targetId?: unknown },
+  msg: {
+    type?: string;
+    plateId?: unknown;
+    targetId?: unknown;
+    rimPos?: unknown;
+    aim?: unknown;
+    firing?: unknown;
+  },
 ): void {
   switch (msg.type) {
     case 'ready':
@@ -245,6 +261,17 @@ function onMessage(
     case 'bump':
       if (room.phase === 'playing' && room.state && typeof msg.targetId === 'string') {
         applyBump(room.state, player.profileId, msg.targetId, Date.now());
+      }
+      return;
+    case 'move':
+      if (
+        room.phase === 'playing' &&
+        room.state &&
+        typeof msg.rimPos === 'number' &&
+        typeof msg.aim === 'number' &&
+        typeof msg.firing === 'boolean'
+      ) {
+        applyMove(room.state, player.profileId, msg.rimPos, msg.aim, msg.firing);
       }
       return;
     case 'again':
