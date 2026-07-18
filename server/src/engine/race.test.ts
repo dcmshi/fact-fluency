@@ -39,8 +39,8 @@ describe('buildBotGhost', () => {
     expect(a).toHaveLength(6);
     expect(a).toEqual(b);
     for (const ms of a) {
-      expect(ms).toBeGreaterThanOrEqual(3500);
-      expect(ms).toBeLessThan(5500);
+      expect(ms).toBeGreaterThanOrEqual(2000);
+      expect(ms).toBeLessThan(4000);
     }
   });
 });

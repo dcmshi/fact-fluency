@@ -9,8 +9,12 @@
  */
 import type { Fact } from '@shared';
 
-/** Rounds in a race — short, because each munch round is ~10s (~60-90s total). */
-export const RACE_ROUNDS = 6;
+/** Rounds in a race — each round is a quick tap-the-answer question (~2-4s), so
+ *  10 rounds keeps a race ~30-45s. */
+export const RACE_ROUNDS = 10;
+
+/** Number of answer buttons per race round (one correct + distractors). */
+export const RACE_CHOICES = 5;
 
 /** Coins for finishing last / a participation floor — everyone leaves with some. */
 export const RACE_COIN_FLOOR = 3;
@@ -39,13 +43,13 @@ export function buildRaceDeck(facts: Fact[], rng: () => number, count = RACE_ROU
 }
 
 /**
- * Bot opponent splits (ms per round) — a friendly, beatable ~3.5–5.5s/round
- * pace, so a solo racer (or a first race with no human ghost yet) always has
- * someone to chase. Deterministic via rng (seed it from the race id so the same
- * race always faces the same bot).
+ * Bot opponent splits (ms per round) — a friendly, beatable ~2-4s/round pace for
+ * tap-the-answer rounds, so a solo racer (or a first race with no human ghost
+ * yet) always has someone to chase. Deterministic via rng (seed it from the race
+ * id so the same race always faces the same bot).
  */
 export function buildBotGhost(rounds: number, rng: () => number): number[] {
-  return Array.from({ length: rounds }, () => 3500 + Math.floor(rng() * 2000));
+  return Array.from({ length: rounds }, () => 2000 + Math.floor(rng() * 2000));
 }
 
 export interface RaceRunLike {
