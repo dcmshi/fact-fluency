@@ -6,8 +6,11 @@ locked so far:
 
 - **Phased**: async ghost/challenge races first, live real-time rooms second, on
   one shared data model.
-- **Munch input**: races use the same Number Munchers board as solo play (one
-  consistent mechanic), accepting a slightly longer race (~60–90s).
+- **Tap-the-answer input**: a race round is a single `a op b = ?` question
+  answered by **tapping one of 5 numbers** (strictly the `=` form — never the
+  comparison variants), not a munch grid. Faster and simpler than solo play;
+  solo still uses the Number Munchers board. Choices are built by reusing
+  `engine/placement.ts`'s `buildChoices` (the calibration warm-up's helper).
 - **Household-first & safe**: racing stays within an adult account (siblings) or
   an explicit shared link/code. **No public stranger matchmaking** in scope —
   kids don't authenticate, so cross-account matching needs a deliberate
@@ -19,7 +22,7 @@ locked so far:
    run fully offline (cached deck + ghost); live races need connectivity and
    fall back to the async path.
 2. **Non-punitive.** No elimination, no "you lost." Everyone finishes; results
-   are warm ("You raced your best!" / "So close — rematch?"). A wrong munch
+   are warm ("You raced your best!" / "So close — rematch?"). A wrong tap
    costs a little time, never a life.
 3. **Fair-ish across levels.** A race is a single **seeded deck** (identical
    facts for all racers) → a true head-to-head. See _Fairness_ for the
@@ -27,14 +30,17 @@ locked so far:
 
 ## The race mechanic
 
-- A race = a fixed **seeded deck of ~6 munch rounds** (kept short because each
-  munch round is ~10s; ~60–90s total keeps it "racey").
-- Your "car" advances one step each time you **clear a round** (all correct
-  cells eaten). Finish line = deck cleared.
-- **Rank by total time** to clear the deck; wrong munches just cost time (they
-  slow the clear), they don't eliminate.
-- The deck is drawn from the **creator's enabled facts** (optionally scoped to
-  one operation), then shared verbatim with every racer so it's the same race.
+- A race = a fixed **seeded deck of 10 tap-the-answer rounds** (each round is a
+  quick `a op b = ?` question, ~2–4s, so ~30–45s total keeps it "racey").
+- Your "car" advances one step each time you **answer a round** (tap the correct
+  number). Finish line = deck cleared.
+- **Rank by total time** to clear the deck; a wrong tap doesn't advance and
+  briefly locks the buttons (~0.8s) — it costs a little time, never eliminates.
+- The deck is drawn from the **creator's enabled facts**, then shared verbatim
+  with every racer so it's the same race. Rounds are **strictly `=`** regardless
+  of the kid's comparisons setting.
+- The bot opponent's per-round splits are tuned to the faster tapping pace
+  (~2–4s/round) so a solo racer always has someone beatable to chase.
 
 ## Phase 1 — async ghost / challenge (offline-capable)
 
@@ -70,9 +76,11 @@ ghost? }`. `ghost` = the target run (your best, or a challenged sibling's).
 - **Setup**: a "Race" entry on the profile tile / play screen → pick an
   opponent: _your best time_ (ghost time-trial) or _a sibling_ (their latest
   ghost).
-- **RacePage**: a race-track header (your car + ghost car[s]) above the normal
-  `MunchBoard`; the ghost advances on its recorded splits. Finish → placement +
-  times + a warm result.
+- **RacePage**: a race-track header (your car + ghost car[s]) above the
+  `RaceQuiz` round (`components/RaceQuiz.tsx` — the tap-the-answer choices; a
+  legacy `MunchBoard` fallback covers races created before the switch); the
+  ghost advances on its recorded splits. Finish → placement + times + a warm
+  result.
 - **Offline**: the deck is client-held like a session; a ghost/time-trial race
   runs offline and the run **syncs via the existing sync queue** on reconnect;
   the ghost is cached.
@@ -142,6 +150,6 @@ ghost? }`. `ghost` = the target run (your best, or a challenged sibling's).
 2. DB: `race` + `race_run` tables and adapter methods (SQLite + Postgres +
    contract test).
 3. API: the three endpoints above.
-4. Client: setup flow + RacePage (reusing `MunchBoard`) + result screen +
+4. Client: setup flow + RacePage (the `RaceQuiz` tap-answer round) + result screen +
    offline sync.
 5. Phase 2: the WS room layer, with the async path as fallback.
