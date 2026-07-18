@@ -1,11 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { FeastSnapshot, FeastStanding } from '@shared';
 import { Muncher } from '../components/Muncher';
 import { OP_SYMBOL } from '../ops';
 import { playComplete, playCorrect, playWrong } from '../sound';
-import { plateFrac, pointOnCircle } from './feastArena';
+import {
+  clamp01,
+  fracFromPoint,
+  invPlateFrac,
+  pickTarget,
+  plateFrac,
+  pointOnCircle,
+  stepRimPos,
+} from './feastArena';
 import './FeastPage.css';
 
 type Phase = 'connecting' | 'lobby' | 'countdown' | 'playing' | 'finished';
@@ -46,6 +55,16 @@ export function FeastPage() {
   const myScore = useRef(0);
   const myStunned = useRef(false);
 
+  // Client-owned spatial layer (the server owns scoring/stun; see FEAST.md).
+  const ringRef = useRef<HTMLDivElement | null>(null);
+  const selfPos = useRef(0.5); // muncher position (belt 0→1), owned locally
+  const selfAim = useRef(0.5); // pointer target (belt 0→1)
+  const platesRef = useRef<FeastSnapshot['plates']>([]);
+  const snapRef = useRef<FeastSnapshot | null>(null); // latest snapshot, for fresh reads in the rAF loop
+  const seededPos = useRef(false); // have we placed the muncher at the server's seed yet?
+  const [selfRender, setSelfRender] = useState({ pos: 0.5, aim: 0.5 });
+  const [firing, setFiring] = useState(0); // >0 while the tongue is out
+
   useEffect(() => {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const ws = new WebSocket(`${proto}://${location.host}/api/feast-ws?profileId=${profileId}`);
@@ -64,13 +83,22 @@ export function FeastPage() {
         case 'countdown':
           setPhase('countdown');
           setCountdown(Math.ceil((msg.ms ?? 0) / 1000));
+          seededPos.current = false; // re-seed the muncher position for a rematch
           break;
         case 'snapshot': {
           setPhase('playing');
           setSnap(msg as FeastSnapshot);
+          platesRef.current = (msg as FeastSnapshot).plates;
+          snapRef.current = msg as FeastSnapshot;
           // Local feedback from my own score/stun changes.
           const me = (msg as FeastSnapshot).players.find((pl) => pl.profileId === profileId);
           if (me) {
+            if (!seededPos.current) {
+              seededPos.current = true;
+              selfPos.current = me.rimPos;
+              selfAim.current = me.rimPos;
+              setSelfRender({ pos: me.rimPos, aim: me.rimPos });
+            }
             if (me.score > myScore.current) {
               playCorrect();
               setPulse((n) => n + 1);
@@ -115,6 +143,32 @@ export function FeastPage() {
     const id = setTimeout(() => setCountdown((c) => (c == null ? null : c - 1)), 1000);
     return () => clearTimeout(id);
   }, [phase, countdown]);
+
+  // Steering + throttled move broadcast while playing. The muncher eases toward
+  // the pointer target (selfAim); scoring stays server-side.
+  useEffect(() => {
+    if (phase !== 'playing') return;
+    let raf = 0;
+    let last = 0;
+    let lastSent = 0;
+    const loop = (t: number) => {
+      const dt = last ? t - last : 16;
+      last = t;
+      const meNow = snapRef.current?.players.find((p) => p.profileId === profileId);
+      if (!meNow?.stunned) {
+        selfPos.current = stepRimPos(selfPos.current, selfAim.current, dt);
+      }
+      setSelfRender({ pos: selfPos.current, aim: selfAim.current });
+      if (t - lastSent > 80) {
+        lastSent = t;
+        send({ type: 'move', rimPos: selfPos.current, aim: selfAim.current, firing: firing > 0 });
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, firing]);
 
   // ---- lobby ----
   if (phase === 'connecting' || phase === 'lobby') {
@@ -231,6 +285,35 @@ export function FeastPage() {
   // ---- playing ----
   const me = snap?.players.find((p) => p.profileId === profileId);
   const seconds = snap ? Math.ceil(snap.timeLeftMs / 1000) : 0;
+
+  // Point-to-aim: the pointer sets both where the muncher steers (selfAim, eased
+  // in the rAF loop) and where the tongue points. Fire shoots at the nearest
+  // in-reach plate; the server decides right/wrong.
+  const aimAt = (clientX: number, clientY: number) => {
+    const el = ringRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    selfAim.current = invPlateFrac(fracFromPoint(cx, cy, clientX, clientY));
+  };
+  const fire = () => {
+    if (me?.stunned) return;
+    const id = pickTarget(platesRef.current, selfPos.current, selfAim.current);
+    if (id != null) send({ type: 'grab', plateId: id });
+    setFiring((n) => n + 1);
+    window.setTimeout(() => setFiring((n) => Math.max(0, n - 1)), 180);
+  };
+  const onRingPointerMove = (e: ReactPointerEvent) => aimAt(e.clientX, e.clientY);
+  const onKeyControl = (e: ReactKeyboardEvent) => {
+    if (e.key === 'ArrowLeft') selfAim.current = clamp01(selfAim.current - 0.05);
+    else if (e.key === 'ArrowRight') selfAim.current = clamp01(selfAim.current + 0.05);
+    else if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      fire();
+    }
+  };
+
   return (
     <div className="screen feast">
       <header className="feast-header">
@@ -250,8 +333,19 @@ export function FeastPage() {
       </header>
 
       {/* The round belt. Plates ride an inner ring; munchers sit on the rim.
-          Positions come from the shared 0→1 belt coordinate via feastArena. */}
-      <div className="feast-ring" aria-label={t('feast.beltLabel')}>
+          Point anywhere to steer + aim; tap/click (or FIRE) shoots the tongue. */}
+      <div
+        className="feast-ring"
+        ref={ringRef}
+        aria-label={t('feast.beltLabel')}
+        onPointerMove={onRingPointerMove}
+        onPointerDown={(e) => {
+          aimAt(e.clientX, e.clientY);
+          fire();
+        }}
+        tabIndex={0}
+        onKeyDown={onKeyControl}
+      >
         <div className="feast-ring-track" aria-hidden="true" />
         {snap?.plates.map((plate) => {
           const { x, y } = pointOnCircle(50, 50, 38, plateFrac(plate.pos));
@@ -268,24 +362,43 @@ export function FeastPage() {
             </button>
           );
         })}
-        {snap?.players.map((p) => {
-          const { x, y } = pointOnCircle(50, 50, 48, p.rimPos);
-          const you = p.profileId === profileId;
-          return (
-            <span
-              key={p.profileId}
-              className={`feast-muncher ${you ? 'you' : ''} ${p.stunned ? 'stunned' : ''}`}
-              style={{ left: `${x}%`, top: `${y}%` }}
-            >
-              <Muncher animal={p.muncher} state={p.stunned ? 'bleh' : 'still'} size={44} />
-              {p.stunned && (
-                <span className="feast-stun" aria-hidden="true">
-                  💫
-                </span>
-              )}
-            </span>
-          );
-        })}
+        {snap?.players
+          .filter((p) => p.profileId !== profileId)
+          .map((p) => {
+            const { x, y } = pointOnCircle(50, 50, 48, p.rimPos);
+            return (
+              <span
+                key={p.profileId}
+                className={`feast-muncher ${p.stunned ? 'stunned' : ''}`}
+                style={{ left: `${x}%`, top: `${y}%` }}
+              >
+                <Muncher animal={p.muncher} state={p.stunned ? 'bleh' : 'still'} size={44} />
+                {p.stunned && (
+                  <span className="feast-stun" aria-hidden="true">
+                    💫
+                  </span>
+                )}
+                {p.firing && <span className="feast-tongue-mini" aria-hidden="true" />}
+              </span>
+            );
+          })}
+        {me &&
+          (() => {
+            const { x, y } = pointOnCircle(50, 50, 48, selfRender.pos);
+            return (
+              <span
+                className={`feast-muncher you ${me.stunned ? 'stunned' : ''} ${firing > 0 ? 'firing' : ''}`}
+                style={{ left: `${x}%`, top: `${y}%` }}
+              >
+                <Muncher animal={me.muncher} state={me.stunned ? 'bleh' : 'still'} size={48} />
+                {me.stunned && (
+                  <span className="feast-stun" aria-hidden="true">
+                    💫
+                  </span>
+                )}
+              </span>
+            );
+          })()}
       </div>
 
       {/* Display-only scoreboard (bumping is positional now). */}
@@ -308,6 +421,10 @@ export function FeastPage() {
           );
         })}
       </div>
+
+      <button className="btn sun feast-fire" onClick={fire} disabled={me?.stunned}>
+        {t('feast.fire')}
+      </button>
 
       <p className="feast-hint muted">{t('feast.tapHint')}</p>
     </div>

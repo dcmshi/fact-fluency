@@ -93,6 +93,44 @@
 .feast-muncher.stunned {
   opacity: 0.6;
 }
+/* Tongue: shoots inward (toward the ring center) from the rim when firing. */
+.feast-muncher.you::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 0;
+  background: #ff7a9c;
+  border-radius: 3px;
+  transform: translate(-50%, -50%);
+  transform-origin: 50% 50%;
+  transition: height 0.09s ease-out;
+  pointer-events: none;
+}
+.feast-muncher.you.firing::after {
+  height: 46px;
+}
+.feast-tongue-mini {
+  position: absolute;
+  width: 5px;
+  height: 22px;
+  background: #ff7a9c;
+  border-radius: 3px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+.feast-fire {
+  width: min(80vw, 260px);
+  font-size: 1.3rem;
+  letter-spacing: 0.05em;
+}
+@media (prefers-reduced-motion: reduce) {
+  .feast-muncher.you::after {
+    transition: none;
+  }
+}
 
 /* Players row — tap a rival to bump them. */
 .feast-players {
