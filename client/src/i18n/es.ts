@@ -374,7 +374,8 @@ export const es: typeof en = {
   feast: {
     title: 'Festín de números',
     connecting: 'Conectando…',
-    lobbyHint: 'Atrapa los platos que coincidan con la respuesta. ¡Toca a un rival para empujarlo!',
+    lobbyHint:
+      '¡Mueve tu comelón, apunta la lengua y engulle los platos que coincidan con la respuesta!',
     addBot: '🤖 Agregar un robot',
     imReady: '¡Estoy listo!',
     waiting: 'Listo ✓ — esperando…',
@@ -386,7 +387,12 @@ export const es: typeof en = {
     beltLabel: 'Cinta de platos',
     bumpLabel: 'Empujar a {{name}}',
     you: 'Tú',
-    tapHint: 'Toca los platos que sean la respuesta · toca a un rival para empujarlo',
+    tapHint:
+      'Muévete para apuntar · pulsa DISPARA (o un plato) para lanzar la lengua · empuja a tus rivales para aturdirlos',
+    fire: 'DISPARA',
+    aimHint: 'Apunta a un plato',
+    stunned: '¡Mareado! 💫',
+    factChanged: '¡Nueva operación!',
     noFacts: 'Pídele a un adulto que elija algunos grupos de operaciones primero.',
     wsError: 'Se perdió la conexión. Vuelve e inténtalo de nuevo.',
   },

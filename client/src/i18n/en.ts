@@ -370,7 +370,7 @@ export const en = {
   feast: {
     title: 'Number Feast',
     connecting: 'Connecting…',
-    lobbyHint: 'Grab the plates that match the answer. Tap a rival to bump them!',
+    lobbyHint: 'Steer your muncher, aim your tongue, and gobble the plates that match the answer!',
     addBot: '🤖 Add a bot',
     imReady: 'I’m ready!',
     waiting: 'Ready ✓ — waiting…',
@@ -382,7 +382,12 @@ export const en = {
     beltLabel: 'Plate belt',
     bumpLabel: 'Bump {{name}}',
     you: 'You',
-    tapHint: 'Tap the plates that equal the answer · tap a rival to bump',
+    tapHint:
+      'Steer to aim · tap FIRE (or a plate) to shoot your tongue · bump rivals by nudging into them',
+    fire: 'FIRE',
+    aimHint: 'Aim at a plate',
+    stunned: 'Dizzy! 💫',
+    factChanged: 'New fact!',
     noFacts: 'Ask a grown-up to pick some fact sets first.',
     wsError: 'Lost connection. Head back and try again.',
   },

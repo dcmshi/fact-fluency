@@ -373,7 +373,7 @@ export const fr: typeof en = {
     title: 'Festin de nombres',
     connecting: 'Connexion…',
     lobbyHint:
-      'Attrape les assiettes qui correspondent à la réponse. Touche un rival pour le bousculer !',
+      'Dirige ton mangeur, vise avec ta langue et gobe les assiettes qui correspondent à la réponse !',
     addBot: '🤖 Ajouter un robot',
     imReady: 'Je suis prêt !',
     waiting: 'Prêt ✓ — en attente…',
@@ -385,7 +385,12 @@ export const fr: typeof en = {
     beltLabel: 'Tapis d’assiettes',
     bumpLabel: 'Bousculer {{name}}',
     you: 'Toi',
-    tapHint: 'Touche les assiettes égales à la réponse · touche un rival pour le bousculer',
+    tapHint:
+      'Dirige-toi pour viser · appuie sur FEU (ou une assiette) pour lancer ta langue · bouscule tes rivaux pour les étourdir',
+    fire: 'FEU',
+    aimHint: 'Vise une assiette',
+    stunned: 'Étourdi ! 💫',
+    factChanged: 'Nouveau calcul !',
     noFacts: 'Demande à un adulte de choisir des ensembles de calculs.',
     wsError: 'Connexion perdue. Reviens et réessaie.',
   },
