@@ -63,9 +63,8 @@ recorded per-round times while you play.
   but no scheduling writes), persist the `race`, return `{ raceId, deck,
 ghost? }`. `ghost` = the target run (your best, or a challenged sibling's).
 - `POST /races/:id/run` — submit `{ perRoundMs[], totalMs, correct }`; persist a
-  `race_run`; return placement + leaderboard. Client-authoritative timing (low
-  stakes); server does light sanity clamping like `answer()` does for
-  `responseMs`.
+  `race_run`; return placement + leaderboard. Timing is client-measured but not
+  client-authoritative — see _Reported times are floored, not trusted_ below.
 - `GET /races/:id` — deck + runs (ghosts + leaderboard), for a challenge link.
 - Scope via the existing `loadOwnedProfile` (creator) / account ownership;
   sibling opponents live under the same account. A `code` enables link-share to
@@ -99,8 +98,25 @@ ghost? }`. `ghost` = the target run (your best, or a challenged sibling's).
   awards placement coins server-side but writes **no** `race_run`.
 - **Disconnect/reconnect**: a dropped player is kept in the room, frozen at
   their last position; reconnecting with the same raceId + profileId resumes.
+  The room swaps that player's socket, and the _old_ socket's late `close` is
+  ignored — acting on it would mark a live racer disconnected and, once every
+  player looked disconnected, delete the room out from under them.
+- **Liveness**: a room decides the race is over when every _connected_ racer has
+  finished, so a half-open socket (a tablet off wifi with no FIN) would stall it
+  forever — the kid who actually finished never gets their placement and the
+  room never frees. A ping/terminate heartbeat (`ws/heartbeat.ts`, shared with
+  Feast) is what makes "connected" mean something.
+- **Joining is phase-gated.** A newcomer during `countdown`/`racing` is refused
+  with `{error, code:'race_in_progress'}`: admitting them would add an
+  unfinished racer who never receives `go`, so the race could never end for
+  anyone. An _existing_ racer may always reconnect mid-race. A newcomer arriving
+  at a `finished` room recycles it back to the lobby, rather than leaving it
+  bricked (`ready` is only honored in `lobby`).
 - **Fallback**: if the socket can't connect (offline / WS blocked), RacePage
-  falls back to the Phase 1 async path — same deck, race the ghost.
+  falls back to the Phase 1 async path — same deck, race the ghost. A socket
+  that dies mid-race surfaces a "lost the connection" screen offering the bot
+  race or a way back, and the `placing` phase is time-capped so a `finished`
+  broadcast that never arrives can't strand the kid.
 
 ### Build slices (Phase 2)
 
@@ -109,6 +125,27 @@ ghost? }`. `ghost` = the target run (your best, or a challenged sibling's).
    client driving two players.
 3. Client: a WebSocket hook + RacePage live mode (lobby → countdown → live
    bars) + the async fallback + Vite dev proxy.
+
+## Reported times are floored, not trusted
+
+Kids aren't an adversarial threat model (DESIGN §4.7), but a reported time is
+the only thing deciding placement and coins, so it can't be the _only_ thing:
+
+- **Async runs**: `perRoundMs` must have one entry per fact in the race, each
+  split is floored at 250ms, and `totalMs` is **derived** from those floored
+  splits rather than believed. The client already computes it as exactly that
+  sum, so nothing honest changes — but `{totalMs: 0}` can no longer win.
+- **Live finishes** are floored at the elapsed time the server itself watched
+  since `go`, and only the first `finish` per racer counts (re-sending used to
+  let a finisher keep improving their time mid-race).
+- **Coins are for a new personal best**, not for pressing submit — otherwise a
+  loop of identical runs farms them. The `finished` broadcast also zeroes
+  `coinsEarned` for anyone who didn't finish, since the client renders it
+  verbatim and the award loop skips them.
+- **Ties share a placement** (competition ranking: 1, 2, 2, 4). Exact ties are
+  reachable — times are whole ms clamped at 10 minutes, and a live race defaults
+  an unreadable time to that cap — and splitting them by sort order decided 1st
+  vs 2nd, and the payout, on database row order.
 
 ## Fairness
 

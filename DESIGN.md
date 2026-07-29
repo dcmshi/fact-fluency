@@ -48,6 +48,14 @@ Two hard requirements drive every design decision:
 - **Server-side session table** (`AuthSession`) keyed by a random opaque token
   stored in an **httpOnly, SameSite=Lax, Secure** cookie. No JWTs.
 - Sessions expire after 30 days idle; logout deletes the row.
+- **Sensitive account changes re-authenticate.** Changing the email or password,
+  and deleting the account, require the current password — the device is shared
+  with children and often left unlocked, so a live cookie is not proof of
+  identity. Timezone stays freely editable (it isn't a credential, and getting it
+  wrong quietly breaks scheduling).
+- **A password change revokes every other session.** Because sessions slide
+  forward on use, without this a cookie someone else holds would stay valid
+  indefinitely and changing the password would achieve nothing.
 
 ---
 
@@ -285,6 +293,23 @@ Single input modality everywhere: **typed** (§4.7). No multiple-choice.
 - **Source of truth**: the client measures `responseMs` and sends it; the
   **server** recomputes correctness, `fast`, and all scheduling decisions and is
   the sole writer of persisted state. Client timing is advisory input.
+- **`responseMs` is clamped in both directions** before it grades anything or
+  feeds the per-op median EWMA: an upper cap (60s) so one distracted answer can't
+  inflate the threshold, and a **~250ms floor** because reading a fact, deciding,
+  and tapping is never quicker than that — a smaller value means a replayed or
+  scripted POST, not a fluent kid. Floored rather than rejected, so an honest
+  client with a sloppy clock still gets its answer counted, just not as evidence
+  of speed.
+- **Backgrounded time doesn't count.** `performance.now()` keeps running while
+  the tab is hidden, so a kid who presses the home button mid-round and comes
+  back would otherwise report a multi-minute answer — graded slow, fact demoted,
+  session budget spent. All answer timing goes through `activeNow()`, which
+  subtracts every interval the document spent hidden.
+- **Reports are idempotent.** Each round carries a client-generated `attemptId`
+  and the server drops a repeat. A failed POST is indistinguishable from one that
+  committed before its response was lost, so the offline queue has to be free to
+  replay without double-appending to the attempt log or advancing a fact's
+  schedule on a single answer.
 - **Instant feedback / threat model**: card payloads **include the answer** and
   the session payload includes the current per-operation `threshold`, so the
   client renders correct/incorrect + fast feedback with zero latency. Kids are
@@ -592,3 +617,48 @@ spaced-repetition engine and its state are never touched by the games.
 Still deferred (external dependencies / decisions): emailed PDF recaps (needs a
 domain + email vendor), opt-in anonymized outcome tracking (COPPA/consent), and
 classroom mode + Clever/Google SSO (vendor-gated).
+
+---
+
+## 14. Reliability & abuse-resistance (audit pass 10)
+
+A full-repo audit (engine / server API+DB / client / the two live games) drove a
+round of hardening. The findings clustered, and the clusters are worth keeping
+in mind when extending any of this — see `TODO.md` "Audit pass 10" for the
+per-item detail.
+
+**Nothing a stranger sends may take the process down.** Both WebSocket servers
+now attach `'error'` listeners to accepted _and_ upgrading sockets (an unhandled
+emitter `'error'` throws and kills the whole service — API and both games), cap
+frame size, and the `pg` pool handles the `'error'` an idle client emits when a
+managed database restarts. The default posture for a raw socket or a pool is to
+crash on the unhappy path; that has to be opted out of explicitly.
+
+**A live game must survive a bad network.** TCP won't tell you the peer is gone,
+and both games decide a round is over by counting _connected_ players — so a
+half-open socket used to stall a room forever. There's now a ping/terminate
+heartbeat, reconnects don't get clobbered by the old socket's late `close`, a
+newcomer can't join a race already under way (they'd never receive `go`, so it
+could never end), and the client surfaces a lost connection with a way out
+instead of a frozen screen. Any new room state needs the same question asked:
+_what happens if this player simply stops responding?_
+
+**Client-reported performance data is advisory, never authoritative.** Response
+times are clamped both ways, race splits are floored and the total is derived
+from them rather than trusted, live finish times are floored at the server's own
+observed elapsed time, and coins are awarded on a new personal best rather than
+per submission. Kids aren't an adversarial threat model (§4.7), but "the client
+said so" must never be the only thing standing between a replayed request and a
+corrupted schedule.
+
+**Concurrency is real here, by design.** The client deliberately doesn't block
+the next card on the previous answer's POST, so two answers for one session
+genuinely overlap; `answer()` is serialized per session because it reads working
+state, grades against it, and writes it back. The offline queue replays in
+order and only ever joins the queue once anything is in it, so a miss and its
+later correct re-show can't reach the server inverted.
+
+**Test what the fake can't fake.** pg-mem is a reimplementation: it silently
+ignored `COUNT(*) FILTER` and can't honor `ROLLBACK`, so transactional claims
+were only ever proven against SQLite. The Db contract now also runs against a
+real Postgres in Docker (`npm run test:pg`).

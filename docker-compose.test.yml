@@ -1,0 +1,30 @@
+# Throwaway Postgres for the integration tests (`npm run test:pg`).
+#
+# pg-mem covers the SQL shape on every `npm test`, but it is a reimplementation:
+# it silently ignored `COUNT(*) FILTER` (counting every row) and it can't honor
+# ROLLBACK, so transactional guarantees were only ever asserted against SQLite.
+# This container is the real thing, so the contract suite means what it says.
+services:
+  postgres:
+    # render.yaml doesn't pin a Postgres version (Render picks one for the
+    # managed instance), so bump this to match whatever production reports from
+    # `SELECT version()` if the two ever drift far enough to matter.
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: factfluency
+      POSTGRES_PASSWORD: factfluency
+      POSTGRES_DB: fact_fluency_test
+    # 55432, not 5432: never collide with a Postgres the developer already runs.
+    ports:
+      - '55432:5432'
+    # Data lives in RAM and dies with the container — these tests drop and
+    # recreate the schema constantly and nothing here is worth persisting.
+    tmpfs:
+      - /var/lib/postgresql/data
+    command: >
+      postgres -c fsync=off -c full_page_writes=off -c synchronous_commit=off
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U factfluency -d fact_fluency_test']
+      interval: 1s
+      timeout: 3s
+      retries: 30

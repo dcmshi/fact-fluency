@@ -129,5 +129,4 @@ writeFileSync(
   png(512, render(512, { rounded: false, safeScale: 0.78 })),
 );
 writeFileSync(out('apple-touch-icon.png'), png(180, render(180, { rounded: false })));
-// eslint-disable-next-line no-console -- CLI feedback
-console.log('icons written to public/');
+console.log('icons written to public/'); // CLI feedback (no-console is off for scripts/)

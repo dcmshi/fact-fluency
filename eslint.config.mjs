@@ -34,6 +34,12 @@ export default tseslint.config(
     },
   },
   {
+    // Developer-facing CLI scripts: the console *is* their user interface, so
+    // reporting through it isn't the stray logging the rule is aimed at.
+    files: ['scripts/**/*.mjs', 'client/scripts/**/*.mjs'],
+    rules: { 'no-console': 'off' },
+  },
+  {
     files: ['client/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
     rules: {

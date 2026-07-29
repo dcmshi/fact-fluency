@@ -70,6 +70,10 @@ muncher you drive by keyboard or tap (shown here in the unlockable _Ocean_ theme
 - **Transparent by design** — a public [`/how-it-works`](https://fact-fluency.onrender.com/how-it-works)
   methodology page explains the learning science honestly (no invented efficacy
   claims), with a clear promise on children's data.
+- **Built to survive a bad network** — the live games ride a liveness heartbeat
+  and reconnect cleanly; a dropped socket gets you a way out instead of a frozen
+  screen; answers are idempotent, so a replayed report can't double-count; and
+  time the app spent backgrounded never counts against a kid's response time.
 
 See **[DESIGN.md](DESIGN.md)** for the full product/architecture rationale and
 **[CLAUDE.md](CLAUDE.md)** for the quick operational reference.
@@ -101,11 +105,20 @@ Open http://localhost:5173 and sign up. By default it uses a local SQLite file
 ### Other commands
 
 ```bash
-npm test           # engine + API unit tests (vitest)
+npm test           # engine + API + client tests (vitest) — no services needed
+npm run test:pg    # Db contract against a real Postgres 16 (needs Docker)
 npm run typecheck  # tsc --noEmit across all three workspaces
 npm run build      # shared (tsc) → server (esbuild) → client (vite build)
 npm start          # production: serve the built SPA + API from one process
 ```
+
+`npm test` is the everyday gate and needs nothing installed beyond the repo. The
+two database adapters share **one** behavioral contract suite, run against
+SQLite and pg-mem there — and against a **real Postgres in Docker** via
+`npm run test:pg`, which starts the container, waits for it, and tears it down.
+That extra layer exists because pg-mem is a reimplementation and quietly differs
+from the real thing (it ignores `COUNT(*) FILTER` and can't honor `ROLLBACK`),
+so anything touching SQL should run it.
 
 Config is via env (`.env.example`): `PORT`, `DATABASE_URL` (the scheme —
 `sqlite:` vs `postgres://` — selects the adapter).

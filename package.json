@@ -14,6 +14,7 @@
     "build": "npm run build -w shared && npm run build -w server && npm run build -w client",
     "start": "node server/dist/index.js",
     "test": "npm run test -w server && npm run test -w client",
+    "test:pg": "node scripts/pg-test.mjs",
     "typecheck": "npm run typecheck -w shared && npm run typecheck -w server && npm run typecheck -w client",
     "lint": "eslint .",
     "format": "prettier --check .",

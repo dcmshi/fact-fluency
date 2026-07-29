@@ -1,0 +1,431 @@
+/**
+ * The Db contract: one behavioral spec, run against every adapter, so they
+ * can't drift apart. Lives outside a `.test.ts` file so several test files can
+ * import it — `contract.test.ts` runs it against SQLite and pg-mem on every
+ * `npm test`, and `postgres.integration.test.ts` runs the *same* spec against a
+ * real Postgres in Docker (`npm run test:pg`), which is what catches the things
+ * pg-mem fakes.
+ *
+ * Adapter-specific quirks (SQLite's self-heal, pg-mem's ROLLBACK limitation)
+ * stay in the per-adapter test files.
+ */
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { Db } from './index';
+
+export function describeDbContract(name: string, makeDb: () => Promise<Db>) {
+  describe(`Db contract: ${name}`, () => {
+    let db: Db;
+    beforeEach(async () => {
+      db = await makeDb();
+    });
+    afterEach(async () => {
+      await db.close();
+    });
+
+    async function seedProfile() {
+      const accountId = await db.createAccount('a@b.co', 'hash', 'UTC');
+      const profile = await db.createProfile({
+        accountId,
+        displayName: 'Kid',
+        avatar: '🦊',
+        settings: { sessionCards: 20, sessionSeconds: 180, newPerSession: 3 },
+      });
+      return { accountId, profile };
+    }
+
+    it('round-trips an account and enforces unique emails', async () => {
+      const id = await db.createAccount('p@x.co', 'h', 'America/Toronto');
+      expect(await db.findAccountByEmail('p@x.co')).toEqual({ id, passwordHash: 'h' });
+      expect(await db.getAccountTimezone(id)).toBe('America/Toronto');
+      await expect(db.createAccount('p@x.co', 'h2', 'UTC')).rejects.toThrow();
+    });
+
+    it('upgrades a guest exactly once, flipping the flag', async () => {
+      const id = await db.createGuestAccount('UTC');
+      expect(await db.isGuestAccount(id)).toBe(true);
+      expect(await db.upgradeGuestAccount(id, 'real@x.co', 'h')).toBe(true);
+      expect(await db.isGuestAccount(id)).toBe(false);
+      expect(await db.upgradeGuestAccount(id, 'other@x.co', 'h2')).toBe(false);
+      expect(await db.findAccountByEmail('real@x.co')).toEqual({ id, passwordHash: 'h' });
+    });
+
+    it('prunes only stranded guests', async () => {
+      const stranded = await db.createGuestAccount('UTC');
+      const active = await db.createGuestAccount('UTC');
+      await db.createAuthSession(active, 'live', Date.now() + 60_000);
+      await db.createAccount('real@x.co', 'h', 'UTC'); // never pruned
+
+      expect(await db.deleteExpiredGuests(Date.now())).toBe(1);
+      expect(await db.findAccountByEmail(`guest-${stranded}`)).toBeNull();
+      expect(await db.findAccountByEmail(`guest-${active}`)).not.toBeNull();
+      expect(await db.findAccountByEmail('real@x.co')).not.toBeNull();
+    });
+
+    it('slides a session expiry only when below the throttle threshold', async () => {
+      const id = await db.createAccount('s@x.co', 'h', 'UTC');
+      const now = 1_000_000_000_000;
+      const TTL = 30 * 24 * 60 * 60 * 1000;
+      const DAY = 24 * 60 * 60 * 1000;
+      await db.createAuthSession(id, 'old', now - 2 * DAY + TTL);
+      expect(await db.slideAuthSession('old', now, now + TTL, now + TTL - DAY)).toBe(true);
+      await db.createAuthSession(id, 'fresh', now + TTL - 1000);
+      expect(await db.slideAuthSession('fresh', now, now + TTL, now + TTL - DAY)).toBe(false);
+      await db.createAuthSession(id, 'dead', now - 1);
+      expect(await db.slideAuthSession('dead', now, now + TTL, now + TTL - DAY)).toBe(false);
+    });
+
+    it('revokes an account’s other sessions, keeping the caller’s', async () => {
+      const id = await db.createAccount('revoke@x.co', 'hash', 'UTC');
+      const other = await db.createAccount('bystander@x.co', 'hash', 'UTC');
+      const soon = Date.now() + 60_000;
+      await db.createAuthSession(id, 'mine', soon);
+      await db.createAuthSession(id, 'stolen', soon);
+      await db.createAuthSession(id, 'also-stolen', soon);
+      await db.createAuthSession(other, 'untouched', soon);
+
+      // This is what makes a password change able to evict a live cookie.
+      expect(await db.deleteAuthSessionsForAccount(id, 'mine')).toBe(2);
+      expect(await db.findAccountIdByToken('mine')).toBe(id);
+      expect(await db.findAccountIdByToken('stolen')).toBeNull();
+      expect(await db.findAccountIdByToken('also-stolen')).toBeNull();
+      // Never reaches past the account it was called for.
+      expect(await db.findAccountIdByToken('untouched')).toBe(other);
+
+      // null = revoke everything (sign out all devices).
+      expect(await db.deleteAuthSessionsForAccount(id, null)).toBe(1);
+      expect(await db.findAccountIdByToken('mine')).toBeNull();
+    });
+
+    it('reads back a password hash for re-authentication', async () => {
+      const id = await db.createAccount('hash@x.co', 'stored-hash', 'UTC');
+      expect(await db.getAccountPasswordHash(id)).toBe('stored-hash');
+      expect(await db.getAccountPasswordHash('nope')).toBeNull();
+    });
+
+    it('serves equipped muncher/effect defaults and updates', async () => {
+      const { profile } = await seedProfile();
+      expect(await db.getEquippedMuncher(profile.id)).toBe('cat');
+      expect(await db.getEquippedEffect(profile.id)).toBe('confetti');
+      await db.setEquippedMuncher(profile.id, 'dragon');
+      await db.setEquippedEffect(profile.id, 'fireworks');
+      expect(await db.getEquippedMuncher(profile.id)).toBe('dragon');
+      expect(await db.getEquippedEffect(profile.id)).toBe('fireworks');
+    });
+
+    it('completeSessionAndAward wins once and credits once', async () => {
+      const { profile } = await seedProfile();
+      await db.createSession({
+        id: 's1',
+        profileId: profile.id,
+        startedAt: 1,
+        completedAt: null,
+        plannedCount: 3,
+        workingState: '{}',
+      });
+      expect(await db.completeSessionAndAward('s1', 9, profile.id, 7)).toBe(true);
+      expect(await db.completeSessionAndAward('s1', 11, profile.id, 7)).toBe(false);
+      expect((await db.getSession('s1'))?.completedAt).toBe(9);
+      expect((await db.getProfileReward(profile.id)).coins).toBe(7);
+    });
+
+    it('records a graded answer once per attemptId (replay is a no-op)', async () => {
+      const { profile } = await seedProfile();
+      await db.createSession({
+        id: 's-idem',
+        profileId: profile.id,
+        startedAt: 1,
+        completedAt: null,
+        plannedCount: 3,
+        workingState: '{}',
+      });
+      const write = (id: string, attemptId: string | null, reps: number) => ({
+        progress: {
+          profileId: profile.id,
+          factId: 'add:1+1',
+          box: 1 as const,
+          state: 'review' as const,
+          dueAt: 100,
+          lastSeenAt: 10,
+          reps,
+          fastCorrect: reps,
+          correctStreak: reps,
+          accuracyEwma: 1,
+          medianMsEwma: 900,
+        },
+        attempt: {
+          id,
+          sessionId: 's-idem',
+          profileId: profile.id,
+          factId: 'add:1+1',
+          given: 0,
+          correct: true,
+          fast: true,
+          responseMs: 900,
+          answeredAt: 20,
+          attemptId,
+        },
+      });
+
+      expect(await db.recordAnswer(write('a1', 'round-7', 1))).toBe(true);
+      // The replay carries the same key: a report whose response was lost, not
+      // a second answer. It must not append again or advance the schedule.
+      expect(await db.recordAnswer(write('a2', 'round-7', 2))).toBe(false);
+      expect(await db.listSessionAttempts('s-idem')).toHaveLength(1);
+      expect((await db.getProgressForFact(profile.id, 'add:1+1'))?.reps).toBe(1);
+
+      // A different round still writes, and a keyless write is never deduped.
+      expect(await db.recordAnswer(write('a3', 'round-8', 2))).toBe(true);
+      expect(await db.recordAnswer(write('a4', null, 3))).toBe(true);
+      expect(await db.recordAnswer(write('a5', null, 4))).toBe(true);
+      expect(await db.listSessionAttempts('s-idem')).toHaveLength(4);
+    });
+
+    it('carries lastPlayedDay on the profile row (no second streak query)', async () => {
+      const { accountId, profile } = await seedProfile();
+      expect(profile.lastPlayedDay).toBeNull(); // never practised
+      await db.setProfileStreak(profile.id, 3, '2026-07-28');
+      expect((await db.getProfile(profile.id))?.lastPlayedDay).toBe('2026-07-28');
+      expect((await db.listProfiles(accountId))[0].lastPlayedDay).toBe('2026-07-28');
+    });
+
+    it('batches enabled set ids across profiles', async () => {
+      const { accountId, profile } = await seedProfile();
+      const second = await db.createProfile({
+        accountId,
+        displayName: 'Sib',
+        avatar: '🐼',
+        settings: { sessionCards: 20, sessionSeconds: 180, newPerSession: 3 },
+      });
+      const third = await db.createProfile({
+        accountId,
+        displayName: 'Third',
+        avatar: '🐸',
+        settings: { sessionCards: 20, sessionSeconds: 180, newPerSession: 3 },
+      });
+      await db.setEnabledSetIds(profile.id, ['add-0-10', 'sub-0-10']);
+      await db.setEnabledSetIds(second.id, ['mul-0-5']);
+      // `third` has none — it must simply be absent from the map.
+
+      const byProfile = await db.listEnabledSetIdsForProfiles([profile.id, second.id, third.id]);
+      expect([...(byProfile.get(profile.id) ?? [])].sort()).toEqual(['add-0-10', 'sub-0-10']);
+      expect(byProfile.get(second.id)).toEqual(['mul-0-5']);
+      expect(byProfile.has(third.id)).toBe(false);
+      expect(await db.listEnabledSetIdsForProfiles([])).toEqual(new Map());
+    });
+
+    it('counts due and learning in one pass, matching the separate counts', async () => {
+      const { profile } = await seedProfile();
+      const row = (factId: string, box: 0 | 2, dueAt: number) => ({
+        profileId: profile.id,
+        factId,
+        box,
+        state: (box === 0 ? 'learning' : 'review') as 'learning' | 'review',
+        dueAt,
+        lastSeenAt: 0,
+        reps: 1,
+        fastCorrect: 0,
+        correctStreak: 0,
+        accuracyEwma: 1,
+        medianMsEwma: 1000,
+      });
+      await db.upsertProgressMany([
+        row('add:1+1', 2, 10), // due
+        row('add:3+3', 2, 500), // not due yet
+        row('add:2+2', 0, 0), // learning
+        row('mul:6x7', 2, 10), // due, but outside the filter
+      ]);
+      const ids = ['add:1+1', 'add:3+3', 'add:2+2'];
+
+      const combined = await db.countDueAndLearning(profile.id, 100, ids);
+      expect(combined).toEqual({
+        due: await db.countDueReview(profile.id, 100, ids),
+        learning: await db.countLearning(profile.id, ids),
+      });
+      expect(combined).toEqual({ due: 1, learning: 1 });
+      // Unfiltered sees the other operation too; an empty filter sees nothing.
+      expect(await db.countDueAndLearning(profile.id, 100)).toEqual({ due: 2, learning: 1 });
+      expect(await db.countDueAndLearning(profile.id, 100, [])).toEqual({ due: 0, learning: 0 });
+    });
+
+    it('upserts many progress rows at once (calibration seeding)', async () => {
+      const { profile } = await seedProfile();
+      const seed = (factId: string, box: 0 | 2) => ({
+        profileId: profile.id,
+        factId,
+        box,
+        state: (box === 0 ? 'learning' : 'review') as 'learning' | 'review',
+        dueAt: 50,
+        lastSeenAt: 0,
+        reps: 1,
+        fastCorrect: 0,
+        correctStreak: 0,
+        accuracyEwma: 1,
+        medianMsEwma: 1000,
+      });
+      await db.upsertProgressMany([seed('add:1+1', 2), seed('add:2+2', 0)]);
+      expect((await db.getProgressForFact(profile.id, 'add:1+1'))?.box).toBe(2);
+      expect((await db.getProgressForFact(profile.id, 'add:2+2'))?.box).toBe(0);
+
+      // Upsert semantics match the single-row path (re-seeding overwrites).
+      await db.upsertProgressMany([{ ...seed('add:1+1', 0), reps: 9 }]);
+      const updated = await db.getProgressForFact(profile.id, 'add:1+1');
+      expect(updated?.box).toBe(0);
+      expect(updated?.reps).toBe(9);
+      await expect(db.upsertProgressMany([])).resolves.toBeUndefined();
+    });
+
+    it('scopes the caught-up counts to a fact-id filter', async () => {
+      const { profile } = await seedProfile();
+      const row = (factId: string, box: 0 | 2, dueAt: number) => ({
+        profileId: profile.id,
+        factId,
+        box: box as 0 | 2,
+        state: (box === 0 ? 'learning' : 'review') as 'learning' | 'review',
+        dueAt,
+        lastSeenAt: 0,
+        reps: 1,
+        fastCorrect: 0,
+        correctStreak: 0,
+        accuracyEwma: 1,
+        medianMsEwma: 1000,
+      });
+      await db.upsertProgress(row('add:1+1', 2, 10));
+      await db.upsertProgress(row('mul:6x7', 2, 10)); // outside the filter
+      await db.upsertProgress(row('add:2+2', 0, 0));
+
+      expect(await db.countDueReview(profile.id, 100)).toBe(2);
+      expect(await db.countDueReview(profile.id, 100, ['add:1+1', 'add:2+2'])).toBe(1);
+      expect(await db.countLearning(profile.id, ['add:2+2'])).toBe(1);
+      expect(await db.countDueReview(profile.id, 100, [])).toBe(0);
+      expect(await db.countLearning(profile.id, [])).toBe(0);
+    });
+
+    it('removes an unlock exactly once (perk consumption)', async () => {
+      const { profile } = await seedProfile();
+      await db.addCoins(profile.id, 60);
+      await db.spendAndUnlock(profile.id, 'perk-streak-shield', 60);
+      expect(await db.removeUnlock(profile.id, 'perk-streak-shield')).toBe(true);
+      expect(await db.removeUnlock(profile.id, 'perk-streak-shield')).toBe(false);
+      expect(await db.listUnlocks(profile.id)).toEqual([]);
+    });
+
+    it('cascades a profile delete to its data', async () => {
+      const { accountId, profile } = await seedProfile();
+      await db.setEnabledSetIds(profile.id, ['add-0-10']);
+      await db.createSession({
+        id: 's1',
+        profileId: profile.id,
+        startedAt: 1,
+        completedAt: null,
+        plannedCount: 1,
+        workingState: '{}',
+      });
+      await db.appendAttempt({
+        id: 'a1',
+        sessionId: 's1',
+        profileId: profile.id,
+        factId: 'add:1+1',
+        given: 0,
+        correct: true,
+        fast: false,
+        responseMs: 900,
+        answeredAt: 2,
+      });
+      await db.addCoins(profile.id, 5);
+
+      await db.deleteProfile(profile.id);
+      expect(await db.getProfile(profile.id)).toBeNull();
+      expect(await db.listProfiles(accountId)).toEqual([]);
+      expect(await db.getSession('s1')).toBeNull();
+      expect(await db.listSessionAttempts('s1')).toEqual([]);
+      expect(await db.listEnabledSetIds(profile.id)).toEqual([]);
+      expect((await db.getProfileReward(profile.id)).coins).toBe(0);
+    });
+
+    it('cascades an account delete to profiles and auth sessions', async () => {
+      const { accountId, profile } = await seedProfile();
+      await db.createAuthSession(accountId, 'tok', Date.now() + 60_000);
+
+      await db.deleteAccount(accountId);
+      expect(await db.getProfile(profile.id)).toBeNull();
+      expect(await db.findAccountIdByToken('tok')).toBeNull();
+      expect(await db.findAccountByEmail('a@b.co')).toBeNull();
+    });
+
+    it('round-trips a race and its runs (fastest-first), and cascades on delete', async () => {
+      const { accountId, profile } = await seedProfile();
+      await db.createRace({
+        id: 'r1',
+        accountId,
+        createdByProfileId: profile.id,
+        deck: '[{"fact":"x"}]',
+        factCount: 6,
+        createdAt: 1000,
+      });
+      expect((await db.getRace('r1'))?.factCount).toBe(6);
+      expect((await db.listRacesForAccount(accountId, 10)).map((r) => r.id)).toEqual(['r1']);
+
+      await db.addRaceRun({
+        id: 'run-slow',
+        raceId: 'r1',
+        profileId: profile.id,
+        totalMs: 45000,
+        correctCount: 6,
+        perRound: '[8000,7000]',
+        finishedAt: 2000,
+      });
+      await db.addRaceRun({
+        id: 'run-fast',
+        raceId: 'r1',
+        profileId: profile.id,
+        totalMs: 30000,
+        correctCount: 6,
+        perRound: '[5000,5000]',
+        finishedAt: 3000,
+      });
+      const runs = await db.listRaceRuns('r1');
+      expect(runs.map((r) => r.id)).toEqual(['run-fast', 'run-slow']); // fastest first
+      expect(runs[0].perRound).toBe('[5000,5000]');
+
+      await db.deleteAccount(accountId); // cascades to race + race_run
+      expect(await db.getRace('r1')).toBeNull();
+      expect(await db.listRaceRuns('r1')).toEqual([]);
+    });
+
+    it('batches runs across races (the lobby was a query per race)', async () => {
+      const { accountId, profile } = await seedProfile();
+      for (const id of ['ra', 'rb', 'rc']) {
+        await db.createRace({
+          id,
+          accountId,
+          createdByProfileId: profile.id,
+          deck: '[]',
+          factCount: 6,
+          createdAt: 1000,
+        });
+      }
+      const run = (id: string, raceId: string, totalMs: number) =>
+        db.addRaceRun({
+          id,
+          raceId,
+          profileId: profile.id,
+          totalMs,
+          correctCount: 6,
+          perRound: '[]',
+          finishedAt: 2000,
+        });
+      await run('r1', 'ra', 5000);
+      await run('r2', 'ra', 4000);
+      await run('r3', 'rb', 3000);
+      // 'rc' has no runs — it must simply be absent, not an error.
+
+      const batched = await db.listRaceRunsForRaces(['ra', 'rb', 'rc']);
+      expect(batched.map((r) => r.id).sort()).toEqual(['r1', 'r2', 'r3']);
+      expect(batched.filter((r) => r.raceId === 'ra')).toHaveLength(2);
+      expect(batched.every((r) => r.raceId !== 'rc')).toBe(true);
+      // Never reaches past the ids it was given, and an empty ask is empty.
+      expect(await db.listRaceRunsForRaces(['rb'])).toHaveLength(1);
+      expect(await db.listRaceRunsForRaces([])).toEqual([]);
+    });
+  });
+}

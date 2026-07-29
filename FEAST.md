@@ -64,11 +64,28 @@ render everyone.
   in-memory rooms, lobby → countdown → playing → finished, a `setInterval` tick
   that steps the engine and broadcasts `feastSnapshot`. Bots run server-side in
   the tick. Coins via `placementCoins` on finish.
+  - **Room lifetime is the fragile part**, and it shares the guards Race uses
+    (`ws/heartbeat.ts`, `ws/upgrade.ts`): a liveness heartbeat, so a half-open
+    socket can't sit in `connectedHumans` forever; a socket-identity check in
+    `close`, so a reconnect's stale close can't tear the room down under the
+    live socket; and a re-check of the start condition on disconnect, so the
+    player left behind isn't stuck in a lobby that can never start.
+  - `go()` awaits the database for the fact pool, and everyone can leave during
+    that await — it re-checks for connected humans before starting the tick, or
+    it would orphan a 90s `setInterval` nothing can clear and then hand out
+    coins for a game with no players in it.
+  - The 1–4 arena cap applies to **humans as well as bots**; an account with
+    five-plus profiles used to overflow the rim (extra joins get `arena_full`).
 - **Client** — `client/src/pages/FeastPage.tsx`: connect, lobby, countdown,
   circular arena (ring belt + rim munchers + fact + timer + scores). Point to
-  steer + aim (an rAF loop eases the muncher toward the pointer); click / a FIRE
-  button / Space shoots the tongue → the nearest in-reach plate is `grab`bed
-  (tapping a plate directly is an accessibility fallback). It sends a throttled
+  steer + aim (an rAF loop eases the muncher toward the pointer; it only
+  re-renders when the muncher actually moved, or the whole arena reconciles
+  60×/s on the older tablets this targets); click / a FIRE button / Space shoots
+  the tongue → the nearest in-reach plate is `grab`bed. Tapping a plate directly
+  aims at _that_ plate and fires — one input path, so reach still applies. (It
+  used to also bubble to the ring, sending two grabs at possibly different
+  plates: tapping a correct plate across the belt could munch a wrong nearer one
+  and stun the kid for a tap that was right.) It sends a throttled
   `move` so others render it, plays a cue + pulses the banner on a fact change,
   bumps a rival on rim proximity, and freezes on a stun. Pure belt geometry +
   hit-detection is isolated (and unit-tested) in `feastArena.ts`. Reuses
