@@ -49,18 +49,19 @@ export function createProfileRouter(db: Db): Router {
       // each kid's enabled sets (a disabled set's rows never count). Plus
       // `doneToday` — a session completed today — so the picker can invite rest
       // (soft anti-grind) rather than nag with a review count once practice is done.
+      // One query for every kid's enabled sets, and one combined count each,
+      // rather than four queries per profile (the enabled-set read, two counts
+      // over a ~1,000-id list, and a streak lookup). `lastPlayedDay` now comes
+      // back with the profile row, so the streak query is gone entirely.
+      const enabledByProfile = await db.listEnabledSetIdsForProfiles(profiles.map((p) => p.id));
       const withDue = await Promise.all(
         profiles.map(async (p) => {
-          const enabled = await db.listEnabledSetIds(p.id);
+          const enabled = enabledByProfile.get(p.id) ?? [];
           const ids = generateFactsForSets(SEED_CATALOG.filter((s) => enabled.includes(s.id))).map(
             (f) => f.id,
           );
-          const [due, learning, streak] = await Promise.all([
-            db.countDueReview(p.id, now, ids),
-            db.countLearning(p.id, ids),
-            db.getProfileStreak(p.id),
-          ]);
-          return { ...p, dueToday: due + learning, doneToday: streak.lastPlayedDay === today };
+          const { due, learning } = await db.countDueAndLearning(p.id, now, ids);
+          return { ...p, dueToday: due + learning, doneToday: p.lastPlayedDay === today };
         }),
       );
       return res.json({ profiles: withDue });

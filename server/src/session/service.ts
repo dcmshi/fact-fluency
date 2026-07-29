@@ -35,6 +35,7 @@ import { planSession } from '../engine/planner';
 import { OPERATIONS } from '../engine/operations';
 import { dayInTz, previousDay } from '../engine/scheduling';
 import { fluencyThreshold } from '../engine/threshold';
+import { withSessionLock } from './sessionLock';
 
 /** How many cards later a missed/learning fact is re-shown (incremental
  *  rehearsal, DESIGN.md §4.4). */
@@ -309,7 +310,26 @@ export async function startSession(
   return { sessionId, deck, ...common };
 }
 
-export async function answer(
+/**
+ * Grade one answer. Serialized per session: the body reads the working state,
+ * grades against its in-session learning count, and writes the map back, and
+ * overlapping answers (the client doesn't wait for the previous POST) would
+ * otherwise read the same snapshot — losing a counter and grading against a
+ * stale one. See sessionLock.ts.
+ */
+export function answer(
+  db: Db,
+  accountId: string,
+  sessionId: string,
+  body: AnswerRequest,
+  now: number,
+): Promise<AnswerResponse> {
+  return withSessionLock(sessionId, () =>
+    gradeAnswerForSession(db, accountId, sessionId, body, now),
+  );
+}
+
+async function gradeAnswerForSession(
   db: Db,
   accountId: string,
   sessionId: string,

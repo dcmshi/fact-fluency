@@ -12,7 +12,13 @@ import { onInteractive } from '../keys';
 import { OP_CLASS, OP_SYMBOL } from '../ops';
 import { isMuted, playComplete, playCorrect, playFast, playWrong, setMuted } from '../sound';
 import { speak, speechAvailable, stopSpeaking } from '../speech';
-import { enqueueAnswer, flushAnswers, markPendingComplete, newAttemptId } from '../syncQueue';
+import {
+  enqueueAnswer,
+  flushAnswers,
+  markPendingComplete,
+  newAttemptId,
+  pendingCount,
+} from '../syncQueue';
 import { activeNow } from '../timing';
 import { useTheme } from '../useTheme';
 import './PlayPage.css';
@@ -258,6 +264,29 @@ export function PlayPage() {
       // (spliceInject), and caughtUp just flips state. Completion waits on
       // `inflightRef` so the attempt log is whole before the session is scored.
       const playedAtPost = playedRef.current;
+
+      // Once anything is queued, everything for this session goes through the
+      // queue. Sending live alongside a backlog reorders the attempt log: a
+      // fact missed at round N (queued) then re-shown correctly at N+1 (live)
+      // would reach the server as correct-then-miss, inverting its box
+      // scheduling. The queue drains in order, so joining it preserves it.
+      if (pendingCount() > 0) {
+        enqueueAnswer(s.sessionId, body);
+        if (!r.correct && current) {
+          // Same local rehearsal fallback as the offline path — the queued
+          // report is graded server-side whenever it drains.
+          applyQueue((q) =>
+            spliceInject(q, current, REHEARSAL_GAP, playedRef.current - playedAtPost),
+          );
+        }
+        const drain: Promise<void> = flushAnswers()
+          .then(() => undefined)
+          .finally(() => inflightRef.current.delete(drain));
+        inflightRef.current.add(drain);
+        await goNext(queueRef.current.slice(1));
+        return;
+      }
+
       const report: Promise<void> = api
         .answer(s.sessionId, body)
         .then((resp) => {

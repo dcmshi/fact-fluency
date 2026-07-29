@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Profile } from '@shared';
 import { SqliteDb } from '../db/sqlite';
 import { answer, complete, startSession } from './service';
+import { pendingSessionLocks } from './sessionLock';
 
 let db: SqliteDb;
 beforeEach(() => {
@@ -273,5 +274,69 @@ describe('audit pass 9 — service-level coverage for the P7 wiring', () => {
     // Next day's plan must include NO cold intros while accuracy is that low.
     const s2 = await startSession(db, profile, day1 + DAY_MS);
     expect(s2.deck.some((c) => c.isNew)).toBe(false);
+  });
+});
+
+describe('concurrent answers on one session', () => {
+  it('does not lose a learning counter when two answers overlap', async () => {
+    const { accountId, profile } = await makeProfile();
+    const now = Date.UTC(2026, 0, 1, 9);
+    const session = await startSession(db, profile, now);
+    // Two *different* box-0 facts, so their counters are independent — the only
+    // way one can vanish is the working-state read-modify-write racing itself.
+    const newCards = session.deck.filter((c) => c.isNew).slice(0, 2);
+    expect(newCards).toHaveLength(2);
+
+    // The client fires answers without waiting (finishRound advances
+    // immediately, the POST is in flight), so two can genuinely overlap.
+    await Promise.all(
+      newCards.map((c) =>
+        answer(
+          db,
+          accountId,
+          session.sessionId,
+          { factId: c.fact.id, correct: true, responseMs: 900 },
+          now,
+        ),
+      ),
+    );
+
+    const ws = JSON.parse((await db.getSession(session.sessionId))!.workingState);
+    for (const c of newCards) {
+      expect(ws.learning[c.fact.id]).toBe(1);
+    }
+    // The queue for a session must drain away, not accumulate an entry per
+    // session the process has ever seen. (Released a tick after the caller
+    // resumes, so let the microtask queue settle first.)
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(pendingSessionLocks()).toBe(0);
+  });
+
+  it('keeps serving a session after one answer throws', async () => {
+    const { accountId, profile } = await makeProfile();
+    const now = Date.UTC(2026, 0, 1, 9);
+    const session = await startSession(db, profile, now);
+    const card = session.deck[0];
+
+    await expect(
+      answer(
+        db,
+        accountId,
+        session.sessionId,
+        { factId: 'nope:1+1', correct: true, responseMs: 900 },
+        now,
+      ),
+    ).rejects.toThrow();
+    // A rejected answer must not wedge the chain for every later one.
+    const ok = await answer(
+      db,
+      accountId,
+      session.sessionId,
+      { factId: card.fact.id, correct: true, responseMs: 900 },
+      now,
+    );
+    expect(ok.correct).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(pendingSessionLocks()).toBe(0);
   });
 });

@@ -1558,12 +1558,19 @@ plateFrac` is the identity, so a plate's `pos` _is_ its aim coordinate).
       `listProfiles` covers them, and a new `listRaceRunsForRaces` (both
       adapters + contract test) fetches the runs in one batch, grouped in
       memory for the count and the "have I played this?" flag.
-- [~] **Profile list is 4 queries per profile** (`api/profiles.ts:52-65`) —
-  **deliberately deferred.** At the family scale this app targets (1–4
-  kids) that's 4–16 small queries on a screen loaded a few times a day.
-  Fixing it properly means either a new batched count method or widening
-  `Profile`/`PROFILE_SELECT` to carry `last_played_day`, and neither earns
-  its churn yet. Revisit if a household ever has enough profiles to feel it.
+- [x] **Profile list is 4 queries per profile** — _done_ (the first pass
+      deferred this; revisited). Now 2 + N queries instead of 1 + 4N — for four
+      kids, 6 instead of 17. Three changes: `PROFILE_SELECT` carries
+      `last_played_day`, so the per-profile streak lookup is gone entirely (the
+      data was already on the row being read); one
+      `listEnabledSetIdsForProfiles` covers every kid's enabled sets; and a new
+      `countDueAndLearning` does both counts in one pass, which is the win that
+      matters — the filter is the whole ~1,000-id enabled fact universe and it
+      was being scanned twice per profile. Both new methods are in the contract
+      suite, including that the combined counts equal the separate ones.
+      _Note:_ Postgres uses `SUM(CASE …)` not `COUNT(*) FILTER` — pg-mem
+      silently ignores `FILTER` and counts every row, which the contract suite
+      caught.
 - [x] **Calibration seeds upserted one await at a time** — _done._ New
       transactional `upsertProgressMany` (both adapters + contract test)
       replaces the per-seed await loop: one round trip instead of a few hundred
@@ -1609,18 +1616,26 @@ plateFrac` is the identity, so a plate's `pos` _is_ its aim coordinate).
       output depend on the host's ambient zone, which nothing else here does.
       (Masked in prod: Render runs UTC.) Test updated to pin UTC, not "some
       date-shaped string".
-- [ ] **Concurrent answers can clobber `workingState`**
-      (`session/service.ts:329-334, 393-431`) — read-modify-write of the parsed
-      learning map with no versioning, so an offline queue replaying two answers
-      concurrently loses one learning-counter increment. Serialize per session or
-      do a conditional/merged write. _Still open:_ needs either per-session
-      serialization or a JSON-merge write; self-healing gameplay state, so it
-      ranks below everything above.
-- [ ] **Queued answers can land out of order vs live successes**
-      (`PlayPage.tsx:254-281`) — if answer N fails (queued) while N+1 succeeds
-      live, the flush appends N after N+1, inverting box scheduling for a fact
-      that was missed then re-shown correctly. Stamp a client sequence, or route
-      everything through the queue once anything is queued. _Still open._
+- [x] **Concurrent answers can clobber `workingState`** — _done._ `answer()` is
+      a read-modify-write over the session's working state, and the client
+      deliberately doesn't wait for the previous POST, so two answers really do
+      overlap: both read the same snapshot and the second write erased the
+      first's learning counter. Reproduced first — one counter came back
+      `undefined`. Note a conditional/merged _write_ wouldn't have been enough:
+      the stale read also feeds `inSessionCorrect`, so the second answer graded
+      against a stale count too. The whole critical section is now serialized
+      per session id (`session/sessionLock.ts`), with the chain surviving a
+      failed answer and the map entry released once nothing is queued behind it
+      (both covered by tests). Scope is one process — fine for a single web
+      service with one open session per profile, and documented as needing a row
+      lock if this ever runs multi-instance.
+- [x] **Queued answers can land out of order vs live successes** — _done._ Once
+      anything is queued, every later answer for that session joins the queue
+      instead of going live, and the queue drains in order. Previously a fact
+      missed at round N (queued) then re-shown correctly at N+1 (live) reached
+      the server as correct-then-miss, inverting that fact's box scheduling. The
+      queued path keeps the same local rehearsal fallback as the offline one and
+      kicks a drain, so a recovered connection still catches up mid-session.
 - [x] **syncQueue has no timed retry** — _done._ Flushes ran only on mount,
       `online`, and session completion, so a transient 5xx _while connectivity
       stayed up_ fires no `online` event and stranded an offline session's coins

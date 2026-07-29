@@ -104,6 +104,10 @@ export interface Profile {
   settings: ProfileSettings;
   /** Consecutive days with a completed session (DESIGN.md §4.10). */
   streak: number;
+  /** Last day (YYYY-MM-DD, account timezone) a session was completed; null if
+   *  never. Selected with the profile so callers needing "did they practise
+   *  today?" don't need a second per-profile query. */
+  lastPlayedDay: string | null;
   /** Spendable reward balance (DESIGN.md §10 — earned per session). */
   coins: number;
   /** Currently-equipped theme id (palette); 'classic' is the default look. */

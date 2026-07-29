@@ -14,6 +14,7 @@ export interface ProfileRow {
   avatar: string;
   settings: string;
   streak: number;
+  last_played_day: string | null;
   coins: number;
   theme: string;
   created_at: number;
@@ -65,7 +66,7 @@ export interface AttemptRow {
 /** Profile columns joined with the (optional) reward row, defaulted. */
 export const PROFILE_SELECT = `
   SELECT p.id, p.account_id, p.display_name, p.avatar, p.settings, p.streak,
-         p.created_at, COALESCE(r.coins, 0) AS coins,
+         p.last_played_day, p.created_at, COALESCE(r.coins, 0) AS coins,
          COALESCE(r.theme, 'classic') AS theme
   FROM profile p LEFT JOIN profile_reward r ON r.profile_id = p.id`;
 
@@ -77,6 +78,7 @@ export function toProfile(r: ProfileRow): Profile {
     avatar: r.avatar,
     settings: JSON.parse(r.settings) as ProfileSettings,
     streak: r.streak,
+    lastPlayedDay: r.last_played_day ?? null,
     coins: Number(r.coins),
     theme: r.theme,
     createdAt: Number(r.created_at),

@@ -246,12 +246,13 @@ export class SqliteDb implements Db {
   }
 
   async createProfile(
-    p: Omit<Profile, 'id' | 'createdAt' | 'streak' | 'coins' | 'theme'>,
+    p: Omit<Profile, 'id' | 'createdAt' | 'streak' | 'coins' | 'theme' | 'lastPlayedDay'>,
   ): Promise<Profile> {
     const profile: Profile = {
       ...p,
       id: randomUUID(),
       streak: 0,
+      lastPlayedDay: null, // never practised yet
       coins: 0,
       theme: 'classic',
       createdAt: Date.now(),
@@ -411,6 +412,24 @@ export class SqliteDb implements Db {
     return rows.map((r) => r.fact_set_id);
   }
 
+  async listEnabledSetIdsForProfiles(profileIds: string[]): Promise<Map<string, string[]>> {
+    const byProfile = new Map<string, string[]>();
+    if (profileIds.length === 0) return byProfile;
+    const placeholders = profileIds.map(() => '?').join(',');
+    const rows = this.db
+      .prepare(
+        `SELECT profile_id, fact_set_id FROM profile_fact_set
+          WHERE profile_id IN (${placeholders}) AND enabled = 1`,
+      )
+      .all(...profileIds) as { profile_id: string; fact_set_id: string }[];
+    for (const r of rows) {
+      const list = byProfile.get(r.profile_id);
+      if (list) list.push(r.fact_set_id);
+      else byProfile.set(r.profile_id, [r.fact_set_id]);
+    }
+    return byProfile;
+  }
+
   async setEnabledSetIds(profileId: string, setIds: string[]): Promise<void> {
     const replace = this.db.transaction((ids: string[]) => {
       this.db.prepare('DELETE FROM profile_fact_set WHERE profile_id = ?').run(profileId);
@@ -436,6 +455,25 @@ export class SqliteDb implements Db {
       .prepare('SELECT * FROM fact_progress WHERE profile_id = ? AND fact_id = ?')
       .get(profileId, factId) as ProgressRow | undefined;
     return row ? toProgress(row) : null;
+  }
+
+  async countDueAndLearning(
+    profileId: string,
+    now: number,
+    factIds?: string[],
+  ): Promise<{ due: number; learning: number }> {
+    if (factIds && factIds.length === 0) return { due: 0, learning: 0 };
+    const inClause = factIds ? ` AND fact_id IN (${factIds.map(() => '?').join(',')})` : '';
+    // One pass over the same rows, counting both buckets — the fact-id list is
+    // ~1,000 params, so scanning it twice was the picker's worst read.
+    const row = this.db
+      .prepare(
+        `SELECT SUM(CASE WHEN box >= 1 AND due_at <= ? THEN 1 ELSE 0 END) AS due,
+                SUM(CASE WHEN box = 0 THEN 1 ELSE 0 END) AS learning
+           FROM fact_progress WHERE profile_id = ?${inClause}`,
+      )
+      .get(now, profileId, ...(factIds ?? [])) as { due: number | null; learning: number | null };
+    return { due: row.due ?? 0, learning: row.learning ?? 0 };
   }
 
   async countDueReview(profileId: string, now: number, factIds?: string[]): Promise<number> {

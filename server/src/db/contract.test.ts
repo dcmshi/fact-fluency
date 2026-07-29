@@ -180,6 +180,73 @@ function describeDbContract(name: string, makeDb: () => Promise<Db>) {
       expect(await db.listSessionAttempts('s-idem')).toHaveLength(4);
     });
 
+    it('carries lastPlayedDay on the profile row (no second streak query)', async () => {
+      const { accountId, profile } = await seedProfile();
+      expect(profile.lastPlayedDay).toBeNull(); // never practised
+      await db.setProfileStreak(profile.id, 3, '2026-07-28');
+      expect((await db.getProfile(profile.id))?.lastPlayedDay).toBe('2026-07-28');
+      expect((await db.listProfiles(accountId))[0].lastPlayedDay).toBe('2026-07-28');
+    });
+
+    it('batches enabled set ids across profiles', async () => {
+      const { accountId, profile } = await seedProfile();
+      const second = await db.createProfile({
+        accountId,
+        displayName: 'Sib',
+        avatar: '🐼',
+        settings: { sessionCards: 20, sessionSeconds: 180, newPerSession: 3 },
+      });
+      const third = await db.createProfile({
+        accountId,
+        displayName: 'Third',
+        avatar: '🐸',
+        settings: { sessionCards: 20, sessionSeconds: 180, newPerSession: 3 },
+      });
+      await db.setEnabledSetIds(profile.id, ['add-0-10', 'sub-0-10']);
+      await db.setEnabledSetIds(second.id, ['mul-0-5']);
+      // `third` has none — it must simply be absent from the map.
+
+      const byProfile = await db.listEnabledSetIdsForProfiles([profile.id, second.id, third.id]);
+      expect([...(byProfile.get(profile.id) ?? [])].sort()).toEqual(['add-0-10', 'sub-0-10']);
+      expect(byProfile.get(second.id)).toEqual(['mul-0-5']);
+      expect(byProfile.has(third.id)).toBe(false);
+      expect(await db.listEnabledSetIdsForProfiles([])).toEqual(new Map());
+    });
+
+    it('counts due and learning in one pass, matching the separate counts', async () => {
+      const { profile } = await seedProfile();
+      const row = (factId: string, box: 0 | 2, dueAt: number) => ({
+        profileId: profile.id,
+        factId,
+        box,
+        state: (box === 0 ? 'learning' : 'review') as 'learning' | 'review',
+        dueAt,
+        lastSeenAt: 0,
+        reps: 1,
+        fastCorrect: 0,
+        correctStreak: 0,
+        accuracyEwma: 1,
+        medianMsEwma: 1000,
+      });
+      await db.upsertProgressMany([
+        row('add:1+1', 2, 10), // due
+        row('add:3+3', 2, 500), // not due yet
+        row('add:2+2', 0, 0), // learning
+        row('mul:6x7', 2, 10), // due, but outside the filter
+      ]);
+      const ids = ['add:1+1', 'add:3+3', 'add:2+2'];
+
+      const combined = await db.countDueAndLearning(profile.id, 100, ids);
+      expect(combined).toEqual({
+        due: await db.countDueReview(profile.id, 100, ids),
+        learning: await db.countLearning(profile.id, ids),
+      });
+      expect(combined).toEqual({ due: 1, learning: 1 });
+      // Unfiltered sees the other operation too; an empty filter sees nothing.
+      expect(await db.countDueAndLearning(profile.id, 100)).toEqual({ due: 2, learning: 1 });
+      expect(await db.countDueAndLearning(profile.id, 100, [])).toEqual({ due: 0, learning: 0 });
+    });
+
     it('upserts many progress rows at once (calibration seeding)', async () => {
       const { profile } = await seedProfile();
       const seed = (factId: string, box: 0 | 2) => ({

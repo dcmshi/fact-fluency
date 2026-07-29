@@ -313,12 +313,13 @@ export class PostgresDb implements Db {
   }
 
   async createProfile(
-    p: Omit<Profile, 'id' | 'createdAt' | 'streak' | 'coins' | 'theme'>,
+    p: Omit<Profile, 'id' | 'createdAt' | 'streak' | 'coins' | 'theme' | 'lastPlayedDay'>,
   ): Promise<Profile> {
     const profile: Profile = {
       ...p,
       id: randomUUID(),
       streak: 0,
+      lastPlayedDay: null, // never practised yet
       coins: 0,
       theme: 'classic',
       createdAt: Date.now(),
@@ -501,6 +502,22 @@ export class PostgresDb implements Db {
     ).map((r) => r.fact_set_id);
   }
 
+  async listEnabledSetIdsForProfiles(profileIds: string[]): Promise<Map<string, string[]>> {
+    const byProfile = new Map<string, string[]>();
+    if (profileIds.length === 0) return byProfile;
+    const rows = await this.rows<{ profile_id: string; fact_set_id: string }>(
+      `SELECT profile_id, fact_set_id FROM profile_fact_set
+        WHERE profile_id = ANY($1) AND enabled = 1`,
+      [profileIds],
+    );
+    for (const r of rows) {
+      const list = byProfile.get(r.profile_id);
+      if (list) list.push(r.fact_set_id);
+      else byProfile.set(r.profile_id, [r.fact_set_id]);
+    }
+    return byProfile;
+  }
+
   async setEnabledSetIds(profileId: string, setIds: string[]): Promise<void> {
     // Replace the set atomically so a failure can't leave a half-applied list.
     await this.withTransaction(async (q) => {
@@ -528,6 +545,29 @@ export class PostgresDb implements Db {
       [profileId, factId],
     );
     return row ? toProgress(row) : null;
+  }
+
+  async countDueAndLearning(
+    profileId: string,
+    now: number,
+    factIds?: string[],
+  ): Promise<{ due: number; learning: number }> {
+    if (factIds && factIds.length === 0) return { due: 0, learning: 0 };
+    const inClause = factIds
+      ? ` AND fact_id IN (${factIds.map((_, i) => `$${i + 3}`).join(',')})`
+      : '';
+    // One pass over the same rows, counting both buckets — the fact-id list is
+    // ~1,000 params, so scanning it twice was the picker's worst read.
+    // SUM(CASE …) rather than COUNT(*) FILTER: plain SQL both real Postgres and
+    // pg-mem execute identically (pg-mem ignores FILTER and counts every row,
+    // which the contract suite catches).
+    const row = await this.one<{ due: string | number | null; learning: string | number | null }>(
+      `SELECT SUM(CASE WHEN box >= 1 AND due_at <= $2 THEN 1 ELSE 0 END) AS due,
+              SUM(CASE WHEN box = 0 THEN 1 ELSE 0 END) AS learning
+         FROM fact_progress WHERE profile_id = $1${inClause}`,
+      [profileId, now, ...(factIds ?? [])],
+    );
+    return { due: Number(row?.due ?? 0), learning: Number(row?.learning ?? 0) };
   }
 
   async countDueReview(profileId: string, now: number, factIds?: string[]): Promise<number> {

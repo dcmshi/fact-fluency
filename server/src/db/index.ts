@@ -126,7 +126,7 @@ export interface Db {
   listProfiles(accountId: string): Promise<Profile[]>;
   getProfile(profileId: string): Promise<Profile | null>;
   createProfile(
-    p: Omit<Profile, 'id' | 'createdAt' | 'streak' | 'coins' | 'theme'>,
+    p: Omit<Profile, 'id' | 'createdAt' | 'streak' | 'coins' | 'theme' | 'lastPlayedDay'>,
   ): Promise<Profile>;
   updateProfileSettings(profileId: string, settings: ProfileSettings): Promise<Profile>;
   updateProfileName(profileId: string, displayName: string): Promise<void>;
@@ -163,6 +163,9 @@ export interface Db {
 
   // --- fact sets ---
   listEnabledSetIds(profileId: string): Promise<string[]>;
+  /** Enabled sets for several profiles in one query, keyed by profile id — the
+   *  profile picker needs them for every kid at once. */
+  listEnabledSetIdsForProfiles(profileIds: string[]): Promise<Map<string, string[]>>;
   setEnabledSetIds(profileId: string, setIds: string[]): Promise<void>;
 
   // --- progress & stats ---
@@ -175,6 +178,14 @@ export interface Db {
   countDueReview(profileId: string, now: number, factIds?: string[]): Promise<number>;
   /** Count facts still in the learning phase (box 0); `factIds` scopes as above. */
   countLearning(profileId: string, factIds?: string[]): Promise<number>;
+  /** Both of the above in a single query. The `factIds` list is the whole
+   *  enabled fact universe (~1,000 ids), so running it twice per profile was
+   *  the profile picker's most expensive read by a distance. */
+  countDueAndLearning(
+    profileId: string,
+    now: number,
+    factIds?: string[],
+  ): Promise<{ due: number; learning: number }>;
   getOperationStats(profileId: string): Promise<OperationStat[]>;
   getOperationStat(profileId: string, operation: Operation): Promise<OperationStat | null>;
   upsertOperationStat(s: OperationStat): Promise<void>;
