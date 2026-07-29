@@ -93,6 +93,27 @@ describe('planSession — composition', () => {
       expect(deck[i].isNew && deck[i + 1].isNew).toBe(false); // never two new adjacent
     }
   });
+
+  it('still spaces new facts when they are a large share of a short deck', () => {
+    // Only 14 facts are due, so short-deck padding tops the deck up with new
+    // ones — the case where the spacing arithmetic actually matters. The gap was
+    // computed per *total* card but counted only review cards between intros, so
+    // the review pool drained early and the leftovers piled up at the end
+    // (…rrFF): two cold facts back to back, at the point a kid is most tired.
+    const review = Array.from({ length: 14 }, (_, i) => fact(100 + i));
+    const unseen = Array.from({ length: 30 }, (_, i) => fact(i));
+    const progressByFactId = new Map(
+      review.map((f) => [f.id, { ...progress(2, NOW - 1000), factId: f.id }]),
+    );
+    const deck = planSession(input({ facts: [...unseen, ...review], progressByFactId }));
+
+    expect(deck).toHaveLength(20);
+    expect(deck.filter((c) => c.isNew)).toHaveLength(6);
+    expect(deck[0].isNew).toBe(false);
+    for (let i = 0; i < deck.length - 1; i++) {
+      expect(deck[i].isNew && deck[i + 1].isNew).toBe(false);
+    }
+  });
 });
 
 describe('planSession — scheduling buckets', () => {

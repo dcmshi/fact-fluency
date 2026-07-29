@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Fact } from '@shared';
 import { OP_SYMBOL } from '../ops';
+import { activeNow } from '../timing';
 import type { RoundResult } from './MunchBoard';
 import './RaceQuiz.css';
 
@@ -29,7 +30,7 @@ export function RaceQuiz({
   const [locked, setLocked] = useState(false);
   const [wrongIdx, setWrongIdx] = useState<number | null>(null);
   const wrongTaps = useRef(0);
-  const start = useRef(performance.now());
+  const start = useRef(activeNow());
   const done = useRef(false);
   const timers = useRef<number[]>([]);
 
@@ -48,7 +49,7 @@ export function RaceQuiz({
       done.current = true;
       onComplete({
         correct: wrongTaps.current === 0,
-        responseMs: Math.round(performance.now() - start.current),
+        responseMs: Math.round(activeNow() - start.current),
         wrongMunches: wrongTaps.current,
       });
       return;

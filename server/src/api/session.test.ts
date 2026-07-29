@@ -387,6 +387,50 @@ describe('session errors', () => {
     expect(res.body.fast).toBe(false);
   });
 
+  it('floors an implausibly fast responseMs so a replayed answer cannot fake fluency', async () => {
+    const { agent, profileId } = await setup();
+    const { body } = await agent.post(`/api/profiles/${profileId}/session`);
+    const { fact } = body.deck[0];
+    // A scripted client can POST answers straight from the deck it was served.
+    // Nobody reads a fact, decides, and taps in 1ms — accepting it as "fast"
+    // would let a replay master the whole fact universe in seconds and drag the
+    // per-op median EWMA (the basis of every fluency decision) to the floor.
+    const res = await agent
+      .post(`/api/sessions/${body.sessionId}/answer`)
+      .send({ factId: fact.id, correct: true, responseMs: 1 });
+    expect(res.status).toBe(200);
+    const csv = await agent.get(`/api/profiles/${profileId}/export?format=csv`);
+    expect(csv.text).not.toContain(',1,'); // the raw 1ms never reaches the log
+    expect(csv.text).toContain(',250,'); // recorded at the human floor instead
+  });
+
+  it('grades a replayed answer once (same attemptId)', async () => {
+    const { agent, profileId } = await setup();
+    const { body } = await agent.post(`/api/profiles/${profileId}/session`);
+    const { fact } = body.deck[0];
+    const answer = {
+      factId: fact.id,
+      correct: true,
+      responseMs: 1200,
+      attemptId: 'round-1-abc',
+    };
+
+    // The client can't tell "never sent" from "committed, response lost", so it
+    // re-queues on any failure and replays with the same key on reconnect.
+    expect((await agent.post(`/api/sessions/${body.sessionId}/answer`).send(answer)).status).toBe(
+      200,
+    );
+    expect((await agent.post(`/api/sessions/${body.sessionId}/answer`).send(answer)).status).toBe(
+      200,
+    );
+
+    // One row in the append-only log — the replay didn't advance the schedule
+    // or double-count the attempt for session scoring.
+    const csv = await agent.get(`/api/profiles/${profileId}/export?format=csv`);
+    const rows = csv.text.trim().split('\n').slice(1);
+    expect(rows.filter((r) => r.includes(fact.id))).toHaveLength(1);
+  });
+
   it('rounds a fractional responseMs (the attempt column is INTEGER)', async () => {
     const { agent, profileId } = await setup();
     const { body } = await agent.post(`/api/profiles/${profileId}/session`);

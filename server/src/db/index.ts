@@ -40,6 +40,9 @@ export interface AttemptRecord {
   fast: boolean;
   responseMs: number;
   answeredAt: number;
+  /** Client-supplied idempotency key for the round (optional — older clients
+   *  and internal writers omit it). See `recordAnswer`. */
+  attemptId?: string | null;
 }
 
 /** A multiplayer race: a short seeded deck every racer plays (MULTIPLAYER.md).
@@ -94,6 +97,11 @@ export interface Db {
     onlyIfBelow: number,
   ): Promise<boolean>;
   deleteAuthSession(token: string): Promise<void>;
+  /** Revoke every session on an account except `exceptToken` (pass null to
+   *  revoke all). This is what makes a password change able to evict a stolen
+   *  or shared session — without it a live cookie slides forward forever.
+   *  Returns the number revoked. */
+  deleteAuthSessionsForAccount(accountId: string, exceptToken: string | null): Promise<number>;
   /** Delete auth sessions that expired at/before `now`; returns the count. */
   deleteExpiredAuthSessions(now: number): Promise<number>;
   /** Delete guest accounts with no unexpired auth session — their cookie is
@@ -104,6 +112,9 @@ export interface Db {
   getAccountTimezone(accountId: string): Promise<string | null>;
   /** Account fields a parent can view/edit (no password hash). */
   getAccount(accountId: string): Promise<{ email: string; timezone: string } | null>;
+  /** The stored hash, for re-authenticating a sensitive change (password/email
+   *  edit, account deletion). Null for an account with no password (a guest). */
+  getAccountPasswordHash(accountId: string): Promise<string | null>;
   updateAccountEmail(accountId: string, email: string): Promise<void>;
   updateAccountPassword(accountId: string, passwordHash: string): Promise<void>;
   updateAccountTimezone(accountId: string, timezone: string): Promise<void>;
@@ -195,7 +206,11 @@ export interface Db {
    *  attempt-log row, and the (optional) working-state rewrite — one
    *  transaction instead of 4-5 separate commits/round-trips on the hottest
    *  path, and a crash can't persist progress without its attempt row. */
-  recordAnswer(w: AnswerWrite): Promise<void>;
+  /** Apply one graded answer atomically. If the attempt carries an `attemptId`
+   *  already present for that session, nothing is written and this returns
+   *  false — a replayed report (its response was lost, not its effect) must not
+   *  advance the schedule a second time. */
+  recordAnswer(w: AnswerWrite): Promise<boolean>;
   listSessionAttempts(sessionId: string): Promise<AttemptRecord[]>;
   /** All of a profile's attempts at/after `since` (epoch ms), oldest first —
    *  backs the dashboard trends (DESIGN.md §7). */

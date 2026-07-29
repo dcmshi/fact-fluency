@@ -6,6 +6,7 @@ import type { CalibrationAnswer, CalibrationQuestion } from '@shared';
 import { tLabel } from '../i18n';
 import { api, qk } from '../api';
 import { OP_SYMBOL } from '../ops';
+import { activeNow } from '../timing';
 import './CalibratePage.css';
 
 type Phase = 'grade' | 'probe' | 'placing';
@@ -36,7 +37,7 @@ export function CalibratePage() {
 
   // Stamp when each question appears, to measure recognition time on tap.
   useEffect(() => {
-    if (phase === 'probe') shownAt.current = performance.now();
+    if (phase === 'probe') shownAt.current = activeNow();
   }, [phase, index]);
 
   useEffect(() => () => window.clearTimeout(advanceTimer.current ?? undefined), []);
@@ -64,7 +65,7 @@ export function CalibratePage() {
     answersRef.current.push({
       factId: q.fact.id,
       given: value,
-      responseMs: performance.now() - shownAt.current,
+      responseMs: activeNow() - shownAt.current,
     });
     advanceTimer.current = window.setTimeout(async () => {
       setPicked(null);

@@ -18,6 +18,11 @@ export const es: typeof en = {
   },
   errors: {
     generic: 'Algo salió mal. Inténtalo de nuevo.',
+    passwordRequired: 'Introduce tu contraseña actual para hacer este cambio.',
+    wrongPassword: 'Esa contraseña no es correcta.',
+    crashTitle: 'Vaya, eso no cargó',
+    crashHint: 'Vamos a intentarlo otra vez.',
+    reload: 'Recargar',
     save: 'No se pudo guardar. Inténtalo de nuevo.',
     invalidEmail: 'Ese correo no parece válido.',
     weakPassword: 'La contraseña necesita al menos 8 caracteres.',
@@ -173,6 +178,9 @@ export const es: typeof en = {
     join: 'Unirse',
     roomTitle: 'Sala de carrera',
     wsError: 'No se pudo conectar para jugar en vivo: mejor compite contra el robot.',
+    wsLost: 'Se perdió la conexión',
+    wsLostHint: 'La carrera en vivo se detuvo. Puedes competir contra el robot.',
+    inProgress: 'Esa carrera ya empezó: pide la revancha o compite contra el robot.',
     roomHint:
       'Abre esta carrera en otro dispositivo (misma cuenta) para competir con un hermano en vivo.',
     youWord: 'tú',
@@ -307,6 +315,8 @@ export const es: typeof en = {
     saved: 'Guardado ✓',
     newPassword: 'Nueva contraseña',
     passwordPlaceholder: 'Déjalo en blanco para mantener la actual',
+    currentPassword: 'Contraseña actual',
+    currentPasswordHint: 'Necesaria para cambiar tu correo o contraseña.',
     timezone: 'Zona horaria',
     timezoneHint: 'La programación de repasos usa esta zona.',
     saveChanges: 'Guardar cambios',
@@ -396,6 +406,7 @@ export const es: typeof en = {
     factChanged: '¡Nueva operación!',
     noFacts: 'Pídele a un adulto que elija algunos grupos de operaciones primero.',
     wsError: 'Se perdió la conexión. Vuelve e inténtalo de nuevo.',
+    wsLost: 'La arena se quedó en silencio: se cortó la conexión. Vuelve e inténtalo de nuevo.',
   },
   strategy: {
     addZero: 'Sumar 0 no cambia nada: sigue siendo {{answer}}.',

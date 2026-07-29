@@ -59,6 +59,7 @@ export interface AttemptRow {
   fast: number;
   response_ms: number;
   answered_at: number;
+  attempt_id?: string | null;
 }
 
 /** Profile columns joined with the (optional) reward row, defaulted. */
@@ -129,6 +130,7 @@ export function toAttempt(r: AttemptRow): AttemptRecord {
     fast: !!r.fast,
     responseMs: r.response_ms,
     answeredAt: Number(r.answered_at),
+    attemptId: r.attempt_id ?? null,
   };
 }
 

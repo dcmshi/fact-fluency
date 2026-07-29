@@ -30,6 +30,10 @@ export function accountErrorText(t: TFunction, code: string): string {
       return t('errors.emailInUse');
     case 'invalid_timezone':
       return t('errors.invalidTimezone');
+    case 'password_required':
+      return t('errors.passwordRequired');
+    case 'invalid_credentials':
+      return t('errors.wrongPassword');
     default:
       return t('errors.save');
   }

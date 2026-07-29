@@ -148,6 +148,17 @@ export class SqliteDb implements Db {
     this.db.prepare('DELETE FROM auth_session WHERE token = ?').run(token);
   }
 
+  async deleteAuthSessionsForAccount(
+    accountId: string,
+    exceptToken: string | null,
+  ): Promise<number> {
+    return exceptToken == null
+      ? this.db.prepare('DELETE FROM auth_session WHERE account_id = ?').run(accountId).changes
+      : this.db
+          .prepare('DELETE FROM auth_session WHERE account_id = ? AND token != ?')
+          .run(accountId, exceptToken).changes;
+  }
+
   async deleteExpiredAuthSessions(now: number): Promise<number> {
     return this.db.prepare('DELETE FROM auth_session WHERE expires_at <= ?').run(now).changes;
   }
@@ -174,6 +185,13 @@ export class SqliteDb implements Db {
       .prepare('SELECT email, timezone FROM account WHERE id = ?')
       .get(accountId) as { email: string; timezone: string } | undefined;
     return row ?? null;
+  }
+
+  async getAccountPasswordHash(accountId: string): Promise<string | null> {
+    const row = this.db.prepare('SELECT password_hash FROM account WHERE id = ?').get(accountId) as
+      | { password_hash: string | null }
+      | undefined;
+    return row?.password_hash ?? null;
   }
 
   async updateAccountEmail(accountId: string, email: string): Promise<void> {
@@ -555,20 +573,38 @@ export class SqliteDb implements Db {
   private runAppendAttempt(a: AttemptRecord): void {
     this.db
       .prepare(
-        `INSERT INTO attempt (id, session_id, profile_id, fact_id, given, correct, fast, response_ms, answered_at)
-         VALUES (@id, @sessionId, @profileId, @factId, @given, @correct, @fast, @responseMs, @answeredAt)`,
+        `INSERT INTO attempt (id, session_id, profile_id, fact_id, given, correct, fast, response_ms, answered_at, attempt_id)
+         VALUES (@id, @sessionId, @profileId, @factId, @given, @correct, @fast, @responseMs, @answeredAt, @attemptId)`,
       )
-      .run({ ...a, correct: a.correct ? 1 : 0, fast: a.fast ? 1 : 0 });
+      .run({
+        ...a,
+        correct: a.correct ? 1 : 0,
+        fast: a.fast ? 1 : 0,
+        attemptId: a.attemptId ?? null,
+      });
+  }
+
+  /** Has this round already been recorded? (idempotency key, see recordAnswer) */
+  private alreadyRecorded(a: AttemptRecord): boolean {
+    if (!a.attemptId) return false;
+    return (
+      this.db
+        .prepare('SELECT 1 FROM attempt WHERE session_id = ? AND attempt_id = ? LIMIT 1')
+        .get(a.sessionId, a.attemptId) !== undefined
+    );
   }
 
   async appendAttempt(a: AttemptRecord): Promise<void> {
     this.runAppendAttempt(a);
   }
 
-  async recordAnswer(w: AnswerWrite): Promise<void> {
+  async recordAnswer(w: AnswerWrite): Promise<boolean> {
     // One transaction for the whole per-answer write set — a single WAL commit
     // instead of 4-5, and progress can never persist without its attempt row.
+    // The dedupe check lives inside it, so a replay can't slip past between the
+    // check and the write.
     const tx = this.db.transaction(() => {
+      if (this.alreadyRecorded(w.attempt)) return false;
       this.runUpsertProgress(w.progress);
       if (w.stat) this.runUpsertOperationStat(w.stat);
       if (w.siblingProgress) this.runUpsertProgress(w.siblingProgress);
@@ -578,8 +614,9 @@ export class SqliteDb implements Db {
           .prepare('UPDATE session SET working_state = ? WHERE id = ?')
           .run(w.workingState.json, w.workingState.sessionId);
       }
+      return true;
     });
-    tx();
+    return tx();
   }
 
   async listSessionAttempts(sessionId: string): Promise<AttemptRecord[]> {

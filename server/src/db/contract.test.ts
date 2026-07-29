@@ -74,6 +74,34 @@ function describeDbContract(name: string, makeDb: () => Promise<Db>) {
       expect(await db.slideAuthSession('dead', now, now + TTL, now + TTL - DAY)).toBe(false);
     });
 
+    it('revokes an account’s other sessions, keeping the caller’s', async () => {
+      const id = await db.createAccount('revoke@x.co', 'hash', 'UTC');
+      const other = await db.createAccount('bystander@x.co', 'hash', 'UTC');
+      const soon = Date.now() + 60_000;
+      await db.createAuthSession(id, 'mine', soon);
+      await db.createAuthSession(id, 'stolen', soon);
+      await db.createAuthSession(id, 'also-stolen', soon);
+      await db.createAuthSession(other, 'untouched', soon);
+
+      // This is what makes a password change able to evict a live cookie.
+      expect(await db.deleteAuthSessionsForAccount(id, 'mine')).toBe(2);
+      expect(await db.findAccountIdByToken('mine')).toBe(id);
+      expect(await db.findAccountIdByToken('stolen')).toBeNull();
+      expect(await db.findAccountIdByToken('also-stolen')).toBeNull();
+      // Never reaches past the account it was called for.
+      expect(await db.findAccountIdByToken('untouched')).toBe(other);
+
+      // null = revoke everything (sign out all devices).
+      expect(await db.deleteAuthSessionsForAccount(id, null)).toBe(1);
+      expect(await db.findAccountIdByToken('mine')).toBeNull();
+    });
+
+    it('reads back a password hash for re-authentication', async () => {
+      const id = await db.createAccount('hash@x.co', 'stored-hash', 'UTC');
+      expect(await db.getAccountPasswordHash(id)).toBe('stored-hash');
+      expect(await db.getAccountPasswordHash('nope')).toBeNull();
+    });
+
     it('serves equipped muncher/effect defaults and updates', async () => {
       const { profile } = await seedProfile();
       expect(await db.getEquippedMuncher(profile.id)).toBe('cat');
@@ -98,6 +126,58 @@ function describeDbContract(name: string, makeDb: () => Promise<Db>) {
       expect(await db.completeSessionAndAward('s1', 11, profile.id, 7)).toBe(false);
       expect((await db.getSession('s1'))?.completedAt).toBe(9);
       expect((await db.getProfileReward(profile.id)).coins).toBe(7);
+    });
+
+    it('records a graded answer once per attemptId (replay is a no-op)', async () => {
+      const { profile } = await seedProfile();
+      await db.createSession({
+        id: 's-idem',
+        profileId: profile.id,
+        startedAt: 1,
+        completedAt: null,
+        plannedCount: 3,
+        workingState: '{}',
+      });
+      const write = (id: string, attemptId: string | null, reps: number) => ({
+        progress: {
+          profileId: profile.id,
+          factId: 'add:1+1',
+          box: 1 as const,
+          state: 'review' as const,
+          dueAt: 100,
+          lastSeenAt: 10,
+          reps,
+          fastCorrect: reps,
+          correctStreak: reps,
+          accuracyEwma: 1,
+          medianMsEwma: 900,
+        },
+        attempt: {
+          id,
+          sessionId: 's-idem',
+          profileId: profile.id,
+          factId: 'add:1+1',
+          given: 0,
+          correct: true,
+          fast: true,
+          responseMs: 900,
+          answeredAt: 20,
+          attemptId,
+        },
+      });
+
+      expect(await db.recordAnswer(write('a1', 'round-7', 1))).toBe(true);
+      // The replay carries the same key: a report whose response was lost, not
+      // a second answer. It must not append again or advance the schedule.
+      expect(await db.recordAnswer(write('a2', 'round-7', 2))).toBe(false);
+      expect(await db.listSessionAttempts('s-idem')).toHaveLength(1);
+      expect((await db.getProgressForFact(profile.id, 'add:1+1'))?.reps).toBe(1);
+
+      // A different round still writes, and a keyless write is never deduped.
+      expect(await db.recordAnswer(write('a3', 'round-8', 2))).toBe(true);
+      expect(await db.recordAnswer(write('a4', null, 3))).toBe(true);
+      expect(await db.recordAnswer(write('a5', null, 4))).toBe(true);
+      expect(await db.listSessionAttempts('s-idem')).toHaveLength(4);
     });
 
     it('scopes the caught-up counts to a fact-id filter', async () => {

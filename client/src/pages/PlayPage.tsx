@@ -12,7 +12,8 @@ import { onInteractive } from '../keys';
 import { OP_CLASS, OP_SYMBOL } from '../ops';
 import { isMuted, playComplete, playCorrect, playFast, playWrong, setMuted } from '../sound';
 import { speak, speechAvailable, stopSpeaking } from '../speech';
-import { enqueueAnswer, flushAnswers, markPendingComplete } from '../syncQueue';
+import { enqueueAnswer, flushAnswers, markPendingComplete, newAttemptId } from '../syncQueue';
+import { activeNow } from '../timing';
 import { useTheme } from '../useTheme';
 import './PlayPage.css';
 
@@ -130,8 +131,9 @@ export function PlayPage() {
     async (nextQueue: Card[]) => {
       const s = sessionRef.current;
       // Soft time cap (§4.4): once the budget is spent, wrap up between rounds.
-      const timeUp =
-        s != null && performance.now() - sessionStart.current >= s.sessionSeconds * 1000;
+      // Time the app spent backgrounded isn't time the kid spent practising, so
+      // stepping away mid-session mustn't end it on the very next card.
+      const timeUp = s != null && activeNow() - sessionStart.current >= s.sessionSeconds * 1000;
       if (nextQueue.length === 0 || timeUp) {
         const sid = sessionRef.current!.sessionId;
         try {
@@ -191,7 +193,7 @@ export function PlayPage() {
     try {
       const s = await api.startSession(profileId);
       sessionRef.current = s;
-      sessionStart.current = performance.now();
+      sessionStart.current = activeNow();
       setSession(s);
       await goNext(s.deck);
     } catch (e) {
@@ -229,6 +231,11 @@ export function PlayPage() {
         correct: r.correct,
         responseMs: r.responseMs,
         wrongMunches: r.wrongMunches,
+        // Stable for this round, so the live POST and any queued replay of it
+        // are the *same* attempt to the server. A report whose response was
+        // lost gets re-queued below; without this it would be graded twice and
+        // advance the fact's schedule on a single answer.
+        attemptId: newAttemptId(),
       };
       // §4.7: the session ships per-op thresholds precisely so fast/slow
       // feedback renders instantly — no waiting on the answer round trip, and

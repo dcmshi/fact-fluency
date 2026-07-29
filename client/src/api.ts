@@ -62,9 +62,16 @@ export const api = {
   upgrade: (email: string, password: string) =>
     req<{ accountId: string; email: string }>('POST', '/auth/upgrade', { email, password }),
   account: () => req<{ email: string; timezone: string }>('GET', '/auth/account'),
-  updateAccount: (fields: { email?: string; password?: string; timezone?: string }) =>
-    req<{ email: string; timezone: string }>('PATCH', '/auth/account', fields),
-  deleteAccount: () => req<void>('DELETE', '/auth/account'),
+  // `currentPassword` re-authenticates an email/password change or a deletion —
+  // the server refuses those on a cookie alone (a shared device isn't proof).
+  updateAccount: (fields: {
+    email?: string;
+    password?: string;
+    timezone?: string;
+    currentPassword?: string;
+  }) => req<{ email: string; timezone: string }>('PATCH', '/auth/account', fields),
+  deleteAccount: (currentPassword?: string) =>
+    req<void>('DELETE', '/auth/account', currentPassword ? { currentPassword } : undefined),
   logout: () => req<void>('POST', '/auth/logout'),
 
   // catalog (public)

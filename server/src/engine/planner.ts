@@ -91,8 +91,11 @@ function interleave(review: Card[], fresh: Card[]): Card[] {
   if (fresh.length === 0) return [...review];
   if (review.length === 0) return [...fresh];
 
-  const total = review.length + fresh.length;
-  const gap = Math.max(1, Math.floor(total / fresh.length));
+  // Reviews *per* fresh card — `sinceFresh` below counts review cards, so this
+  // has to be measured in the same unit. Dividing the total deck instead let the
+  // review pool drain faster than the fresh one, and the leftover new facts
+  // clustered at the tail (the exact thing this function exists to prevent).
+  const gap = Math.max(1, Math.floor(review.length / fresh.length));
   const out: Card[] = [];
   let ri = 0;
   let fi = 0;

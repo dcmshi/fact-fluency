@@ -15,7 +15,7 @@ interface AuthState {
   /** Attach real credentials to the current guest account (keeps its progress). */
   upgradeGuest: (email: string, password: string) => Promise<void>;
   /** Permanently delete the account and all its data (right-to-erasure). */
-  deleteAccount: () => Promise<void>;
+  deleteAccount: (currentPassword?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const deleteAccountMut = useMutation({
-    mutationFn: () => api.deleteAccount(),
+    mutationFn: (currentPassword?: string) => api.deleteAccount(currentPassword),
     onSuccess: () => {
       queryClient.clear();
       queryClient.setQueryData(qk.me, null);
@@ -112,8 +112,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       upgradeGuest: async (email, password) => {
         await upgradeMut.mutateAsync({ email, password });
       },
-      deleteAccount: async () => {
-        await deleteAccountMut.mutateAsync();
+      deleteAccount: async (currentPassword?: string) => {
+        await deleteAccountMut.mutateAsync(currentPassword);
       },
       logout: async () => {
         await logoutMut.mutateAsync();

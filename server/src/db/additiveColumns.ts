@@ -18,4 +18,11 @@ export const ADDITIVE_COLUMNS: {
     sqliteDecl: 'INTEGER NOT NULL DEFAULT 0',
     pgDecl: 'SMALLINT NOT NULL DEFAULT 0',
   },
+  {
+    // Idempotency key so a replayed answer report can't double-append.
+    table: 'attempt',
+    column: 'attempt_id',
+    sqliteDecl: 'TEXT',
+    pgDecl: 'TEXT',
+  },
 ];

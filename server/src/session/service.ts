@@ -44,6 +44,13 @@ const REHEARSAL_GAP = 3;
  *  capped before it feeds stats — see `answer()`. */
 const MAX_RESPONSE_MS = 60_000;
 
+/** Lower bound on a reported response time (ms). Reading a fact, deciding, and
+ *  tapping is never this quick — simple-reaction time alone is ~200ms — so a
+ *  smaller value means a replayed/scripted POST, not a fluent kid. Floored
+ *  rather than rejected: an honest client with a sloppy clock still gets its
+ *  answer counted, just not as evidence of speed. */
+const MIN_RESPONSE_MS = 250;
+
 /** Hard ceiling on presentations in one session (DESIGN.md §10): past it the
  *  server stops emitting in-session re-shows, so a miss-loop can't grind on
  *  forever — the demoted box schedule takes over. */
@@ -319,12 +326,16 @@ export async function answer(
     throw new HttpError(400, 'invalid_answer');
   }
   // Clamp the client-reported latency before it feeds the per-op median EWMA
-  // (DESIGN.md §4.5). A buggy/hostile client sending a huge value shouldn't be
-  // able to skew the fluency threshold; the server is the source of truth.
+  // (DESIGN.md §4.5). A buggy/hostile client shouldn't be able to skew the
+  // fluency threshold in either direction: a huge value would inflate it, and a
+  // ~0ms one (a replayed POST, not a kid) would drag it to the floor and mark
+  // every fact fluent. The server is the source of truth.
   // Round to an integer too: the attempt.response_ms column is INTEGER, and
   // Postgres (unlike SQLite) rejects a fractional value — which would 500
   // *after* progress already wrote.
-  const responseMs = Math.round(Math.min(body.responseMs, MAX_RESPONSE_MS));
+  const responseMs = Math.round(
+    Math.min(Math.max(body.responseMs, MIN_RESPONSE_MS), MAX_RESPONSE_MS),
+  );
 
   const session = await db.getSession(sessionId);
   if (!session) throw new HttpError(404, 'session_not_found');
@@ -426,6 +437,9 @@ export async function answer(
       fast: result.fast,
       responseMs,
       answeredAt: now,
+      // Idempotency key for this round, so a report the client re-queued after
+      // losing our response doesn't get graded twice.
+      attemptId: typeof body.attemptId === 'string' ? body.attemptId.slice(0, 64) : null,
     },
     workingState: learningChanged ? { sessionId, json: JSON.stringify(ws) } : undefined,
   });

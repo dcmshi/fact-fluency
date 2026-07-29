@@ -19,6 +19,11 @@ export const en = {
   },
   errors: {
     generic: 'Something went wrong. Try again.',
+    passwordRequired: 'Enter your current password to make this change.',
+    wrongPassword: 'That password isn’t right.',
+    crashTitle: 'Oops — that didn’t load',
+    crashHint: 'Let’s try that again.',
+    reload: 'Reload',
     save: 'Couldn’t save — try again.',
     invalidEmail: 'That email doesn’t look right.',
     weakPassword: 'Password needs at least 8 characters.',
@@ -172,6 +177,9 @@ export const en = {
     join: 'Join',
     roomTitle: 'Race lobby',
     wsError: 'Couldn’t connect for live play — race the bot instead.',
+    wsLost: 'Lost the connection',
+    wsLostHint: 'The live race stopped. You can race the bot instead.',
+    inProgress: 'That race already started — ask them for a rematch, or race the bot.',
     roomHint: 'Open this race on another device (same account) to race a sibling live.',
     youWord: 'you',
     imReady: 'I’m ready!',
@@ -303,6 +311,8 @@ export const en = {
     saved: 'Saved ✓',
     newPassword: 'New password',
     passwordPlaceholder: 'Leave blank to keep current',
+    currentPassword: 'Current password',
+    currentPasswordHint: 'Needed to change your email or password.',
     timezone: 'Timezone',
     timezoneHint: 'Review scheduling uses this zone.',
     saveChanges: 'Save changes',
@@ -391,6 +401,7 @@ export const en = {
     factChanged: 'New fact!',
     noFacts: 'Ask a grown-up to pick some fact sets first.',
     wsError: 'Lost connection. Head back and try again.',
+    wsLost: 'The arena went quiet — the connection dropped. Head back and try again.',
   },
   // Derivation strategies shown on the study card — server emits the key + params
   // (server/src/engine/facts.ts), the client renders them.

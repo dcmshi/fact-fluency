@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Fact, MunchBoard as Board, MunchRelation } from '@shared';
 import { onInteractive } from '../keys';
 import { OP_SYMBOL } from '../ops';
+import { activeNow } from '../timing';
 import { CelebrationBurst } from './CelebrationBurst';
 import { Muncher, type MuncherState } from './Muncher';
 import './MunchBoard.css';
@@ -106,7 +107,7 @@ export function MunchBoard({
       window.setTimeout(() => setMuncherState('idle'), correct ? 900 : 800),
     ];
   }, []);
-  const startRef = useRef(performance.now());
+  const startRef = useRef(activeNow());
   const firstCorrectRef = useRef<number | null>(null);
   const wrongRef = useRef(0);
   const doneRef = useRef(false);
@@ -138,7 +139,7 @@ export function MunchBoard({
 
       if (isCorrect) {
         if (firstCorrectRef.current == null) {
-          firstCorrectRef.current = Math.round(performance.now() - startRef.current);
+          firstCorrectRef.current = Math.round(activeNow() - startRef.current);
         }
       } else {
         wrongRef.current += 1;
@@ -170,8 +171,7 @@ export function MunchBoard({
 
       if ([...correctIdx].every((i) => eatenRef.current.has(i))) {
         doneRef.current = true;
-        const responseMs =
-          firstCorrectRef.current ?? Math.round(performance.now() - startRef.current);
+        const responseMs = firstCorrectRef.current ?? Math.round(activeNow() - startRef.current);
         timers.current.push(
           window.setTimeout(
             () =>

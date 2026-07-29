@@ -191,7 +191,9 @@ describe('auth', () => {
     await agent.post('/api/auth/signup').send(CREDS);
     await agent.post('/api/profiles').send({ displayName: 'Kid', avatar: '🦊' });
 
-    expect((await agent.delete('/api/auth/account')).status).toBe(204);
+    expect(
+      (await agent.delete('/api/auth/account').send({ currentPassword: CREDS.password })).status,
+    ).toBe(204);
     // Session is gone (cookie cleared + auth_session cascaded).
     expect((await agent.get('/api/auth/me')).status).toBe(401);
     // The email is free again — the account row (and its profiles) are gone.
@@ -213,9 +215,12 @@ describe('auth', () => {
     const acct = await agent.get('/api/auth/account');
     expect(acct.body).toEqual({ email: CREDS.email, timezone: CREDS.timezone });
 
-    const patched = await agent
-      .patch('/api/auth/account')
-      .send({ email: 'new@home.test', timezone: 'UTC', password: 'newpassword1' });
+    const patched = await agent.patch('/api/auth/account').send({
+      email: 'new@home.test',
+      timezone: 'UTC',
+      password: 'newpassword1',
+      currentPassword: CREDS.password,
+    });
     expect(patched.status).toBe(200);
     expect(patched.body).toEqual({ email: 'new@home.test', timezone: 'UTC' });
 
@@ -234,6 +239,54 @@ describe('auth', () => {
     ).toBe(401);
   });
 
+  it('requires the current password to change credentials or delete the account', async () => {
+    const agent = request.agent(app);
+    await agent.post('/api/auth/signup').send(CREDS);
+
+    // Whoever is holding the device isn't necessarily the parent — a cookie
+    // alone must not be enough to take the account over or erase every kid's
+    // data. Timezone stays freely editable (it isn't a credential).
+    const noProof = await agent.patch('/api/auth/account').send({ password: 'newpassword1' });
+    expect(noProof.status).toBe(403);
+    expect(noProof.body.error).toBe('password_required');
+
+    const wrong = await agent
+      .patch('/api/auth/account')
+      .send({ password: 'newpassword1', currentPassword: 'not-it' });
+    expect(wrong.status).toBe(403);
+    expect(wrong.body.error).toBe('invalid_credentials');
+
+    expect((await agent.delete('/api/auth/account')).status).toBe(403);
+    expect((await agent.patch('/api/auth/account').send({ timezone: 'UTC' })).status).toBe(200);
+
+    // The old password still works, i.e. none of the above took effect.
+    const ok = await agent
+      .patch('/api/auth/account')
+      .send({ password: 'newpassword1', currentPassword: CREDS.password });
+    expect(ok.status).toBe(200);
+  });
+
+  it('a password change signs other devices out', async () => {
+    const parent = request.agent(app);
+    await parent.post('/api/auth/signup').send(CREDS);
+    // A second session on the same account — the shared family laptop, or
+    // someone who walked off with a live cookie.
+    const other = request.agent(app);
+    await other.post('/api/auth/login').send({ email: CREDS.email, password: CREDS.password });
+    expect((await other.get('/api/auth/me')).status).toBe(200);
+
+    const changed = await parent
+      .patch('/api/auth/account')
+      .send({ password: 'newpassword1', currentPassword: CREDS.password });
+    expect(changed.status).toBe(200);
+
+    // Changing the password is how you evict someone; without revocation their
+    // session slid forward on every use and stayed valid indefinitely.
+    expect((await other.get('/api/auth/me')).status).toBe(401);
+    // ...but the session that made the change keeps working.
+    expect((await parent.get('/api/auth/me')).status).toBe(200);
+  });
+
   it('rejects an account edit to a taken email and a weak password', async () => {
     const a = request.agent(app);
     await a.post('/api/auth/signup').send(CREDS);
@@ -241,12 +294,23 @@ describe('auth', () => {
     await b.post('/api/auth/signup').send({ ...CREDS, email: 'b@home.test' });
 
     // b tries to take a's email.
-    expect((await b.patch('/api/auth/account').send({ email: CREDS.email })).body.error).toBe(
-      'email_taken',
-    );
+    expect(
+      (
+        await b
+          .patch('/api/auth/account')
+          .send({ email: CREDS.email, currentPassword: CREDS.password })
+      ).body.error,
+    ).toBe('email_taken');
+    // Shape validation runs before re-auth, so a weak password still 400s.
     expect((await b.patch('/api/auth/account').send({ password: 'short' })).status).toBe(400);
     // Editing to your own email is fine (no false conflict).
-    expect((await b.patch('/api/auth/account').send({ email: 'b@home.test' })).status).toBe(200);
+    expect(
+      (
+        await b
+          .patch('/api/auth/account')
+          .send({ email: 'b@home.test', currentPassword: CREDS.password })
+      ).status,
+    ).toBe(200);
     expect((await request(app).get('/api/auth/account')).status).toBe(401); // unauth
   });
 
@@ -479,6 +543,44 @@ describe('profiles', () => {
     expect(
       (await agent.post(`/api/profiles/${pid}/races/${raceId}/run`).send({ totalMs: 'x' })).status,
     ).toBe(400);
+  });
+
+  it('cannot be farmed: forged times are floored and coins are awarded once', async () => {
+    const agent = await authed();
+    const pid = (await agent.post('/api/profiles').send({ displayName: 'Racer', avatar: '🦊' }))
+      .body.profile.id;
+    const { raceId, deck } = (await agent.post(`/api/profiles/${pid}/races`)).body;
+    const coins = async () =>
+      (await agent.get('/api/profiles')).body.profiles.find((p: { id: string }) => p.id === pid)
+        .coins;
+
+    // The round count has to match the race it claims to be a run of.
+    expect(
+      (
+        await agent
+          .post(`/api/profiles/${pid}/races/${raceId}/run`)
+          .send({ perRoundMs: [500], totalMs: 500, correctCount: 1 })
+      ).status,
+    ).toBe(400);
+
+    // An instant sweep is physically impossible — the server rebuilds totalMs
+    // from floored rounds rather than believing the client's 0.
+    const forged = await agent
+      .post(`/api/profiles/${pid}/races/${raceId}/run`)
+      .send({ perRoundMs: deck.map(() => 0), totalMs: 0, correctCount: deck.length });
+    expect(forged.status).toBe(200);
+    const mine = forged.body.standings.find((s: { isYou: boolean }) => s.isYou);
+    expect(mine.totalMs).toBeGreaterThanOrEqual(250 * deck.length);
+
+    // Re-submitting the same race must not pay out again (it was a farm loop:
+    // addCoins fired on every submission).
+    const afterFirst = await coins();
+    const repeat = await agent
+      .post(`/api/profiles/${pid}/races/${raceId}/run`)
+      .send({ perRoundMs: deck.map(() => 900), totalMs: deck.length * 900, correctCount: 1 });
+    expect(repeat.status).toBe(200);
+    expect(repeat.body.coinsEarned).toBe(0);
+    expect(await coins()).toBe(afterFirst);
   });
 
   it('validates profile creation input', async () => {

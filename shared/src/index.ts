@@ -264,6 +264,11 @@ export interface AnswerRequest {
   responseMs: number;
   /** Optional: wrong munches this round (logged for tuning; not used in grading). */
   wrongMunches?: number;
+  /** Client-generated id for *this round*, stable across retries. A report that
+   *  reached the server but whose response was lost gets re-queued and replayed;
+   *  without an idempotency key the same attempt lands in the append-only log
+   *  twice and advances the fact's schedule on one answer. */
+  attemptId?: string;
 }
 
 /** Splice a re-show `afterOffset` cards later in the client's deck (§4.9). */

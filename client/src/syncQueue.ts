@@ -51,6 +51,18 @@ export function enqueueAnswer(sessionId: string, body: AnswerRequest): void {
   write(ANS_KEY, [...read<PendingAnswer>(ANS_KEY), { sessionId, body }]);
 }
 
+/**
+ * An id for one round, carried on the report and reused verbatim by any replay.
+ * A failed POST is indistinguishable from one the server committed before the
+ * response was lost, so the queue *must* assume the write may have landed; the
+ * server dedupes on this key rather than appending the attempt twice.
+ */
+export function newAttemptId(): string {
+  return crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export function markPendingComplete(sessionId: string): void {
   const ids = read<string>(DONE_KEY);
   if (!ids.includes(sessionId)) write(DONE_KEY, [...ids, sessionId]);

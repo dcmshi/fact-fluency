@@ -52,6 +52,27 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
   // account costs the same argon2 time as a wrong password (no timing oracle).
   const dummyHash = hashPassword('timing-equalizer-not-a-real-password');
 
+  /**
+   * Re-authenticate before a change that could lock the parent out or destroy
+   * every kid's record. A live cookie is not proof of identity here: the device
+   * is shared with children and left unlocked. Guests have no password, so
+   * there's nothing to prove — they're exempt (and credential edits on a guest
+   * are refused outright; /auth/upgrade is that path).
+   *
+   * Returns an error code to send, or null when the caller may proceed.
+   */
+  async function reauthFailure(
+    accountId: string,
+    currentPassword: unknown,
+  ): Promise<'password_required' | 'invalid_credentials' | null> {
+    const hash = await db.getAccountPasswordHash(accountId);
+    if (!hash) return null; // guest / passwordless account
+    if (typeof currentPassword !== 'string' || currentPassword.length === 0) {
+      return 'password_required';
+    }
+    return (await verifyPassword(hash, currentPassword)) ? null : 'invalid_credentials';
+  }
+
   // The email-uniqueness checks below are check-then-write: two concurrent
   // requests claiming the same email can both pass the check, and the loser
   // dies on the DB unique constraint. Map that write failure back to the
@@ -215,6 +236,13 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
         return res.status(409).json({ error: 'guest_account' });
       }
 
+      // Changing credentials means proving you own them. Timezone alone is not
+      // sensitive, so it stays a one-tap fix for the wrong-schedule trap.
+      if (editsEmail || editsPassword) {
+        const failure = await reauthFailure(req.accountId!, body.currentPassword);
+        if (failure) return res.status(403).json({ error: failure });
+      }
+
       if (editsEmail) {
         const normEmail = normalizeEmail(email);
         const existing = await db.findAccountByEmail(normEmail);
@@ -229,6 +257,11 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
       }
       if (editsPassword) {
         await db.updateAccountPassword(req.accountId!, await hashPassword(password));
+        // Changing the password is how a parent evicts a session they no longer
+        // trust. Sessions slide forward on use, so without this an old cookie
+        // would stay valid indefinitely and the change would achieve nothing.
+        const keep = (req.cookies?.[COOKIE_NAME] as string | undefined) ?? null;
+        await db.deleteAuthSessionsForAccount(req.accountId!, keep);
       }
       if (editsTimezone) {
         await db.updateAccountTimezone(req.accountId!, timezone);
@@ -242,7 +275,12 @@ export function createAuthRouter(db: Db, isProd: boolean): Router {
   router.delete(
     '/account',
     requireAuth,
+    accountLimit,
     handle(async (req, res) => {
+      // Irreversible and takes every kid's history with it — prove it's you.
+      // (A guest has no password: their "exit and delete" path is unaffected.)
+      const failure = await reauthFailure(req.accountId!, req.body?.currentPassword);
+      if (failure) return res.status(403).json({ error: failure });
       await db.deleteAccount(req.accountId!);
       clearSessionCookie(res, isProd);
       return res.status(204).end();

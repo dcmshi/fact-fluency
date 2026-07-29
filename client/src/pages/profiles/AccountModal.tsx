@@ -23,9 +23,11 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState('');
   const [timezone, setTimezone] = useState('');
   const [password, setPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const { data: account } = useQuery({ queryKey: qk.account, queryFn: () => api.account() });
   useEffect(() => {
@@ -35,13 +37,23 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
     }
   }, [account]);
 
+  // Changing the email or password needs the current one; a timezone-only fix
+  // doesn't (it's the wrong-schedule trap, and no use to an attacker).
+  const changesCredentials = Boolean(password) || email.trim() !== (account?.email ?? '');
+
   const saveMut = useMutation({
     mutationFn: () =>
-      api.updateAccount({ email: email.trim(), timezone, ...(password ? { password } : {}) }),
+      api.updateAccount({
+        email: email.trim(),
+        timezone,
+        ...(password ? { password } : {}),
+        ...(changesCredentials ? { currentPassword } : {}),
+      }),
     onSuccess: (r) => {
       setSaved(true);
       setError(null);
       setPassword('');
+      setCurrentPassword('');
       setEmail(r.email);
       setTimezone(r.timezone);
     },
@@ -50,7 +62,10 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
       setError(accountErrorText(t, e instanceof ApiError ? e.code : ''));
     },
   });
-  const deleteMut = useMutation({ mutationFn: () => deleteAccount() });
+  const deleteMut = useMutation({
+    mutationFn: () => deleteAccount(currentPassword),
+    onError: (e) => setDeleteError(accountErrorText(t, e instanceof ApiError ? e.code : '')),
+  });
   // On delete success the auth state flips to logged-out and this page unmounts.
 
   function save(e: React.FormEvent) {
@@ -92,6 +107,22 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
+        {changesCredentials && (
+          <div className="field">
+            <label htmlFor="acct-current">{t('modals.currentPassword')}</label>
+            <input
+              id="acct-current"
+              type="password"
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+            />
+            <span className="muted" style={{ fontSize: '0.8rem' }}>
+              {t('modals.currentPasswordHint')}
+            </span>
+          </div>
+        )}
         <div className="field">
           <label htmlFor="acct-tz">{t('modals.timezone')}</label>
           {TIMEZONES.length ? (
@@ -118,7 +149,9 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
       </form>
 
       <div className="danger-zone">
-        {deleteMut.isError && <div className="error-banner">{t('errors.deleteFailed')}</div>}
+        {deleteMut.isError && (
+          <div className="error-banner">{deleteError ?? t('errors.deleteFailed')}</div>
+        )}
         {!confirming ? (
           <button className="btn danger-link" onClick={() => setConfirming(true)}>
             {t('modals.deleteAccount')}
@@ -126,6 +159,17 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
         ) : (
           <div className="confirm-delete">
             <p className="muted">{t('modals.deleteAccountConfirm')}</p>
+            {/* Erasing every kid's history is irreversible — prove it's a parent. */}
+            <div className="field">
+              <label htmlFor="acct-delete-password">{t('modals.currentPassword')}</label>
+              <input
+                id="acct-delete-password"
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+              />
+            </div>
             <div className="confirm-actions">
               <button
                 className="btn ghost"

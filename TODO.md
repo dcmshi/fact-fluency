@@ -1361,6 +1361,286 @@ classroom/SSO (#9, vendor-gated). See the COMPETITORS.md §5 checklist for statu
       which Render's IPv4 port scan couldn't detect under the Node 24 pin —
       deploys were timing out with "no open ports detected".
 
+## Audit pass 10 (2026-07-28) — full-repo audit (engine / server / client / live games)
+
+Four parallel review passes. Baseline: 336 tests passing (309 server + 27
+client), typecheck + lint clean. Every High/Medium item below was re-verified
+against source before listing (file:line refs are from the audit).
+
+**Verified sound, don't re-flag:** no IDOR anywhere (every profile route goes
+through `loadOwnedProfile`; session routes use `requireOwnedProfile`); 256-bit
+session tokens, argon2id, correct cookie flags, timing-equalized login; engine
+purity holds (no `Date.now`/`Math.random`/env in any engine source); fact
+generation is dedupe-correct and memoized; race choices provably contain
+exactly one correct answer; coin double-award is guarded in both live games
+(phase/`awarded` set synchronously before any await); `JSON.parse` is wrapped
+in both server WS handlers; SW cache stamping + network-first navigations are
+correct; MunchBoard's ref-based munch accounting is exactly-once under rapid
+double-taps and StrictMode.
+
+### P1 — Crash-proofing (remote-triggerable, takes down the whole process)
+
+_All done (2026-07-28). 340 tests passing (was 336); typecheck + lint clean._
+
+- [x] **WS sockets have no `error` handler** — _done._ `ws` emits `'error'` on
+      the server-side socket for protocol violations (bad RSV bits, oversized
+      frames, bad close codes) and TCP resets; an unhandled EventEmitter
+      `'error'` throws and kills the process — API and both games — for
+      everyone. Both servers now attach a shared `ignoreSocketError` to every
+      accepted socket (ws closes the offending socket itself, and the existing
+      `'close'` handler still runs the room cleanup).
+- [x] **Upgrade sockets have no `error` handler during async auth** — _done._
+      During the `await db.findAccountIdByToken(...)` window the raw `Duplex`
+      was unowned, so a reset mid-auth threw; the handler's `try/catch` can't
+      catch an emitter throw — only a listener can. `socket.on('error', …)` now
+      goes on before the first await in both upgrade handlers.
+- [x] **`maxPayload` left at the 100 MiB default** — _done._ Both
+      `WebSocketServer`s now cap frames at 16 KiB (protocol messages are tens of
+      bytes).
+- [x] **pg `Pool` has no `'error'` listener** — _done._ `fromUrl` now logs and
+      swallows the pool `'error'` an idle client emits when its backend
+      connection dies (Render PG restart/failover/idle timeout), instead of
+      letting routine DB maintenance take the whole service down.
+- [x] **New: WS test harness** — there were _no_ tests over either WS server.
+      `race/live.test.ts` stands up a real HTTP server + real `ws` client
+      against an in-memory SQLite DB: authenticated upgrade, rejected
+      unauthenticated upgrade, and "an oversized frame closes that socket
+      without taking the server down" (the regression test for the three fixes
+      above — it hung before the cap, passes after). The pool-error regression
+      test lives in `db/postgres.test.ts`.
+
+### P2 — Liveness (a dropped connection ruins a live game)
+
+_All done (2026-07-28). 347 tests passing; typecheck, lint, format, and a
+production build all clean._
+
+- [x] **No WS heartbeat** — _done._ A half-open socket (lid closed, wifi drop)
+      stays `readyState === OPEN` and `connected: true` for as long as the OS
+      takes to notice, and both games count _connected_ players to decide when a
+      round ends — so a zombie stalled the room forever (the kid who actually
+      finished never got their placement, and the room was never GC'd). New
+      shared `ws/heartbeat.ts`: ping each interval, `terminate()` anyone who
+      missed the previous one (terminate fires `'close'`, so the existing room
+      cleanup still runs). Cadence overridable via `FF_WS_PING_MS`; the timer is
+      `unref`'d so it never holds the process open.
+- [x] **Stale-socket `close` handler falsely disconnects a reconnected player**
+      — _done._ `joinRoom` swaps `player.ws` on reconnect, but the old socket's
+      late `close` unconditionally cleared `connected` — marking a live racer
+      disconnected and, in Feast, tearing the room down under the new socket.
+      Both close handlers now bail with `if (player.ws !== ws) return;`, and
+      `joinRoom` closes the socket it replaced. Regression-tested: without the
+      guard the live socket is orphaned and receives no broadcasts.
+- [x] **Client has no `ws.onclose` anywhere** — _done._ RacePage now checks
+      `readyState` before the finish send (a `send()` on a closing socket is
+      silently discarded), handles `onclose`, and has a 15s cap on `placing`, so
+      a blip mid-race lands on a "Lost the connection" screen offering the bot
+      race or a way back instead of a dead-end heading. FeastPage's `onclose`
+      returns to the connecting/lobby view, which already renders the error
+      banner and a Quit button, instead of freezing the arena silently. Both
+      `onmessage` handlers now guard `JSON.parse` (folded in from P6).
+- [x] **No ErrorBoundary in the client tree** — _done._ New
+      `components/ErrorBoundary.tsx` wraps the app: a chunk-load failure (the
+      post-deploy case, where the SW evicted the old build's cache) auto-reloads
+      once, guarded by a 10s sessionStorage cooldown so it can't loop but a
+      _later_ deploy still self-heals; anything else renders a localized reload
+      card. The browser-specific error strings are unit-tested — that predicate
+      decides whether a kid's blank screen repairs itself.
+- [x] **Race: no phase guard on join** — _done._ Newcomers are refused during
+      `countdown`/`racing` with `{error, code:'race_in_progress'}` (they used to
+      be admitted unfinished and never sent `go`, so the race could never end
+      for anyone), while an _existing_ racer can still reconnect mid-race. A
+      newcomer joining a `finished` room now recycles it back to the lobby
+      instead of leaving it bricked. RacePage shows the refusal as copy.
+- [x] **Feast: `go()` races `teardown()`** — _done._ `go()` re-checks for
+      connected humans after its `await db.listEnabledSetIds` and bails (with a
+      `teardown()`), so a room everyone left during the countdown can't start an
+      orphaned 90s tick loop that nothing can clear. Note the per-player award
+      check was deliberately _not_ tightened: a kid whose wifi drops in the last
+      seconds of a round they played should still get their coins, and the
+      phantom-game case is prevented at the source.
+
+### P3 — Trust (server believes client-reported performance data)
+
+_All done (2026-07-28). 359 tests passing; typecheck, lint, format clean._
+
+- [x] **`responseMs` has no plausibility floor** — _done._ Validation rejected
+      only negative/non-finite values and clamped the upper bound, so a scripted
+      client replaying `POST /sessions/:id/answer` straight from the deck it was
+      served could report 1ms per fact: correct **and fast**, mastering the whole
+      universe in seconds while dragging the per-op median EWMA (the basis of
+      every fluency decision) to the floor. Now floored at `MIN_RESPONSE_MS`
+      (250ms — below simple-reaction time) before it grades or feeds stats.
+      Floored rather than rejected, so an honest client with a sloppy clock still
+      gets its answer counted, just not as evidence of speed. HTTP-tested via the
+      CSV export.
+- [x] **Async race runs are forgeable and re-award coins every submission** —
+      _done._ `perRoundMs.length` must now equal `race.factCount`; each split is
+      floored at 250ms; and `totalMs` is **derived** from the floored splits
+      rather than trusted (the client already computes it as exactly that sum, so
+      nothing honest changes, but `{totalMs: 0}` can no longer take first). Coins
+      are awarded only when the run is a new personal best, killing the
+      resubmit-farm loop. HTTP-tested.
+- [x] **Live race `finish` is fully client-trusted** — _done._ The room records
+      `startedAt` when `go` goes out and floors any reported time at the elapsed
+      wall clock the server itself observed, so `{finish, totalMs: 0}` the
+      instant `go` lands can't outrank a real racer; a second `finish` from an
+      already-finished player is ignored (it used to let them keep improving
+      their time mid-race). Regression-tested over a real socket.
+- [x] **Account changes need re-auth + session revocation** — _done._
+      `PATCH /auth/account` (email/password) and `DELETE /auth/account` now
+      require `currentPassword` — a cookie alone isn't proof on a device shared
+      with kids — and a password change revokes every _other_ session via the new
+      `deleteAuthSessionsForAccount` (both adapters + contract test), so it can
+      actually evict a stolen or shared login instead of one that slides forward
+      forever. Timezone-only edits stay one-tap; guests are exempt (no password,
+      and their credential path is `/auth/upgrade`). AccountModal gained the
+      field and the two new error messages, localized in all four dictionaries.
+      `DELETE` also picked up the account rate limiter.
+- [x] **Client `responseMs` includes backgrounded time** — _done._ New
+      `client/src/timing.ts` exposes `activeNow()`: `performance.now()` minus
+      every interval the document spent hidden, via one app-wide
+      `visibilitychange` listener. MunchBoard, RaceQuiz, CalibratePage, and
+      PlayPage's session-seconds budget all use it, so a kid who presses the home
+      button mid-round no longer returns to a ~180s "answer" that demotes the
+      fact and trips the session cap on the next card. Unit-tested (visible
+      elapsed, a hidden stretch, and a read taken _while_ hidden — the clock
+      freezes and never runs backwards). RacePage deliberately keeps the wall
+      clock: a race is a timed competition, and the server floors it anyway.
+
+### P4 — Core-loop logic bugs
+
+_All done (2026-07-28). 363 tests passing; typecheck, lint, format, build clean._
+
+- [x] **Deck interleave clusters new facts at the deck's tail** — _done._ `gap`
+      was computed per _total_ card while `sinceFresh` counted only review cards,
+      so the review pool drained faster than the fresh one and the leftovers piled
+      up at the end (14 due + 6 new → `rrrFrrrFrrrFrrrFrrFF`: two cold intros
+      back-to-back exactly when a kid is most tired, contradicting the function's
+      own "never cluster" docstring). Now `floor(review.length / fresh.length)` —
+      reviews per fresh card, the same unit `sinceFresh` counts. The existing test
+      only covered the 3-fresh case; added one for the short-deck-padding case
+      where new facts are a large share of the deck.
+- [x] **Feast: one plate tap sends two `grab`s** — _done._ Plates sit inside the
+      ring, so a tap fired the tongue at whatever was nearest _in reach_ of the
+      aim **and** sent a second grab for the plate actually tapped — so tapping a
+      correct plate across the belt could munch a different, wrong-valued one and
+      stun the kid for a tap that was right. Now one path: the plate's handler
+      stops propagation, aims at that plate, and fires, so it behaves exactly like
+      tapping the belt there and reach is still honoured (`invPlateFrac ∘
+plateFrac` is the identity, so a plate's `pos` _is_ its aim coordinate).
+- [x] **syncQueue can duplicate answers** — _done (the dedupe half)._ A failed
+      POST is indistinguishable from one the server committed before the response
+      was lost, so the queue must assume the write may have landed. Rounds now
+      carry a client-generated `attemptId` (`newAttemptId()`), reused verbatim by
+      any replay; `recordAnswer` checks it **inside** its existing transaction and
+      returns false without writing when the round is already logged, so a replay
+      can't append twice or advance the fact's schedule on one answer. New
+      nullable `attempt.attempt_id` column in both schemas + `ADDITIVE_COLUMNS`
+      (so existing deploys self-heal); covered in the shared contract suite
+      (dedupes, distinct rounds still write, keyless writes never dedupe) and
+      end-to-end over HTTP.
+      _Still open:_ the multi-tab drain race (two tabs sharing
+      `ff_pending_answers` both replay and race the `slice(settled)` rewrite) —
+      wants `navigator.locks`. Much less severe now that replays are idempotent
+      server-side; tracked in P6 below.
+
+### P5 — Performance
+
+- [x] **Feast rAF loop re-renders the whole arena at 60fps even when idle** —
+      _done._ `setSelfRender` built a fresh object every frame regardless of
+      movement, so every plate, rival, and the scoreboard reconciled 60×/s even
+      while the muncher stood still — real dropped frames on the older tablets
+      this targets. Now returns the previous state when pos/aim moved less than
+      `MOVE_EPSILON` (well under a pixel on the belt), so React bails out.
+- [ ] **Race lobby N+1** (`session/race.ts:215-234`) — `listRaceRuns` +
+      `getProfile` per race, ~21 queries per lobby view on PG. Join instead.
+- [ ] **Profile list is 4 queries per profile** (`api/profiles.ts:52-65`),
+      including two `COUNT`s with ~1,000-parameter `IN` lists rebuilt per
+      request. Group into one query.
+- [ ] **Calibration seeds upserted one await at a time**
+      (`session/calibrate.ts:106`) — up to a few hundred sequential round trips
+      on Render PG, and a mid-loop failure leaves a half-seeded schedule. Add a
+      batched/transactional `upsertProgressMany` (+ contract test); dedupe
+      submitted `factId`s while there (`calibrate.ts:76-92`).
+- [x] **Missing FK indexes** on `race.created_by_profile_id` and
+      `race_run.profile_id` — _done._ Added `idx_race_creator` /
+      `idx_race_run_profile` to both schemas, so a profile or account delete no
+      longer scans both race tables once per cascaded row.
+
+### P6 — Hardening
+
+- [ ] **Unclaimed WS upgrade requests are left hanging** (`race/live.ts:80`,
+      `feast/live.ts:123` both bare-`return` on a non-matching path). Once any
+      `'upgrade'` listener exists Node stops auto-closing unhandled upgrades, so
+      each probe to `/api/anything` leaks a half-open socket — trivially
+      repeatable. Add a final listener that `socket.destroy()`s unmatched paths.
+- [ ] **No Origin check on either WS upgrade** (CSWSH) — auth is cookie-only.
+      Today this rests entirely on `SameSite=Lax` browser behavior (and `secure`
+      is off in dev). Reject upgrades whose `Origin` isn't the app's own host.
+- [ ] **PG TLS uses `rejectUnauthorized: false` unconditionally**
+      (`db/postgres.ts:62-66`) — every non-localhost connection gets encryption
+      without certificate verification (account data + password hashes). Make SSL
+      mode configurable, defaulting to today's behavior only for Render.
+- [ ] **Client WS `onmessage` does unguarded `JSON.parse`** (`RacePage.tsx:82`,
+      `FeastPage.tsx:82`) — a malformed frame throws in the handler and silently
+      drops that update. try/catch + validate `msg.type`.
+- [ ] **Engine timezone fallbacks disagree** (`engine/scheduling.ts:57-70`) —
+      `tzOffsetMinutes` falls back to UTC but `dayInTz` falls back to the
+      _machine_ calendar, and `auth/routes.ts:85,110,207` stores any non-empty
+      string as the account timezone. With an invalid tz on a non-UTC host,
+      `startOfDayAfter` can return a `dueAt` in the past (box-1 fact instantly
+      due again) and engine output becomes host-dependent. Align both fallbacks
+      on UTC; validate the zone with `Intl` at the auth edge. (Masked in prod —
+      Render runs UTC.)
+- [ ] **Concurrent answers can clobber `workingState`**
+      (`session/service.ts:329-334, 393-431`) — read-modify-write of the parsed
+      learning map with no versioning, so an offline queue replaying two answers
+      concurrently loses one learning-counter increment. Serialize per session or
+      do a conditional/merged write.
+- [ ] **Queued answers can land out of order vs live successes**
+      (`PlayPage.tsx:254-281`) — if answer N fails (queued) while N+1 succeeds
+      live, the flush appends N after N+1, inverting box scheduling for a fact
+      that was missed then re-shown correctly. Stamp a client sequence, or route
+      everything through the queue once anything is queued.
+- [ ] **syncQueue has no timed retry** (`syncQueue.ts:110-124`) — flushes run on
+      mount / `online` / session completion, so a transient 5xx while
+      connectivity stays up strands coins and streak for hours. One capped
+      exponential-backoff retry.
+
+### P7 — Polish
+
+- [ ] **Race `finished` advertises coins that were never credited**
+      (`race/live.ts:214-232`) — `withCoins` attaches `coinsEarned` to every
+      standing but the `addCoins` loop skips `finishMs == null`; the client
+      renders it verbatim (`RacePage.tsx:336-338`), so a dropped kid sees
+      "+N ⭐" that never lands. Zero it for non-finishers.
+- [ ] **Lobby start condition isn't re-checked on disconnect** (both games) — A
+      readies, B leaves, and nothing re-runs `shouldStart`/`maybeStart`, so A is
+      stuck until they leave and rejoin. Re-check in the `close` handler (and
+      after `addBot`).
+- [ ] **Feast `MAX_PLAYERS` is enforced only for bots** (`feast/live.ts:252` vs
+      `joinRoom:145-191`) — an account with 5+ profiles overflows the documented
+      1–4 arena. Cap human joins too.
+- [ ] **Muncher `aria-label` is hardcoded English** (`Muncher.tsx:252` →
+      "Cat muncher") — the one i18n gap; a Spanish-speaking SR user hears English
+      mid-game. Add `muncher.<animal>` keys to all four dicts. Also delete or
+      localize the unused English `OP_LABEL` (`ops.ts:11-16`).
+- [ ] **RaceQuiz's lock drops keyboard focus to `<body>`** (`RaceQuiz.tsx:94`) —
+      `disabled={locked}` during the 800ms wrong-tap lock ejects focus, the exact
+      pattern MunchBoard avoids with `aria-disabled` (`MunchBoard.tsx:281-283`).
+- [ ] **`transitionReview` docstring contradicts the box-5 rule**
+      (`engine/scheduling.ts:136-152`) — the table says "correct & slow → stay,
+      half interval" but line 152 demotes box 5 → 4, which is intended and
+      test-pinned. In the most correctness-critical module this invites a future
+      "fix" that would break the fluency gate. Document the exception; rename the
+      `stayed` local.
+- [ ] **Race ties at the clamp get arbitrary placements** (`engine/race.ts:63-70`)
+      — the "sub-ms ties are impossible" comment is false once `totalMs` is
+      rounded and clamped to `MAX_RACE_MS` (and live races _default_ to it on a
+      non-finite report, `race/live.ts:189-191`); two capped racers tie exactly
+      and sort order decides 1st vs 2nd, with different coin payouts. Use
+      competition ranking on equal `totalMs`.
+
 ## Known limitations
 
 - `caughtUp` is computed per profile (due-review + learning counts), not scoped

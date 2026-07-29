@@ -1,3 +1,4 @@
+import type { EventEmitter } from 'node:events';
 import { newDb } from 'pg-mem';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { FactProgress } from '@shared';
@@ -22,6 +23,19 @@ async function accountAndProfile() {
   });
   return { accountId, profile };
 }
+
+describe('PostgresDb.fromUrl', () => {
+  it('handles pool errors instead of crashing the process', async () => {
+    // node-postgres emits 'error' on the Pool when an *idle* client's backend
+    // connection dies — Render restarts/failovers/idle timeouts all do this.
+    // With no listener that's an unhandled 'error' and the process exits, so
+    // routine DB maintenance would take the whole service down.
+    const built = PostgresDb.fromUrl('postgres://u:p@db.invalid:5432/x');
+    const pool = (built as unknown as { pool: EventEmitter & PgPool }).pool;
+    expect(() => pool.emit('error', new Error('idle client died'))).not.toThrow();
+    await pool.end();
+  });
+});
 
 describe('PostgresDb (pg-mem)', () => {
   // Note: the additive-column self-heal (ADD COLUMN IF NOT EXISTS) can't be

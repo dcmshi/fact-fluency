@@ -64,6 +64,14 @@ export class PostgresDb implements Db {
       connectionString: url,
       ssl: local ? undefined : { rejectUnauthorized: false },
     });
+    // An *idle* client whose backend connection dies (managed-PG restart,
+    // failover, idle timeout) emits 'error' on the pool. Unhandled, that's an
+    // uncaught exception and the service exits; the pool discards the dead
+    // client on its own, so logging is the whole job here.
+    pool.on('error', (err: Error) => {
+      // eslint-disable-next-line no-console
+      console.error('postgres idle client error:', err.message);
+    });
     return new PostgresDb(pool);
   }
 
@@ -192,6 +200,24 @@ export class PostgresDb implements Db {
     await this.pool.query('DELETE FROM auth_session WHERE token = $1', [token]);
   }
 
+  async deleteAuthSessionsForAccount(
+    accountId: string,
+    exceptToken: string | null,
+  ): Promise<number> {
+    // `token != $2` would drop NULL-safe semantics if exceptToken were null, so
+    // the two cases are separate statements.
+    const { rows } =
+      exceptToken == null
+        ? await this.pool.query('DELETE FROM auth_session WHERE account_id = $1 RETURNING token', [
+            accountId,
+          ])
+        : await this.pool.query(
+            'DELETE FROM auth_session WHERE account_id = $1 AND token <> $2 RETURNING token',
+            [accountId, exceptToken],
+          );
+    return rows.length;
+  }
+
   async deleteExpiredAuthSessions(now: number): Promise<number> {
     // RETURNING so the count comes back via the {rows} pool interface.
     const { rows } = await this.pool.query(
@@ -224,6 +250,14 @@ export class PostgresDb implements Db {
       'SELECT email, timezone FROM account WHERE id = $1',
       [accountId],
     );
+  }
+
+  async getAccountPasswordHash(accountId: string): Promise<string | null> {
+    const row = await this.one<{ password_hash: string | null }>(
+      'SELECT password_hash FROM account WHERE id = $1',
+      [accountId],
+    );
+    return row?.password_hash ?? null;
   }
 
   async updateAccountEmail(accountId: string, email: string): Promise<void> {
@@ -622,8 +656,8 @@ export class PostgresDb implements Db {
 
   private async execAppendAttempt(q: PgQuery, a: AttemptRecord): Promise<void> {
     await q(
-      `INSERT INTO attempt (id, session_id, profile_id, fact_id, given, correct, fast, response_ms, answered_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      `INSERT INTO attempt (id, session_id, profile_id, fact_id, given, correct, fast, response_ms, answered_at, attempt_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
       [
         a.id,
         a.sessionId,
@@ -634,19 +668,32 @@ export class PostgresDb implements Db {
         a.fast ? 1 : 0,
         a.responseMs,
         a.answeredAt,
+        a.attemptId ?? null,
       ],
     );
+  }
+
+  /** Has this round already been recorded? (idempotency key, see recordAnswer) */
+  private async alreadyRecorded(q: PgQuery, a: AttemptRecord): Promise<boolean> {
+    if (!a.attemptId) return false;
+    const { rows } = await q(
+      'SELECT 1 FROM attempt WHERE session_id = $1 AND attempt_id = $2 LIMIT 1',
+      [a.sessionId, a.attemptId],
+    );
+    return rows.length > 0;
   }
 
   async appendAttempt(a: AttemptRecord): Promise<void> {
     await this.execAppendAttempt((t, params) => this.pool.query(t, params), a);
   }
 
-  async recordAnswer(w: AnswerWrite): Promise<void> {
+  async recordAnswer(w: AnswerWrite): Promise<boolean> {
     // One transaction (and one connection checkout) for the per-answer write
     // set — fewer round-trips on the hottest path, and progress can never
-    // persist without its attempt row.
-    await this.withTransaction(async (q) => {
+    // persist without its attempt row. The dedupe check runs inside it, so a
+    // replay can't slip past between the check and the write.
+    return this.withTransaction(async (q) => {
+      if (await this.alreadyRecorded(q, w.attempt)) return false;
       await this.execUpsertProgress(q, w.progress);
       if (w.stat) await this.execUpsertOperationStat(q, w.stat);
       if (w.siblingProgress) await this.execUpsertProgress(q, w.siblingProgress);
@@ -657,6 +704,7 @@ export class PostgresDb implements Db {
           w.workingState.sessionId,
         ]);
       }
+      return true;
     });
   }
 

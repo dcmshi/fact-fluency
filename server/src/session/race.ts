@@ -35,6 +35,11 @@ const BOT_NAME = 'Robo-racer';
 const BOT_AVATAR = '🤖';
 /** Clamp a client-reported time before it's stored/ranked (a race is short). */
 const MAX_RACE_MS = 10 * 60 * 1000;
+/** Floor for a single round. Reading the question, choosing, and tapping is
+ *  never quicker than this, so a smaller value is a forged/replayed run — the
+ *  same reasoning as MIN_RESPONSE_MS in session/service.ts. */
+const MIN_ROUND_MS = 250;
+const clampRoundMs = (ms: number) => Math.round(Math.min(Math.max(MIN_ROUND_MS, ms), MAX_RACE_MS));
 const clampMs = (ms: number) => Math.round(Math.min(Math.max(0, ms), MAX_RACE_MS));
 
 /** Build the playable deck: one tap-the-answer question per fact, seeded per
@@ -139,25 +144,38 @@ export async function submitRaceRun(
   const race = await requireOwnedRace(db, profile, raceId);
   if (
     !Array.isArray(body?.perRoundMs) ||
-    body.perRoundMs.length === 0 ||
+    // A run has to account for every round of the race it claims to be part of.
+    body.perRoundMs.length !== race.factCount ||
     body.perRoundMs.some((n) => typeof n !== 'number' || !Number.isFinite(n)) ||
     typeof body.totalMs !== 'number' ||
     !Number.isFinite(body.totalMs)
   ) {
     throw new HttpError(400, 'invalid_run');
   }
-  const totalMs = clampMs(body.totalMs);
+  const perRoundMs = body.perRoundMs.map(clampRoundMs);
+  // Derive the total from the floored splits instead of trusting `totalMs` —
+  // the client computes it as exactly this sum, so nothing honest changes, but
+  // a forged `{totalMs: 0}` can no longer take first place.
+  const totalMs = clampMs(perRoundMs.reduce((a, b) => a + b, 0));
   const correctCount =
     typeof body.correctCount === 'number'
       ? Math.max(0, Math.min(race.factCount, Math.trunc(body.correctCount)))
       : 0;
+  // Coins are for setting a new mark, not for pressing submit: without this a
+  // loop of identical runs paid out every time.
+  const previousBest = (await db.listRaceRuns(raceId))
+    .filter((r) => r.profileId === profile.id)
+    .reduce<
+      number | null
+    >((best, r) => (best == null || r.totalMs < best ? r.totalMs : best), null);
+  const improved = previousBest == null || totalMs < previousBest;
   await db.addRaceRun({
     id: randomUUID(),
     raceId,
     profileId: profile.id,
     totalMs,
     correctCount,
-    perRound: JSON.stringify(body.perRoundMs.map(clampMs)),
+    perRound: JSON.stringify(perRoundMs),
     finishedAt: now,
   });
 
@@ -175,8 +193,8 @@ export async function submitRaceRun(
   ]);
 
   const mine = ranked.find((r) => !r.isBot && r.profileId === profile.id)!;
-  const coinsEarned = placementCoins(mine.placement, ranked.length);
-  await db.addCoins(profile.id, coinsEarned);
+  const coinsEarned = improved ? placementCoins(mine.placement, ranked.length) : 0;
+  if (coinsEarned > 0) await db.addCoins(profile.id, coinsEarned);
 
   const profiles = await db.listProfiles(profile.accountId);
   const byId = new Map(profiles.map((p) => [p.id, p]));

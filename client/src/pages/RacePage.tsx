@@ -36,7 +36,9 @@ export function RacePage() {
   const [players, setPlayers] = useState<LiveStanding[]>([]);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [ready, setReady] = useState(false);
-  const [wsError, setWsError] = useState(false);
+  // 'connect' — never got a socket; 'lost' — it died mid-race; 'inProgress' —
+  // the server refused a race that had already started.
+  const [wsError, setWsError] = useState<null | 'connect' | 'lost' | 'inProgress'>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
   // Racing state (shared by both modes).
@@ -51,6 +53,11 @@ export function RacePage() {
   // Results.
   const [result, setResult] = useState<RaceResult | null>(null); // bot
   const [liveStandings, setLiveStandings] = useState<LiveStanding[] | null>(null); // live
+
+  // The socket's close handler needs the *current* phase, not the one captured
+  // when the effect ran.
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
 
   const { data: races } = useQuery({
     queryKey: qk.races(profileId),
@@ -78,12 +85,19 @@ export function RacePage() {
       `${proto}://${location.host}/api/race-ws?raceId=${roomRaceId}&profileId=${profileId}`,
     );
     wsRef.current = ws;
+    let intentional = false;
     ws.onmessage = (ev) => {
-      const msg = JSON.parse(ev.data as string) as {
-        type: string;
+      let msg: {
+        type?: string;
         standings?: LiveStanding[];
         ms?: number;
+        code?: string;
       };
+      try {
+        msg = JSON.parse(ev.data as string);
+      } catch {
+        return; // a malformed frame shouldn't take the round down with it
+      }
       if (msg.type === 'state') setPlayers(msg.standings ?? []);
       else if (msg.type === 'countdown') setCountdown(Math.ceil((msg.ms ?? 0) / 1000));
       else if (msg.type === 'go') {
@@ -92,14 +106,33 @@ export function RacePage() {
       } else if (msg.type === 'finished') {
         setLiveStandings(msg.standings ?? []);
         setPhase('done');
+      } else if (msg.type === 'error') {
+        intentional = true; // the server is about to close on purpose
+        setWsError(msg.code === 'race_in_progress' ? 'inProgress' : 'connect');
       }
     };
-    ws.onerror = () => setWsError(true);
+    ws.onerror = () => setWsError((prev) => prev ?? 'connect');
+    ws.onclose = () => {
+      if (wsRef.current === ws) wsRef.current = null;
+      // A close we asked for (leaving, switching to the bot, unmount) is not a
+      // failure, and neither is one after the results already landed.
+      if (intentional || phaseRef.current === 'done' || phaseRef.current === 'lobby') return;
+      setWsError((prev) => prev ?? 'lost');
+    };
     return () => {
+      intentional = true;
       ws.close();
       if (wsRef.current === ws) wsRef.current = null;
     };
   }, [roomRaceId, profileId]);
+
+  // Never wait forever at the finish line: if the server's `finished` broadcast
+  // doesn't arrive, surface it rather than leaving a dead-end screen.
+  useEffect(() => {
+    if (phase !== 'placing' || mode !== 'live') return;
+    const timer = setTimeout(() => setWsError((prev) => prev ?? 'lost'), 15_000);
+    return () => clearTimeout(timer);
+  }, [phase, mode]);
 
   // Bot-mode ghost car advances on its recorded splits vs the wall clock.
   useEffect(() => {
@@ -120,7 +153,7 @@ export function RacePage() {
 
   async function open(getter: () => Promise<RaceStartResponse>) {
     setBusy(true);
-    setWsError(false);
+    setWsError(null);
     setReady(false);
     setPlayers([]);
     setCountdown(null);
@@ -167,7 +200,12 @@ export function RacePage() {
     playComplete();
     const totalMs = perRoundRef.current.reduce((a, b) => a + b, 0);
     if (mode === 'live') {
-      wsRef.current?.send(JSON.stringify({ type: 'finish', totalMs }));
+      // send() on a closing/closed socket is silently discarded, which would
+      // strand the kid on 'placing' waiting for a broadcast that never comes.
+      const sock = wsRef.current;
+      if (sock?.readyState === WebSocket.OPEN)
+        sock.send(JSON.stringify({ type: 'finish', totalMs }));
+      else setWsError((prev) => prev ?? 'lost');
       setPhase('placing'); // the server's `finished` broadcast flips us to 'done'
       return;
     }
@@ -243,6 +281,31 @@ export function RacePage() {
     );
   }
 
+  // ---- the live socket died mid-race ----
+  // Without this the kid is stranded: 'placing' renders only a heading, and a
+  // dead socket during 'racing' means nothing they do can ever be scored.
+  if (wsError === 'lost' && (phase === 'racing' || phase === 'placing')) {
+    return (
+      <div className="screen center-y">
+        <div className="stack rise" style={{ textAlign: 'center' }}>
+          <div className="big-emoji" aria-hidden="true">
+            📡
+          </div>
+          <h1>{t('race.wsLost')}</h1>
+          <p className="muted" style={{ marginTop: '-0.4rem' }}>
+            {t('race.wsLostHint')}
+          </p>
+          <button className="btn sun full" onClick={raceTheBot}>
+            {t('race.raceBot')}
+          </button>
+          <button className="btn ghost" onClick={leave}>
+            {t('common.back')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ---- live room / waiting ----
   if (phase === 'room') {
     return (
@@ -258,7 +321,13 @@ export function RacePage() {
             </div>
           ) : (
             <p className="muted" style={{ marginTop: '-0.4rem' }}>
-              {wsError ? t('race.wsError') : t('race.roomHint')}
+              {wsError === 'inProgress'
+                ? t('race.inProgress')
+                : wsError === 'lost'
+                  ? t('race.wsLostHint')
+                  : wsError
+                    ? t('race.wsError')
+                    : t('race.roomHint')}
             </p>
           )}
 

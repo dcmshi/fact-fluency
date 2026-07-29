@@ -17,6 +17,11 @@ export const fr: typeof en = {
   },
   errors: {
     generic: 'Une erreur est survenue. Réessaie.',
+    passwordRequired: 'Saisis ton mot de passe actuel pour faire ce changement.',
+    wrongPassword: 'Ce mot de passe n’est pas le bon.',
+    crashTitle: 'Oups — ça n’a pas chargé',
+    crashHint: 'On réessaie.',
+    reload: 'Recharger',
     save: 'Impossible d’enregistrer — réessaie.',
     invalidEmail: 'Cet e-mail ne semble pas valide.',
     weakPassword: 'Le mot de passe doit contenir au moins 8 caractères.',
@@ -174,6 +179,9 @@ export const fr: typeof en = {
     join: 'Rejoindre',
     roomTitle: 'Salon de course',
     wsError: 'Connexion en direct impossible — fais la course contre le robot.',
+    wsLost: 'Connexion perdue',
+    wsLostHint: 'La course en direct s’est arrêtée. Tu peux courir contre le robot.',
+    inProgress: 'Cette course a déjà commencé — demande une revanche ou cours contre le robot.',
     roomHint:
       'Ouvre cette course sur un autre appareil (même compte) pour affronter un frère ou une sœur en direct.',
     youWord: 'toi',
@@ -306,6 +314,8 @@ export const fr: typeof en = {
     saved: 'Enregistré ✓',
     newPassword: 'Nouveau mot de passe',
     passwordPlaceholder: 'Laisse vide pour garder l’actuel',
+    currentPassword: 'Mot de passe actuel',
+    currentPasswordHint: 'Requis pour changer ton e-mail ou ton mot de passe.',
     timezone: 'Fuseau horaire',
     timezoneHint: 'La planification des révisions utilise ce fuseau.',
     saveChanges: 'Enregistrer les modifications',
@@ -394,6 +404,7 @@ export const fr: typeof en = {
     factChanged: 'Nouveau calcul !',
     noFacts: 'Demande à un adulte de choisir des ensembles de calculs.',
     wsError: 'Connexion perdue. Reviens et réessaie.',
+    wsLost: 'L’arène s’est tue — la connexion a été coupée. Reviens et réessaie.',
   },
   strategy: {
     addZero: 'Ajouter 0 ne change rien — toujours {{answer}}.',

@@ -37,10 +37,23 @@ import {
 } from '../engine/feast';
 import { makeRng, seedFrom } from '../engine/munch';
 import { placementCoins } from '../engine/race';
+import { startHeartbeat } from '../ws/heartbeat';
 
 const FEAST_WS_PATH = '/api/feast-ws';
 const COUNTDOWN_MS = 3000;
 const TICK_MS = 66; // ~15 Hz
+/** Inputs are tens of bytes; anything larger is junk. Without a cap ws would
+ *  buffer up to its 100 MiB default per frame. */
+const MAX_PAYLOAD_BYTES = 16 * 1024;
+
+/**
+ * `ws` emits 'error' on the *socket* for protocol violations (bad RSV bits,
+ * oversized frames, bad close codes) and TCP resets. An unhandled 'error' on an
+ * EventEmitter throws, which would take down the whole process — API and both
+ * games — for every user. Swallow it: ws closes the offending socket itself,
+ * and the 'close' handler runs the room cleanup.
+ */
+const ignoreSocketError = () => {};
 const MAX_PLAYERS = 4;
 const BOT_NAMES = ['Robo', 'Zappy', 'Nibbles', 'Chomp'];
 const BOT_AVATARS = ['🤖', '👾', '🐙', '🦖'];
@@ -115,13 +128,18 @@ function broadcastLobby(room: FeastRoom) {
 
 /** Attach the Feast WebSocket server to the app's HTTP server. */
 export function attachFeastLive(server: Server, db: Db): void {
-  const wss = new WebSocketServer({ noServer: true });
+  const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD_BYTES });
   const rooms = new Map<string, FeastRoom>();
+  const heartbeat = startHeartbeat(wss);
 
   server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
     const url = new URL(req.url ?? '', 'http://localhost');
     if (url.pathname !== FEAST_WS_PATH) return; // not ours; another handler may own it
     const profileId = url.searchParams.get('profileId') ?? '';
+    // The raw socket is unowned until handleUpgrade adopts it, so a reset during
+    // the auth awaits below would throw an unhandled 'error'. try/catch can't
+    // catch an emitter throw — only a listener can.
+    socket.on('error', ignoreSocketError);
     void (async () => {
       try {
         const token = parseCookie(req.headers.cookie, COOKIE_NAME);
@@ -133,6 +151,7 @@ export function attachFeastLive(server: Server, db: Db): void {
         }
         const muncher = await db.getEquippedMuncher(profile.id).catch(() => 'cat');
         wss.handleUpgrade(req, socket, head, (ws) => {
+          heartbeat.track(ws);
           joinRoom(rooms, db, ws, accountId, profile, muncher);
         });
       } catch {
@@ -170,6 +189,7 @@ function joinRoom(
   const r = room;
 
   const existing = r.players.get(profile.id);
+  const previousWs = existing?.ws;
   const player: FeastConn = existing
     ? Object.assign(existing, {
         ws,
@@ -189,6 +209,11 @@ function joinRoom(
         ws,
       };
   r.players.set(profile.id, player);
+  // Drop the socket this one replaced (the guard in 'close' below keeps its
+  // late close event from tearing the room down under the live socket).
+  if (previousWs && previousWs !== ws) previousWs.close();
+
+  ws.on('error', ignoreSocketError);
 
   ws.on('message', (raw) => {
     let msg: {
@@ -208,6 +233,9 @@ function joinRoom(
   });
 
   ws.on('close', () => {
+    // A reconnect swaps player.ws; the old socket's close still fires later.
+    // Acting on it would tear down a room whose new socket is mid-game.
+    if (player.ws !== ws) return;
     player.connected = false;
     if (connectedHumans(r).length === 0) {
       teardown(r);
@@ -324,6 +352,14 @@ async function go(db: Db, room: FeastRoom): Promise<void> {
   } catch {
     enabled = [];
   }
+  // Everyone may have left during that await — the close handler would have
+  // torn the room down and dropped it from the map. Starting the tick loop now
+  // would orphan a 90s interval nothing can clear, and finish() would hand out
+  // coins for a game with no players in it.
+  if (connectedHumans(room).length === 0) {
+    teardown(room);
+    return;
+  }
   const sets = SEED_CATALOG.filter((s) => enabled.includes(s.id));
   const pool = generateFactsForSets(sets);
   if (pool.length === 0) {
@@ -382,6 +418,8 @@ async function finish(db: Db, room: FeastRoom): Promise<void> {
   if (!room.awarded) {
     room.awarded = true;
     for (const s of withCoins) {
+      // Bots don't earn. A human who played the round still does, even if they
+      // dropped near the whistle — the phantom-game case is prevented in go().
       if (!s.isBot) {
         try {
           await db.addCoins(s.profileId, s.coinsEarned);

@@ -20,6 +20,10 @@ import './FeastPage.css';
 
 type Phase = 'connecting' | 'lobby' | 'countdown' | 'playing' | 'finished';
 
+/** Belt-fraction movement below this is invisible (the belt is ~360px wide, so
+ *  this is well under a pixel) — not worth re-rendering the arena for. */
+const MOVE_EPSILON = 0.0005;
+
 interface LobbyPlayer {
   profileId: string;
   name: string;
@@ -79,16 +83,29 @@ export function FeastPage() {
     let cancelled = false;
     ws.onmessage = (ev) => {
       if (cancelled) return;
-      const msg = JSON.parse(ev.data as string);
+      let msg: Partial<FeastSnapshot> & {
+        type?: string;
+        code?: string;
+        players?: LobbyPlayer[];
+        ms?: number;
+        standings?: FeastStanding[];
+      };
+      try {
+        msg = JSON.parse(ev.data as string);
+      } catch {
+        return; // a malformed frame shouldn't drop the arena
+      }
       switch (msg.type) {
         case 'joined':
           setPhase('lobby');
           break;
-        case 'lobby':
-          setLobby(msg.players);
+        case 'lobby': {
+          const roster = msg.players ?? [];
+          setLobby(roster);
           setPhase((p) => (p === 'connecting' ? 'lobby' : p === 'finished' ? 'lobby' : p));
-          if (p2Ready(msg.players, profileId) === false) setReady(false);
+          if (p2Ready(roster, profileId) === false) setReady(false);
           break;
+        }
         case 'countdown':
           setPhase('countdown');
           setCountdown(Math.ceil((msg.ms ?? 0) / 1000));
@@ -129,7 +146,7 @@ export function FeastPage() {
           break;
         }
         case 'finished':
-          setStandings(msg.standings);
+          setStandings(msg.standings ?? []);
           setPhase('finished');
           playComplete();
           break;
@@ -140,6 +157,13 @@ export function FeastPage() {
     };
     ws.onerror = () => {
       if (!cancelled) setWsError(t('feast.wsError'));
+    };
+    ws.onclose = () => {
+      // Without this the arena just freezes: snapshots stop, the timer sticks,
+      // and taps do nothing (send() is readyState-guarded) with nothing said.
+      if (cancelled) return;
+      setPhase((p) => (p === 'finished' ? p : 'connecting'));
+      setWsError((prev) => prev ?? t('feast.wsLost'));
     };
     return () => {
       cancelled = true;
@@ -182,7 +206,16 @@ export function FeastPage() {
       if (!meNow?.stunned) {
         selfPos.current = stepRimPos(selfPos.current, selfAim.current, dt);
       }
-      setSelfRender({ pos: selfPos.current, aim: selfAim.current });
+      // Only re-render when the muncher actually moved. A fresh object every
+      // frame reconciled the whole arena — every plate, rival, and the
+      // scoreboard — 60×/s even while standing still, which is real dropped
+      // frames on the older tablets this is meant to run on.
+      setSelfRender((prev) =>
+        Math.abs(prev.pos - selfPos.current) < MOVE_EPSILON &&
+        Math.abs(prev.aim - selfAim.current) < MOVE_EPSILON
+          ? prev
+          : { pos: selfPos.current, aim: selfAim.current },
+      );
       if (t - lastSent > 80) {
         lastSent = t;
         send({ type: 'move', rimPos: selfPos.current, aim: selfAim.current, firing: firing > 0 });
@@ -390,7 +423,18 @@ export function FeastPage() {
               key={plate.id}
               className="feast-plate"
               style={{ left: `${x}%`, top: `${y}%` }}
-              onClick={() => send({ type: 'grab', plateId: plate.id })}
+              // Plates sit inside the ring, so a tap used to fire twice: the
+              // ring's pointerdown shot the tongue at whatever was nearest *in
+              // reach* of the aim, and the button sent a second grab for the
+              // plate actually tapped. Tapping a far plate could therefore
+              // munch a different, wrong-valued one and stun the kid for a tap
+              // that was right. One path now: aim at this plate, then fire —
+              // same tongue mechanic as tapping the belt, reach still honoured.
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => {
+                selfAim.current = plate.pos;
+                fire();
+              }}
               disabled={me?.stunned}
               aria-label={String(plate.value)}
             >

@@ -95,7 +95,10 @@ CREATE TABLE IF NOT EXISTS attempt (
   correct     INTEGER NOT NULL,
   fast        INTEGER NOT NULL,
   response_ms INTEGER NOT NULL,
-  answered_at INTEGER NOT NULL
+  answered_at INTEGER NOT NULL,
+  -- Client idempotency key for the round; NULL for writers that don't send one.
+  -- Mirrored in ADDITIVE_COLUMNS for databases created before it existed.
+  attempt_id  TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_attempt_session ON attempt(session_id);
 CREATE INDEX IF NOT EXISTS idx_attempt_profile_time ON attempt(profile_id, answered_at);
@@ -149,4 +152,8 @@ CREATE TABLE IF NOT EXISTS race_run (
   finished_at   INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_race_run_race ON race_run(race_id, total_ms);
+-- Index the FKs that a profile/account delete cascades through, so erasure
+-- doesn't scan both race tables once per removed profile.
+CREATE INDEX IF NOT EXISTS idx_race_creator ON race(created_by_profile_id);
+CREATE INDEX IF NOT EXISTS idx_race_run_profile ON race_run(profile_id);
 `;
