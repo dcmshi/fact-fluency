@@ -24,9 +24,14 @@ describe('dayInTz', () => {
     expect(dayInTz('America/New_York', Date.parse('2026-03-08T06:30:00Z'))).toBe('2026-03-08');
   });
 
-  it('falls back to the machine calendar for an unrecognized zone', () => {
-    expect(() => dayInTz('Not/A_Zone', Date.now())).not.toThrow();
-    expect(dayInTz('Not/A_Zone', Date.now())).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  it('falls back to UTC — not the machine calendar — for an unrecognized zone', () => {
+    // Must agree with tzOffsetMinutes' own fallback (0 = UTC): startOfDayAfter
+    // combines the two, so a mismatch on a host west of UTC produced a
+    // "tomorrow" already in the past, making a just-promoted fact due again
+    // immediately. It also kept engine output independent of the host's zone.
+    const t = Date.parse('2026-01-02T02:00:00Z'); // still Jan 1 in the Americas
+    expect(dayInTz('Not/A_Zone', t)).toBe('2026-01-02');
+    expect(dayInTz('Not/A_Zone', t)).toBe(dayInTz('UTC', t));
   });
 });
 

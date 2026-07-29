@@ -6,6 +6,7 @@ import { createApp } from './app';
 import { createDb } from './db';
 import { attachFeastLive } from './feast/live';
 import { attachRaceLive } from './race/live';
+import { attachUpgradeGuard } from './ws/upgrade';
 
 const PORT = Number(process.env.PORT ?? 3001);
 // Bind all IPv4 interfaces by default. Without an explicit host, Node binds to
@@ -41,6 +42,9 @@ async function main() {
   // (MULTIPLAYER.md §2) and the real-time Feast arena (FEAST.md).
   attachRaceLive(server, db);
   attachFeastLive(server, db);
+  // Last: destroys upgrades neither game claimed. Node stops auto-closing
+  // unhandled upgrades once any listener exists, so without this they leak.
+  attachUpgradeGuard(server);
 }
 
 main().catch((err) => {

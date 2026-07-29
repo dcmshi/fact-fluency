@@ -59,13 +59,22 @@ export function tzOffsetMinutes(timeZone: string, atMs: number): number {
   }
 }
 
-/** Calendar day (YYYY-MM-DD) for an instant in an IANA zone. en-CA yields ISO;
- *  an unrecognized zone falls back to the machine's local calendar. */
+/**
+ * Calendar day (YYYY-MM-DD) for an instant in an IANA zone. en-CA yields ISO.
+ *
+ * An unrecognized zone falls back to **UTC**, matching `tzOffsetMinutes` above.
+ * The two used to disagree — this one fell back to the machine's local calendar
+ * while the offset fell back to 0 — and `startOfDayAfter` combines them, so on a
+ * host west of UTC a bad zone could yield a "tomorrow" that had already passed:
+ * a fact promoted to box 1 came due again immediately, breaking the ≥1-day
+ * interval. It also made engine output depend on the host's ambient timezone,
+ * which nothing else in here does.
+ */
 export function dayInTz(timeZone: string, atMs: number): string {
   try {
     return new Date(atMs).toLocaleDateString('en-CA', { timeZone });
   } catch {
-    return new Date(atMs).toLocaleDateString('en-CA');
+    return new Date(atMs).toLocaleDateString('en-CA', { timeZone: 'UTC' });
   }
 }
 
@@ -135,7 +144,11 @@ function clampBox(n: number): Box {
  *
  * Rules (DESIGN.md §4.3):
  *   correct & fast  → promote +1 (box 5 stays), full interval
- *   correct & slow  → stay,  half interval (sees it sooner)
+ *   correct & slow  → stay, half interval (sees it sooner) — EXCEPT from box 5,
+ *                     which demotes to 4. Mastery means correct *and* fast, so
+ *                     a slow answer is no longer evidence of it; leaving it at 5
+ *                     would let a fact stay "mastered" on accuracy alone, which
+ *                     is exactly what the fluency gate exists to prevent.
  *   wrong           → demote (−2, or to 2 from mastered), re-show in session
  */
 export function transitionReview(box: Box, correct: boolean, fast: boolean): Transition {
@@ -148,9 +161,10 @@ export function transitionReview(box: Box, correct: boolean, fast: boolean): Tra
   if (fast) {
     return { box: clampBox(box + 1), requeue: false, fraction: 1 };
   }
-  // correct but slow
-  const stayed = box === 5 ? clampBox(4) : box;
-  return { box: stayed, requeue: false, fraction: 0.5 };
+  // Correct but slow: hold position, except box 5 (see the fluency-gate note
+  // above). Pinned by scheduling.test.ts — don't "simplify" this to `box`.
+  const next = box === 5 ? clampBox(4) : box;
+  return { box: next, requeue: false, fraction: 0.5 };
 }
 
 /**

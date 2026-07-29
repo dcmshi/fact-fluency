@@ -60,13 +60,23 @@ export interface RaceRunLike {
 
 /**
  * Rank runs fastest-first and assign 1-based placements. Everyone finishes the
- * deck, so time is the only metric (wrong munches already cost time). Ties keep
- * input order — sub-ms ties are effectively impossible.
+ * deck, so time is the only metric (wrong munches already cost time).
+ *
+ * Equal times share a placement (competition ranking: 1, 2, 2, 4). Exact ties
+ * aren't as impossible as they look — times are rounded to whole ms and clamped
+ * at MAX_RACE_MS, and a live race that can't read a racer's time *defaults* it
+ * to that cap, so two capped racers tie exactly. Splitting them by sort order
+ * would hand out 1st vs 2nd, and different coin payouts, on DB row order.
  */
 export function rankRuns<T extends RaceRunLike>(runs: T[]): (T & { placement: number })[] {
-  return [...runs]
-    .sort((a, b) => a.totalMs - b.totalMs)
-    .map((run, i) => ({ ...run, placement: i + 1 }));
+  const sorted = [...runs].sort((a, b) => a.totalMs - b.totalMs);
+  let placement = 0;
+  let previousMs: number | null = null;
+  return sorted.map((run, i) => {
+    if (previousMs == null || run.totalMs !== previousMs) placement = i + 1;
+    previousMs = run.totalMs;
+    return { ...run, placement };
+  });
 }
 
 /**

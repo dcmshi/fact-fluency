@@ -8,12 +8,9 @@ export const OP_SYMBOL: Record<Operation, string> = {
   div: '÷',
 };
 
-export const OP_LABEL: Record<Operation, string> = {
-  add: 'Addition',
-  sub: 'Subtraction',
-  mul: 'Multiplication',
-  div: 'Division',
-};
+// (No OP_LABEL here: operation names are user-facing copy and live in the
+// dictionaries as `ops.*`. A hardcoded English map next to these constants is a
+// trap — the obvious thing to reach for, and untranslatable once you do.)
 
 export const OP_CLASS: Record<Operation, string> = {
   add: 'op-add',

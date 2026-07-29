@@ -83,12 +83,26 @@ export function pendingCount(): number {
  * snapshot and re-POST the same answers, double-appending to the server's
  * append-only attempt log. Calls chain one after another and each re-reads the
  * queue, so a later call only sends what an earlier one didn't drain.
+ *
+ * The promise chain only covers *this* tab, though, and the queue is shared
+ * localStorage: an installed PWA plus a browser tab both replay it and race the
+ * `slice(settled)` rewrite, which can drop an entry that never sent. Web Locks
+ * makes the drain exclusive across tabs where it exists (everywhere but older
+ * Safari, which falls back to the in-tab chain alone).
  */
+const DRAIN_LOCK = 'ff-sync-answers';
+
 let answersChain: Promise<boolean> = Promise.resolve(true);
 export function flushAnswers(): Promise<boolean> {
-  const run = answersChain.then(drainAnswers, drainAnswers);
+  const run = answersChain.then(withDrainLock, withDrainLock);
   answersChain = run.catch(() => false); // keep the chain alive past a failure
   return run;
+}
+
+async function withDrainLock(): Promise<boolean> {
+  const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+  if (!locks) return drainAnswers();
+  return (await locks.request(DRAIN_LOCK, drainAnswers)) ?? false;
 }
 
 async function drainAnswers(): Promise<boolean> {
@@ -120,7 +134,11 @@ async function drainAnswers(): Promise<boolean> {
 
 /** Flush queued answers, then complete any sessions that finished offline. */
 export async function flushAll(): Promise<void> {
-  if (!(await flushAnswers())) return; // still offline — try again next reconnect
+  if (!(await flushAnswers())) {
+    scheduleRetry(); // still failing — see below
+    return;
+  }
+  resetRetryBackoff(); // answers are through; next outage starts from the base delay
   const ids = read<string>(DONE_KEY);
   if (ids.length === 0) return;
   const remaining: string[] = [];
@@ -133,4 +151,36 @@ export async function flushAll(): Promise<void> {
     }
   }
   write(DONE_KEY, remaining);
+  if (remaining.length > 0) scheduleRetry();
+}
+
+/**
+ * Retry a blocked drain with capped exponential backoff.
+ *
+ * Flushes otherwise only run on mount, an `online` event, and end-of-session. If
+ * a drain stops on a transient 5xx *while connectivity stays up*, no `online`
+ * event ever fires — so an offline session's coins and streak would sit unsent
+ * until the kid happened to play again. Backoff (not a fixed interval) so a
+ * server having a bad minute doesn't get hammered by every open tab.
+ */
+const RETRY_BASE_MS = 5_000;
+const RETRY_MAX_MS = 5 * 60_000;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let retryDelay = RETRY_BASE_MS;
+
+function scheduleRetry(): void {
+  if (retryTimer != null) return; // one in flight is enough
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return; // 'online' covers this
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS);
+    void flushAll();
+  }, retryDelay);
+}
+
+/** Called on a clean drain (and by tests) so the next outage starts fresh. */
+export function resetRetryBackoff(): void {
+  if (retryTimer != null) clearTimeout(retryTimer);
+  retryTimer = null;
+  retryDelay = RETRY_BASE_MS;
 }

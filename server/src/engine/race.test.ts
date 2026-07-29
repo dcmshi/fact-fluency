@@ -56,6 +56,20 @@ describe('rankRuns', () => {
     expect(ranked.map((r) => r.placement)).toEqual([1, 2, 3]);
   });
 
+  it('gives equal times equal placements (competition ranking)', () => {
+    // Times are whole ms and clamped at MAX_RACE_MS, and a live race defaults an
+    // unreadable time to that cap — so two racers really can tie exactly.
+    // Splitting them would decide 1st vs 2nd, and the coins, on row order.
+    const ranked = rankRuns([
+      { profileId: 'a', totalMs: 600000 },
+      { profileId: 'b', totalMs: 21000 },
+      { profileId: 'c', totalMs: 600000 },
+      { profileId: 'd', totalMs: 900000 },
+    ]);
+    expect(ranked.map((r) => r.profileId)).toEqual(['b', 'a', 'c', 'd']);
+    expect(ranked.map((r) => r.placement)).toEqual([1, 2, 2, 4]);
+  });
+
   it('does not mutate the input', () => {
     const runs = [
       { profileId: 'a', totalMs: 2 },

@@ -38,6 +38,7 @@ import {
 import { makeRng, seedFrom } from '../engine/munch';
 import { placementCoins } from '../engine/race';
 import { startHeartbeat } from '../ws/heartbeat';
+import { claimUpgradePath, isSameOrigin } from '../ws/upgrade';
 
 const FEAST_WS_PATH = '/api/feast-ws';
 const COUNTDOWN_MS = 3000;
@@ -131,10 +132,16 @@ export function attachFeastLive(server: Server, db: Db): void {
   const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD_BYTES });
   const rooms = new Map<string, FeastRoom>();
   const heartbeat = startHeartbeat(wss);
+  claimUpgradePath(FEAST_WS_PATH);
 
   server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
     const url = new URL(req.url ?? '', 'http://localhost');
     if (url.pathname !== FEAST_WS_PATH) return; // not ours; another handler may own it
+    // Cookie auth alone would let any site open a socket into a family's game.
+    if (!isSameOrigin(req)) {
+      socket.destroy();
+      return;
+    }
     const profileId = url.searchParams.get('profileId') ?? '';
     // The raw socket is unowned until handleUpgrade adopts it, so a reset during
     // the auth awaits below would throw an unhandled 'error'. try/catch can't
@@ -189,6 +196,14 @@ function joinRoom(
   const r = room;
 
   const existing = r.players.get(profile.id);
+  // The arena is designed for 1-4 (FEAST.md) and the cap was enforced only for
+  // bots, so an account with five-plus profiles could crowd the rim. Reconnects
+  // are exempt — they already hold a seat.
+  if (!existing && r.players.size >= MAX_PLAYERS) {
+    send(ws, { type: 'error', code: 'arena_full' });
+    ws.close();
+    return;
+  }
   const previousWs = existing?.ws;
   const player: FeastConn = existing
     ? Object.assign(existing, {
@@ -243,6 +258,9 @@ function joinRoom(
       return;
     }
     if (r.phase === 'lobby' || r.phase === 'finished') broadcastLobby(r);
+    // Whoever's left may already be ready: the start condition was only checked
+    // on a `ready` message, so they'd wait in a lobby that could never start.
+    if (r.phase === 'lobby') maybeStart(db, r);
   });
 
   send(ws, { type: 'joined', profileId: profile.id });

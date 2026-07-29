@@ -180,6 +180,33 @@ function describeDbContract(name: string, makeDb: () => Promise<Db>) {
       expect(await db.listSessionAttempts('s-idem')).toHaveLength(4);
     });
 
+    it('upserts many progress rows at once (calibration seeding)', async () => {
+      const { profile } = await seedProfile();
+      const seed = (factId: string, box: 0 | 2) => ({
+        profileId: profile.id,
+        factId,
+        box,
+        state: (box === 0 ? 'learning' : 'review') as 'learning' | 'review',
+        dueAt: 50,
+        lastSeenAt: 0,
+        reps: 1,
+        fastCorrect: 0,
+        correctStreak: 0,
+        accuracyEwma: 1,
+        medianMsEwma: 1000,
+      });
+      await db.upsertProgressMany([seed('add:1+1', 2), seed('add:2+2', 0)]);
+      expect((await db.getProgressForFact(profile.id, 'add:1+1'))?.box).toBe(2);
+      expect((await db.getProgressForFact(profile.id, 'add:2+2'))?.box).toBe(0);
+
+      // Upsert semantics match the single-row path (re-seeding overwrites).
+      await db.upsertProgressMany([{ ...seed('add:1+1', 0), reps: 9 }]);
+      const updated = await db.getProgressForFact(profile.id, 'add:1+1');
+      expect(updated?.box).toBe(0);
+      expect(updated?.reps).toBe(9);
+      await expect(db.upsertProgressMany([])).resolves.toBeUndefined();
+    });
+
     it('scopes the caught-up counts to a fact-id filter', async () => {
       const { profile } = await seedProfile();
       const row = (factId: string, box: 0 | 2, dueAt: number) => ({
@@ -296,6 +323,42 @@ function describeDbContract(name: string, makeDb: () => Promise<Db>) {
       await db.deleteAccount(accountId); // cascades to race + race_run
       expect(await db.getRace('r1')).toBeNull();
       expect(await db.listRaceRuns('r1')).toEqual([]);
+    });
+
+    it('batches runs across races (the lobby was a query per race)', async () => {
+      const { accountId, profile } = await seedProfile();
+      for (const id of ['ra', 'rb', 'rc']) {
+        await db.createRace({
+          id,
+          accountId,
+          createdByProfileId: profile.id,
+          deck: '[]',
+          factCount: 6,
+          createdAt: 1000,
+        });
+      }
+      const run = (id: string, raceId: string, totalMs: number) =>
+        db.addRaceRun({
+          id,
+          raceId,
+          profileId: profile.id,
+          totalMs,
+          correctCount: 6,
+          perRound: '[]',
+          finishedAt: 2000,
+        });
+      await run('r1', 'ra', 5000);
+      await run('r2', 'ra', 4000);
+      await run('r3', 'rb', 3000);
+      // 'rc' has no runs — it must simply be absent, not an error.
+
+      const batched = await db.listRaceRunsForRaces(['ra', 'rb', 'rc']);
+      expect(batched.map((r) => r.id).sort()).toEqual(['r1', 'r2', 'r3']);
+      expect(batched.filter((r) => r.raceId === 'ra')).toHaveLength(2);
+      expect(batched.every((r) => r.raceId !== 'rc')).toBe(true);
+      // Never reaches past the ids it was given, and an empty ask is empty.
+      expect(await db.listRaceRunsForRaces(['rb'])).toHaveLength(1);
+      expect(await db.listRaceRunsForRaces([])).toEqual([]);
     });
   });
 }

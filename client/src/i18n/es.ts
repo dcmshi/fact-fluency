@@ -209,6 +209,7 @@ export const es: typeof en = {
     announceWrong: 'Ups, {{n}} no es.',
     gridLabel: 'Cuadrícula, quedan {{count}} casillas',
     munched: 'comido',
+    muncherLabel: 'Comilón {{animal}}',
     hintKbd: 'Flechas / WASD para moverte · Espacio para comer · o toca un número',
     hintTouch: 'Toca un número para comerlo',
   },

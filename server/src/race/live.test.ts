@@ -12,6 +12,7 @@ import { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 import { SqliteDb } from '../db/sqlite';
+import { attachUpgradeGuard } from '../ws/upgrade';
 import { attachRaceLive } from './live';
 
 let db: SqliteDb;
@@ -247,6 +248,39 @@ describe('live race WebSocket', () => {
     expect(standings.filter((s) => s.profileId === kids[0])).toHaveLength(1);
     a.close();
     b.close();
+  });
+
+  it('refuses a handshake from another site (CSWSH)', async () => {
+    // The upgrade authenticates from the session cookie alone, so without this
+    // any page a parent visits could open a socket into their kids' game. Only
+    // SameSite=Lax stood between the two before.
+    const ws = new WebSocket(
+      `ws://127.0.0.1:${port}/api/race-ws?raceId=${raceId}&profileId=${profileId}`,
+      { headers: { cookie, origin: 'http://evil.example' } },
+    );
+    await expect(
+      new Promise((_resolve, reject) => {
+        ws.once('open', () => reject(new Error('cross-origin handshake was accepted')));
+        ws.once('error', (err) => reject(err));
+      }),
+    ).rejects.toThrow();
+  });
+
+  it('destroys an upgrade to a path no game claimed', async () => {
+    // Registering any 'upgrade' listener stops Node closing unhandled ones, so
+    // these used to sit half-open until the client gave up.
+    attachUpgradeGuard(server);
+    const stray = new WebSocket(`ws://127.0.0.1:${port}/api/not-a-game`);
+    await expect(
+      new Promise((_resolve, reject) => {
+        stray.once('open', () => reject(new Error('stray upgrade was accepted')));
+        stray.once('error', (err) => reject(err));
+      }),
+    ).rejects.toThrow();
+    // ...and the real path still works with the guard attached.
+    const ok = await connect();
+    expect(ok.ws.readyState).toBe(WebSocket.OPEN);
+    ok.close();
   });
 
   it('survives an oversized frame instead of crashing the process', async () => {

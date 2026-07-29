@@ -206,6 +206,10 @@ export interface Db {
    *  attempt-log row, and the (optional) working-state rewrite — one
    *  transaction instead of 4-5 separate commits/round-trips on the hottest
    *  path, and a crash can't persist progress without its attempt row. */
+  /** Upsert many progress rows in one transaction. Calibration seeds a few
+   *  hundred at once; one await each was seconds of sequential round trips on
+   *  managed Postgres, and a mid-loop failure left a half-seeded schedule. */
+  upsertProgressMany(rows: FactProgress[]): Promise<void>;
   /** Apply one graded answer atomically. If the attempt carries an `attemptId`
    *  already present for that session, nothing is written and this returns
    *  false — a replayed report (its response was lost, not its effect) must not
@@ -227,6 +231,9 @@ export interface Db {
   addRaceRun(run: RaceRunRecord): Promise<void>;
   /** All runs for a race, fastest-first — the leaderboard + ghosts. */
   listRaceRuns(raceId: string): Promise<RaceRunRecord[]>;
+  /** Runs across several races in one query — the lobby needs a run count and
+   *  a "have I played this?" flag per race, which was a query per race. */
+  listRaceRunsForRaces(raceIds: string[]): Promise<RaceRunRecord[]>;
 
   close(): Promise<void>;
 }

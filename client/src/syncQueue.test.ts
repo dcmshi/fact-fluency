@@ -6,6 +6,7 @@ import {
   flushAnswers,
   markPendingComplete,
   pendingCount,
+  resetRetryBackoff,
 } from './syncQueue';
 
 // Mock the HTTP client — these tests assert queue ordering/draining behavior,
@@ -26,6 +27,7 @@ beforeEach(() => {
   localStorage.clear();
   answerMock.mockReset();
   completeMock.mockReset();
+  resetRetryBackoff();
 });
 
 describe('queued answers', () => {
@@ -111,6 +113,53 @@ describe('queued answers', () => {
 
     expect(answerMock).toHaveBeenCalledTimes(2);
     expect(pendingCount()).toBe(0);
+  });
+});
+
+describe('retry backoff after a transient failure', () => {
+  it('retries a blocked drain on a timer, then backs off', async () => {
+    vi.useFakeTimers();
+    try {
+      // A 5xx while connectivity stays up fires no `online` event, so without a
+      // timer the kid's coins and streak sat unsent until they next played.
+      answerMock.mockRejectedValue(new ApiError(503, 'unavailable'));
+      enqueueAnswer('s1', body('a'));
+      await flushAll();
+      expect(answerMock).toHaveBeenCalledTimes(1);
+
+      answerMock.mockResolvedValue({});
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(answerMock).toHaveBeenCalledTimes(2);
+      expect(pendingCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not stack timers or retry while offline', async () => {
+    vi.useFakeTimers();
+    const onLine = vi.spyOn(navigator, 'onLine', 'get');
+    try {
+      answerMock.mockRejectedValue(new ApiError(503, 'unavailable'));
+      enqueueAnswer('s1', body('a'));
+
+      // Offline is the `online` event's job — a timer would just spin.
+      onLine.mockReturnValue(false);
+      await flushAll();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(answerMock).toHaveBeenCalledTimes(1);
+
+      // Online: repeated flushes must not queue a retry each (every tab would
+      // pile onto a server already having a bad minute).
+      onLine.mockReturnValue(true);
+      await flushAll();
+      await flushAll();
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(answerMock).toHaveBeenCalledTimes(4); // 2 direct + 1 retry (+1 earlier)
+    } finally {
+      onLine.mockRestore();
+      vi.useRealTimers();
+    }
   });
 });
 

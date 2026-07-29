@@ -92,7 +92,11 @@ export function RaceQuiz({
             key={i}
             className={`race-quiz-choice ${wrongIdx === i ? 'wrong' : ''}`}
             onClick={() => pick(i)}
-            disabled={locked}
+            // aria-disabled, not `disabled` — the real thing ejects keyboard
+            // focus to <body> for the 800ms wrong-tap lock, so a keyboard user
+            // has to Tab back into the row after every miss, mid-race. `pick`
+            // already ignores taps while locked. (Same pattern as MunchBoard.)
+            aria-disabled={locked}
             aria-label={String(v)}
           >
             {v}

@@ -232,21 +232,33 @@ export async function submitRaceRun(
 /** Recent races under the account, for the lobby (join a sibling's / rematch). */
 export async function listRaces(db: Db, profile: Profile, limit = 10): Promise<RaceSummary[]> {
   const races = await db.listRacesForAccount(profile.accountId, limit);
-  return Promise.all(
-    races.map(async (race) => {
-      const [runs, creator] = await Promise.all([
-        db.listRaceRuns(race.id),
-        db.getProfile(race.createdByProfileId),
-      ]);
-      return {
-        id: race.id,
-        createdByName: creator?.displayName ?? 'Racer',
-        createdByAvatar: creator?.avatar ?? '🦊',
-        factCount: race.factCount,
-        createdAt: race.createdAt,
-        runCount: runs.length,
-        played: runs.some((r) => r.profileId === profile.id),
-      };
-    }),
-  );
+  if (races.length === 0) return [];
+  // Three queries total, not two per race: every creator is a profile on this
+  // same account, and the runs come back in one batch and are grouped here.
+  const [runs, profiles] = await Promise.all([
+    db.listRaceRunsForRaces(races.map((r) => r.id)),
+    db.listProfiles(profile.accountId),
+  ]);
+  const byRace = new Map<string, { count: number; mine: boolean }>();
+  for (const run of runs) {
+    const entry = byRace.get(run.raceId) ?? { count: 0, mine: false };
+    entry.count += 1;
+    entry.mine ||= run.profileId === profile.id;
+    byRace.set(run.raceId, entry);
+  }
+  const creators = new Map(profiles.map((p) => [p.id, p]));
+
+  return races.map((race) => {
+    const stats = byRace.get(race.id);
+    const creator = creators.get(race.createdByProfileId);
+    return {
+      id: race.id,
+      createdByName: creator?.displayName ?? 'Racer',
+      createdByAvatar: creator?.avatar ?? '🦊',
+      factCount: race.factCount,
+      createdAt: race.createdAt,
+      runCount: stats?.count ?? 0,
+      played: stats?.mine ?? false,
+    };
+  });
 }

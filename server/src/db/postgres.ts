@@ -5,6 +5,7 @@
  * tests can run it against pg-mem without a live database.
  */
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import type { FactProgress, Operation, OperationStat, Profile, ProfileSettings } from '@shared';
 import { ADDITIVE_COLUMNS } from './additiveColumns';
 import type {
@@ -51,6 +52,25 @@ export interface PgPool {
 
 type PgQuery = (text: string, params?: unknown[]) => Promise<{ rows: Record<string, unknown>[] }>;
 
+/**
+ * TLS settings for a connection string.
+ *
+ * Managed Postgres (Render, Heroku) serves a certificate signed by a CA the
+ * client doesn't have, so verification has to be off there — but doing that
+ * unconditionally means every non-local connection is encrypted yet
+ * unauthenticated, i.e. open to an on-path attacker for account rows and
+ * password hashes. `PGSSLROOTCERT` (a CA bundle path) or `?sslmode=verify-full`
+ * opts into real verification where the environment can support it.
+ */
+function sslFor(url: string): false | { rejectUnauthorized: boolean; ca?: string } {
+  if (/localhost|127\.0\.0\.1/.test(url)) return false;
+  const wantsVerify =
+    /[?&]sslmode=verify-(ca|full)/.test(url) || Boolean(process.env.PGSSLROOTCERT);
+  if (!wantsVerify) return { rejectUnauthorized: false };
+  const caPath = process.env.PGSSLROOTCERT;
+  return { rejectUnauthorized: true, ...(caPath ? { ca: readFileSync(caPath, 'utf8') } : {}) };
+}
+
 export class PostgresDb implements Db {
   constructor(private readonly pool: PgPool) {}
 
@@ -59,11 +79,7 @@ export class PostgresDb implements Db {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const pg = require('pg') as typeof import('pg');
     pg.types.setTypeParser(20, (v: string) => parseInt(v, 10)); // BIGINT -> number
-    const local = /localhost|127\.0\.0\.1/.test(url);
-    const pool = new pg.Pool({
-      connectionString: url,
-      ssl: local ? undefined : { rejectUnauthorized: false },
-    });
+    const pool = new pg.Pool({ connectionString: url, ssl: sslFor(url) });
     // An *idle* client whose backend connection dies (managed-PG restart,
     // failover, idle timeout) emits 'error' on the pool. Unhandled, that's an
     // uncaught exception and the service exits; the pool discards the dead
@@ -567,6 +583,16 @@ export class PostgresDb implements Db {
     await this.execUpsertProgress((t, params) => this.pool.query(t, params), p);
   }
 
+  async upsertProgressMany(rows: FactProgress[]): Promise<void> {
+    if (rows.length === 0) return;
+    // One connection checkout and one transaction for the whole batch: a
+    // calibration either seeds the whole schedule or none of it, and the round
+    // trips stop being sequential over the network.
+    await this.withTransaction(async (q) => {
+      for (const p of rows) await this.execUpsertProgress(q, p);
+    });
+  }
+
   async getOperationStats(profileId: string): Promise<OperationStat[]> {
     return (
       await this.rows<OperationStatRow>('SELECT * FROM operation_stat WHERE profile_id = $1', [
@@ -775,6 +801,15 @@ export class PostgresDb implements Db {
     const rows = await this.rows<RaceRunRow>(
       'SELECT * FROM race_run WHERE race_id = $1 ORDER BY total_ms, finished_at',
       [raceId],
+    );
+    return rows.map(toRaceRun);
+  }
+
+  async listRaceRunsForRaces(raceIds: string[]): Promise<RaceRunRecord[]> {
+    if (raceIds.length === 0) return [];
+    const rows = await this.rows<RaceRunRow>(
+      'SELECT * FROM race_run WHERE race_id = ANY($1) ORDER BY total_ms, finished_at',
+      [raceIds],
     );
     return rows.map(toRaceRun);
   }

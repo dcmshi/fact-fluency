@@ -210,6 +210,7 @@ export const fr: typeof en = {
     announceWrong: 'Oups — {{n}} n’en est pas un.',
     gridLabel: 'Grille, il reste {{count}} cases',
     munched: 'mangé',
+    muncherLabel: 'Croqueur {{animal}}',
     hintKbd: 'Flèches / WASD pour bouger · Espace pour manger · ou touche un nombre',
     hintTouch: 'Touche un nombre pour le manger',
   },

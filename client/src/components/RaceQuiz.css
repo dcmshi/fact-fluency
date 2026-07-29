@@ -44,7 +44,8 @@
   transform: translateY(2px);
   box-shadow: 0 2px 0 rgba(43, 36, 64, 0.15);
 }
-.race-quiz-choice:disabled {
+/* aria-disabled, not :disabled — the lock must not drop keyboard focus. */
+.race-quiz-choice[aria-disabled='true'] {
   cursor: default;
   opacity: 0.85;
 }

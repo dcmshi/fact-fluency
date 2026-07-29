@@ -73,6 +73,7 @@ export async function submitCalibration(
   const answerByFactId = new Map(facts.map((f) => [f.id, f.answer]));
 
   const graded: CalibrationResult[] = [];
+  const seen = new Set<string>();
   for (const r of results.slice(0, MAX_RESULTS)) {
     if (
       typeof r?.factId !== 'string' ||
@@ -80,10 +81,14 @@ export async function submitCalibration(
       typeof r?.responseMs !== 'number' ||
       !Number.isFinite(r.responseMs) ||
       r.responseMs < 0 ||
-      !answerByFactId.has(r.factId)
+      !answerByFactId.has(r.factId) ||
+      // One probe per fact: a repeated id would weight that fact twice in the
+      // percentile maths behind every starting box.
+      seen.has(r.factId)
     ) {
       continue;
     }
+    seen.add(r.factId);
     graded.push({
       factId: r.factId,
       correct: answerByFactId.get(r.factId) === r.given,
@@ -103,6 +108,6 @@ export async function submitCalibration(
     now,
     timeZone: timezone ?? 'UTC',
   });
-  for (const s of seeds) await db.upsertProgress(s);
+  await db.upsertProgressMany(seeds);
   return { seeded: seeds.length };
 }

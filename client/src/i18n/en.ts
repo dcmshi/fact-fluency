@@ -207,6 +207,7 @@ export const en = {
     announceWrong: 'Oops — {{n}} isn’t one.',
     gridLabel: 'Munch grid, {{count}} cells left',
     munched: 'munched',
+    muncherLabel: '{{animal}} muncher',
     hintKbd: 'Arrow keys / WASD to move · Space to munch · or tap a number',
     hintTouch: 'Tap a number to munch it',
   },

@@ -480,6 +480,15 @@ export class SqliteDb implements Db {
     this.runUpsertProgress(p);
   }
 
+  async upsertProgressMany(rows: FactProgress[]): Promise<void> {
+    if (rows.length === 0) return;
+    // One transaction: a calibration either seeds the whole schedule or none of
+    // it — a half-seeded profile would practise against a lopsided plan.
+    this.db.transaction(() => {
+      for (const p of rows) this.runUpsertProgress(p);
+    })();
+  }
+
   async getOperationStats(profileId: string): Promise<OperationStat[]> {
     const rows = this.db
       .prepare('SELECT * FROM operation_stat WHERE profile_id = ?')
@@ -678,6 +687,17 @@ export class SqliteDb implements Db {
     const rows = this.db
       .prepare('SELECT * FROM race_run WHERE race_id = ? ORDER BY total_ms, finished_at')
       .all(raceId) as RaceRunRow[];
+    return rows.map(toRaceRun);
+  }
+
+  async listRaceRunsForRaces(raceIds: string[]): Promise<RaceRunRecord[]> {
+    if (raceIds.length === 0) return [];
+    const placeholders = raceIds.map(() => '?').join(',');
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM race_run WHERE race_id IN (${placeholders}) ORDER BY total_ms, finished_at`,
+      )
+      .all(...raceIds) as RaceRunRow[];
     return rows.map(toRaceRun);
   }
 

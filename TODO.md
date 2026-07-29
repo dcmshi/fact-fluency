@@ -1552,16 +1552,26 @@ plateFrac` is the identity, so a plate's `pos` _is_ its aim coordinate).
       while the muncher stood still — real dropped frames on the older tablets
       this targets. Now returns the previous state when pos/aim moved less than
       `MOVE_EPSILON` (well under a pixel on the belt), so React bails out.
-- [ ] **Race lobby N+1** (`session/race.ts:215-234`) — `listRaceRuns` +
-      `getProfile` per race, ~21 queries per lobby view on PG. Join instead.
-- [ ] **Profile list is 4 queries per profile** (`api/profiles.ts:52-65`),
-      including two `COUNT`s with ~1,000-parameter `IN` lists rebuilt per
-      request. Group into one query.
-- [ ] **Calibration seeds upserted one await at a time**
-      (`session/calibrate.ts:106`) — up to a few hundred sequential round trips
-      on Render PG, and a mid-loop failure leaves a half-seeded schedule. Add a
-      batched/transactional `upsertProgressMany` (+ contract test); dedupe
-      submitted `factId`s while there (`calibrate.ts:76-92`).
+- [x] **Race lobby N+1** — _done._ Was `listRaceRuns` + `getProfile` per race
+      (~21 queries per lobby view on PG); now three total regardless of race
+      count. Every creator is a profile on the same account, so one
+      `listProfiles` covers them, and a new `listRaceRunsForRaces` (both
+      adapters + contract test) fetches the runs in one batch, grouped in
+      memory for the count and the "have I played this?" flag.
+- [~] **Profile list is 4 queries per profile** (`api/profiles.ts:52-65`) —
+  **deliberately deferred.** At the family scale this app targets (1–4
+  kids) that's 4–16 small queries on a screen loaded a few times a day.
+  Fixing it properly means either a new batched count method or widening
+  `Profile`/`PROFILE_SELECT` to carry `last_played_day`, and neither earns
+  its churn yet. Revisit if a household ever has enough profiles to feel it.
+- [x] **Calibration seeds upserted one await at a time** — _done._ New
+      transactional `upsertProgressMany` (both adapters + contract test)
+      replaces the per-seed await loop: one round trip instead of a few hundred
+      sequential ones on Render PG, and a calibration now either seeds the whole
+      schedule or none of it rather than leaving a half-seeded plan behind.
+      Duplicate `factId`s in the submitted results are also dropped now — a
+      repeated id would have weighted that fact twice in the percentile maths
+      behind every starting box.
 - [x] **Missing FK indexes** on `race.created_by_profile_id` and
       `race_run.profile_id` — _done._ Added `idx_race_creator` /
       `idx_race_run_profile` to both schemas, so a profile or account delete no
@@ -1569,77 +1579,102 @@ plateFrac` is the identity, so a plate's `pos` _is_ its aim coordinate).
 
 ### P6 — Hardening
 
-- [ ] **Unclaimed WS upgrade requests are left hanging** (`race/live.ts:80`,
-      `feast/live.ts:123` both bare-`return` on a non-matching path). Once any
+- [x] **Unclaimed WS upgrade requests are left hanging** — _done._ Once any
       `'upgrade'` listener exists Node stops auto-closing unhandled upgrades, so
-      each probe to `/api/anything` leaks a half-open socket — trivially
-      repeatable. Add a final listener that `socket.destroy()`s unmatched paths.
-- [ ] **No Origin check on either WS upgrade** (CSWSH) — auth is cookie-only.
-      Today this rests entirely on `SameSite=Lax` browser behavior (and `secure`
-      is off in dev). Reject upgrades whose `Origin` isn't the app's own host.
-- [ ] **PG TLS uses `rejectUnauthorized: false` unconditionally**
-      (`db/postgres.ts:62-66`) — every non-localhost connection gets encryption
-      without certificate verification (account data + password hashes). Make SSL
-      mode configurable, defaulting to today's behavior only for Render.
-- [ ] **Client WS `onmessage` does unguarded `JSON.parse`** (`RacePage.tsx:82`,
-      `FeastPage.tsx:82`) — a malformed frame throws in the handler and silently
-      drops that update. try/catch + validate `msg.type`.
-- [ ] **Engine timezone fallbacks disagree** (`engine/scheduling.ts:57-70`) —
-      `tzOffsetMinutes` falls back to UTC but `dayInTz` falls back to the
-      _machine_ calendar, and `auth/routes.ts:85,110,207` stores any non-empty
-      string as the account timezone. With an invalid tz on a non-UTC host,
-      `startOfDayAfter` can return a `dueAt` in the past (box-1 fact instantly
-      due again) and engine output becomes host-dependent. Align both fallbacks
-      on UTC; validate the zone with `Intl` at the auth edge. (Masked in prod —
-      Render runs UTC.)
+      every probe to `/api/anything` leaked a half-open socket. New
+      `ws/upgrade.ts`: each game claims its path, and `attachUpgradeGuard`
+      (attached last in `index.ts`, since listeners run in registration order)
+      destroys anything nobody claimed. Regression-tested.
+- [x] **No Origin check on either WS upgrade (CSWSH)** — _done._ The handshake
+      authenticates from the session cookie alone, so any page a parent visited
+      could open a socket into their kids' game — `SameSite=Lax` was the entire
+      defence, one browser-policy change from nothing. Now same-origin is
+      required explicitly. A _missing_ Origin is still allowed (non-browser
+      clients don't send one, and the attack is specifically a browser on
+      another site), and loopback origins are allowed outside production so the
+      Vite dev proxy's :5173 → :3001 hop keeps working. Regression-tested.
+- [x] **PG TLS uses `rejectUnauthorized: false` unconditionally** — _done._
+      Extracted to `sslFor(url)`: managed Postgres still gets the unverified
+      default (its CA isn't one we hold), but `?sslmode=verify-ca|verify-full`
+      or a `PGSSLROOTCERT` bundle now opts into real verification instead of
+      every non-local connection being encrypted-but-unauthenticated.
+- [x] **Client WS `onmessage` does unguarded `JSON.parse`** — _done_ (folded
+      into the P2 client work): both handlers try/catch and ignore unparseable
+      frames instead of losing that update to a throw.
+- [x] **Engine timezone fallbacks disagree** — _done._ `dayInTz` now falls back
+      to **UTC**, matching `tzOffsetMinutes`. They used to disagree (machine
+      calendar vs 0), and `startOfDayAfter` combines them — so with an invalid
+      account tz on a host west of UTC, a just-promoted box-1 fact could get a
+      `dueAt` already in the past and come due immediately. It also made engine
+      output depend on the host's ambient zone, which nothing else here does.
+      (Masked in prod: Render runs UTC.) Test updated to pin UTC, not "some
+      date-shaped string".
 - [ ] **Concurrent answers can clobber `workingState`**
       (`session/service.ts:329-334, 393-431`) — read-modify-write of the parsed
       learning map with no versioning, so an offline queue replaying two answers
       concurrently loses one learning-counter increment. Serialize per session or
-      do a conditional/merged write.
+      do a conditional/merged write. _Still open:_ needs either per-session
+      serialization or a JSON-merge write; self-healing gameplay state, so it
+      ranks below everything above.
 - [ ] **Queued answers can land out of order vs live successes**
       (`PlayPage.tsx:254-281`) — if answer N fails (queued) while N+1 succeeds
       live, the flush appends N after N+1, inverting box scheduling for a fact
       that was missed then re-shown correctly. Stamp a client sequence, or route
-      everything through the queue once anything is queued.
-- [ ] **syncQueue has no timed retry** (`syncQueue.ts:110-124`) — flushes run on
-      mount / `online` / session completion, so a transient 5xx while
-      connectivity stays up strands coins and streak for hours. One capped
-      exponential-backoff retry.
+      everything through the queue once anything is queued. _Still open._
+- [x] **syncQueue has no timed retry** — _done._ Flushes ran only on mount,
+      `online`, and session completion, so a transient 5xx _while connectivity
+      stayed up_ fires no `online` event and stranded an offline session's coins
+      and streak until the kid next played. Now a capped exponential backoff
+      (5s → 5min), skipped entirely while `navigator.onLine` is false (the
+      `online` event covers that) and reset once answers get through, with one
+      timer at a time so every open tab doesn't pile onto a struggling server.
+      Unit-tested with fake timers.
+- [x] **syncQueue multi-tab drain race** (carried over from P4) — _done._ The
+      promise chain only serialized within a tab, but the queue is shared
+      localStorage: an installed PWA plus a browser tab both replayed it and
+      raced the `slice(settled)` rewrite, which can drop an entry that never
+      sent. The drain now runs under a Web Locks lock where available (older
+      Safari falls back to the in-tab chain alone).
 
 ### P7 — Polish
 
-- [ ] **Race `finished` advertises coins that were never credited**
-      (`race/live.ts:214-232`) — `withCoins` attaches `coinsEarned` to every
-      standing but the `addCoins` loop skips `finishMs == null`; the client
-      renders it verbatim (`RacePage.tsx:336-338`), so a dropped kid sees
-      "+N ⭐" that never lands. Zero it for non-finishers.
-- [ ] **Lobby start condition isn't re-checked on disconnect** (both games) — A
-      readies, B leaves, and nothing re-runs `shouldStart`/`maybeStart`, so A is
-      stuck until they leave and rejoin. Re-check in the `close` handler (and
-      after `addBot`).
-- [ ] **Feast `MAX_PLAYERS` is enforced only for bots** (`feast/live.ts:252` vs
-      `joinRoom:145-191`) — an account with 5+ profiles overflows the documented
-      1–4 arena. Cap human joins too.
-- [ ] **Muncher `aria-label` is hardcoded English** (`Muncher.tsx:252` →
-      "Cat muncher") — the one i18n gap; a Spanish-speaking SR user hears English
-      mid-game. Add `muncher.<animal>` keys to all four dicts. Also delete or
-      localize the unused English `OP_LABEL` (`ops.ts:11-16`).
-- [ ] **RaceQuiz's lock drops keyboard focus to `<body>`** (`RaceQuiz.tsx:94`) —
-      `disabled={locked}` during the 800ms wrong-tap lock ejects focus, the exact
-      pattern MunchBoard avoids with `aria-disabled` (`MunchBoard.tsx:281-283`).
-- [ ] **`transitionReview` docstring contradicts the box-5 rule**
-      (`engine/scheduling.ts:136-152`) — the table says "correct & slow → stay,
-      half interval" but line 152 demotes box 5 → 4, which is intended and
-      test-pinned. In the most correctness-critical module this invites a future
-      "fix" that would break the fluency gate. Document the exception; rename the
-      `stayed` local.
-- [ ] **Race ties at the clamp get arbitrary placements** (`engine/race.ts:63-70`)
-      — the "sub-ms ties are impossible" comment is false once `totalMs` is
-      rounded and clamped to `MAX_RACE_MS` (and live races _default_ to it on a
-      non-finite report, `race/live.ts:189-191`); two capped racers tie exactly
-      and sort order decides 1st vs 2nd, with different coin payouts. Use
-      competition ranking on equal `totalMs`.
+_All done (2026-07-28)._
+
+- [x] **Race `finished` advertises coins that were never credited** — _done._
+      The broadcast attached `coinsEarned` to every standing while the award
+      loop skipped non-finishers, and the client renders it verbatim, so a kid
+      who dropped saw "+N ⭐" their balance never received. The broadcast now
+      mirrors the award condition.
+- [x] **Lobby start condition isn't re-checked on disconnect** — _done_ (both
+      games). A readies, B leaves, and nothing re-ran `shouldStart`/`maybeStart`
+      — so whoever was left sat in a lobby that could never start, their own
+      ready button already disabled. Both `close` handlers re-check.
+- [x] **Feast `MAX_PLAYERS` is enforced only for bots** — _done._ An account
+      with five-plus profiles could crowd the documented 1–4 arena; humans are
+      capped too now (refused with `arena_full`), with reconnects exempt since
+      they already hold a seat.
+- [x] **Muncher `aria-label` is hardcoded English** — _done._ It read "Cat
+      muncher" to a screen reader in an otherwise fully localized game. Now
+      `munch.muncherLabel` (all four dicts) interpolated with the animal name
+      reused from the existing `rewards.items.muncher-*` labels rather than
+      duplicating them. The unused English `OP_LABEL` is deleted — operation
+      names live in the dictionaries as `ops.*`, and a hardcoded English map
+      sitting next to `OP_SYMBOL` was a trap waiting for the next caller.
+- [x] **RaceQuiz's lock drops keyboard focus to `<body>`** — _done._ Swapped
+      `disabled` for `aria-disabled` (+ the matching CSS selector); `pick()`
+      already ignored taps while locked. A keyboard user no longer has to Tab
+      back into the row after every wrong answer, mid-race.
+- [x] **`transitionReview` docstring contradicts the box-5 rule** — _done._
+      Documented _why_ box 5 demotes on a slow-correct (mastery means correct
+      **and** fast, so a slow answer is no longer evidence of it), renamed the
+      misleading `stayed` local, and left a note not to "simplify" it — in the
+      repo's most correctness-critical function, that comment was an invitation
+      to break the fluency gate.
+- [x] **Race ties at the clamp get arbitrary placements** — _done._ The
+      "sub-ms ties are impossible" comment was false: times are whole ms clamped
+      at `MAX_RACE_MS`, and a live race _defaults_ an unreadable time to that
+      cap, so two capped racers tie exactly and sort order decided 1st vs 2nd
+      (and the coins). `rankRuns` now uses competition ranking (1, 2, 2, 4).
 
 ## Known limitations
 

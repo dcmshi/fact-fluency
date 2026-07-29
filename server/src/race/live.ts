@@ -26,6 +26,7 @@ import {
   type RoomPlayer,
 } from '../engine/raceRoom';
 import { startHeartbeat } from '../ws/heartbeat';
+import { claimUpgradePath, isSameOrigin } from '../ws/upgrade';
 
 const RACE_WS_PATH = '/api/race-ws';
 const MAX_RACE_MS = 10 * 60 * 1000;
@@ -94,12 +95,19 @@ export function attachRaceLive(server: Server, db: Db): void {
   const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD_BYTES });
   const rooms = new Map<string, Room>();
   const heartbeat = startHeartbeat(wss);
+  claimUpgradePath(RACE_WS_PATH);
 
   server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
     const url = new URL(req.url ?? '', 'http://localhost');
     // Only claim our own path — another upgrade handler (e.g. Feast) may own the
-    // socket. Don't destroy non-matches, or we'd kill their upgrades.
+    // socket. Don't destroy non-matches, or we'd kill their upgrades; the
+    // upgrade guard (attached last) cleans up anything nobody claimed.
     if (url.pathname !== RACE_WS_PATH) return;
+    // Cookie auth alone would let any site open a socket into a family's game.
+    if (!isSameOrigin(req)) {
+      socket.destroy();
+      return;
+    }
     const raceId = url.searchParams.get('raceId') ?? '';
     const profileId = url.searchParams.get('profileId') ?? '';
     // The raw socket is unowned until handleUpgrade adopts it, so a reset during
@@ -224,6 +232,10 @@ function joinRoom(
     broadcastState(r);
     // A drop can leave everyone else already finished → wrap up.
     if (r.phase === 'racing' && allConnectedFinished(asPlayers(r))) void finishRace(db, r);
+    // ...or leave everyone still here already readied. The start condition was
+    // only re-checked on a `ready` message, so whoever remained sat in a lobby
+    // that would never start (their own button already disabled).
+    if (r.phase === 'lobby' && shouldStart(asPlayers(r))) startCountdown(r);
   });
 
   send(ws, { type: 'joined', totalRounds });
@@ -287,7 +299,13 @@ async function finishRace(db: Db, room: Room): Promise<void> {
   const standings = roomStandings(asPlayers(room));
   const withCoins = standings.map((s) => ({
     ...s,
-    coinsEarned: placementCoins(s.placement, standings.length),
+    // Mirror the award condition below: the client renders `coinsEarned`
+    // verbatim, so advertising coins to someone who never finished promised a
+    // dropped kid "+N ⭐" that their balance never received.
+    coinsEarned:
+      room.players.get(s.profileId)?.finishMs != null
+        ? placementCoins(s.placement, standings.length)
+        : 0,
   }));
   if (!room.awarded) {
     room.awarded = true;

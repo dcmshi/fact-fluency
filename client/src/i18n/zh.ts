@@ -201,6 +201,7 @@ export const zh: typeof en = {
     announceWrong: '哎呀 —— {{n}} 不是。',
     gridLabel: '吃豆网格，还剩 {{count}} 格',
     munched: '已吃',
+    muncherLabel: '{{animal}}吃豆角色',
     hintKbd: '方向键 / WASD 移动 · 空格吃掉 · 或点击数字',
     hintTouch: '点击数字即可吃掉',
   },

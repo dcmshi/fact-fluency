@@ -1,4 +1,6 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { tLabel } from '../i18n';
 import './Muncher.css';
 
 /** Animation state for a muncher character. `still` renders the resting pose
@@ -240,7 +242,12 @@ export const Muncher = memo(function Muncher({
   state?: MuncherState;
   size?: number | string;
 }) {
+  const { t } = useTranslation();
   const spec = ANIMALS[animal] ?? ANIMALS.cat;
+  // The animal names already exist as reward labels, so reuse those rather than
+  // duplicate them. Without this a Spanish-speaking screen-reader user heard
+  // "Cat muncher" in an otherwise fully localized game.
+  const animalName = tLabel(t, `rewards.items.muncher-${animal}`, spec.label);
   return (
     <svg
       className="muncher"
@@ -249,7 +256,7 @@ export const Muncher = memo(function Muncher({
       width={size}
       height={size}
       role="img"
-      aria-label={`${spec.label} muncher`}
+      aria-label={t('munch.muncherLabel', { animal: animalName })}
     >
       <g className="m-rig">
         {/* little feet peeking out the bottom */}
