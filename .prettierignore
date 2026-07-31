@@ -3,3 +3,5 @@
 package-lock.json
 client/public/sw.js
 docs/screenshots/**
+# Google Search Console verification — served byte-for-byte as Google issued it.
+client/public/google2b9f6e0ac5009e7b.html
