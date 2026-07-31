@@ -101,7 +101,11 @@ export function FactSetsModal({ profile, onClose }: { profile: Profile; onClose:
           </div>
         );
       })}
-      <button className="btn sun full" disabled={busy} onClick={save}>
+      {/* Gated on `catalog` too, not just `busy`: `enabled` starts empty and is
+          only filled once the query lands, so a Save tapped while "Loading…" is
+          still up would PUT `[]` and disable every set for the kid — whose next
+          session then fails with no_enabled_sets. */}
+      <button className="btn sun full" disabled={busy || !catalog} onClick={save}>
         {busy ? t('common.saving') : t('common.save')}
       </button>
     </Modal>
