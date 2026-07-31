@@ -10,6 +10,11 @@
   --paper-2: #fdeed7;
   --card: #ffffff;
   --ink: #2b2440;
+  /* companion to --ink, same idea as --on-sun below: the foreground that stays
+     readable on an ink-colored surface. The default .btn fills with --ink, so
+     hardcoding white here made that button white-on-white under midnight,
+     whose --ink is near-white. */
+  --on-ink: #ffffff;
   --ink-soft: #6b6480;
   --line: #efe2cc;
 
@@ -152,7 +157,7 @@ button {
   border: none;
   border-radius: var(--r-md);
   background: var(--c);
-  color: #fff;
+  color: var(--on-ink);
   font-weight: 800;
   font-size: 1.05rem;
   padding: 0.95rem 1.25rem;
@@ -404,6 +409,7 @@ body[data-theme='midnight'] {
   --sun-shadow: #5064c9;
   --on-sun: #141833;
   --ink: #eef1ff;
+  --on-ink: #191c2b;
   --ink-soft: #a6adcc;
   --line: #33384f;
   --card: #232843;
