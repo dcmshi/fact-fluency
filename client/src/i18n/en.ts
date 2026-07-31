@@ -39,6 +39,7 @@ export const en = {
     notAGuest: 'This account is already saved.',
     deleteFailed: 'Couldn’t delete — try again.',
     rewardFailed: 'Hmm, that didn’t work — try again.',
+    rewardsLoadFailed: 'Couldn’t load the rewards shop.',
   },
   landing: {
     tagline:

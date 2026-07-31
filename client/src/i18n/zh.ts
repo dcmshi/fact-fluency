@@ -37,6 +37,7 @@ export const zh: typeof en = {
     notAGuest: '该账号已保存。',
     deleteFailed: '无法删除，请重试。',
     rewardFailed: '嗯，没成功，请重试。',
+    rewardsLoadFailed: '无法加载奖励商店。',
   },
   landing: {
     tagline: '一款面向孩子的免费数学口算练习游戏 — 用有趣的方式掌握加、减、乘、除。',

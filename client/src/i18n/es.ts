@@ -38,6 +38,7 @@ export const es: typeof en = {
     notAGuest: 'Esta cuenta ya está guardada.',
     deleteFailed: 'No se pudo eliminar. Inténtalo de nuevo.',
     rewardFailed: 'Mmm, eso no funcionó. Inténtalo de nuevo.',
+    rewardsLoadFailed: 'No se pudo cargar la tienda de premios.',
   },
   landing: {
     tagline:

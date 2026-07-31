@@ -37,6 +37,7 @@ export const fr: typeof en = {
     notAGuest: 'Ce compte est déjà enregistré.',
     deleteFailed: 'Impossible de supprimer — réessaie.',
     rewardFailed: 'Hmm, ça n’a pas marché — réessaie.',
+    rewardsLoadFailed: 'Impossible de charger la boutique de récompenses.',
   },
   landing: {
     tagline:

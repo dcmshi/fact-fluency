@@ -26,7 +26,11 @@ export function RewardsModal({ profile, onClose }: { profile: Profile; onClose: 
 
   // Cached fetch (deduped across reopens); mirror it into local state so equip
   // can optimistically update the preview without refetching.
-  const { data: rewards } = useQuery({
+  const {
+    data: rewards,
+    isError: loadFailed,
+    refetch: reload,
+  } = useQuery({
     queryKey: qk.rewards(profile.id),
     queryFn: () => api.rewards(profile.id),
   });
@@ -132,11 +136,25 @@ export function RewardsModal({ profile, onClose }: { profile: Profile; onClose: 
           {goal}
         </div>
       )}
-      {section(t('rewards.sectionMunchers'), 'muncher')}
-      {section(t('rewards.sectionCelebrations'), 'effect')}
-      {section(t('rewards.sectionAvatars'), 'avatar')}
-      {section(t('rewards.sectionThemes'), 'theme')}
-      {section(t('rewards.sectionPowerups'), 'perk')}
+      {/* Without this a failed fetch left five sections of shimmer tiles up for
+          good, with nothing to say so and nothing to retry — the shop looked
+          like it was still loading forever. */}
+      {loadFailed ? (
+        <div role="alert" style={{ textAlign: 'center' }}>
+          <p className="muted">{t('errors.rewardsLoadFailed')}</p>
+          <button className="btn ghost" onClick={() => void reload()}>
+            {t('common.tryAgain')}
+          </button>
+        </div>
+      ) : (
+        <>
+          {section(t('rewards.sectionMunchers'), 'muncher')}
+          {section(t('rewards.sectionCelebrations'), 'effect')}
+          {section(t('rewards.sectionAvatars'), 'avatar')}
+          {section(t('rewards.sectionThemes'), 'theme')}
+          {section(t('rewards.sectionPowerups'), 'perk')}
+        </>
+      )}
     </Modal>
   );
 }
