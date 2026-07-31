@@ -19,7 +19,7 @@
   color: var(--ink-soft);
 }
 .race-quiz-q {
-  color: var(--sun-shadow);
+  color: var(--ink-accent);
 }
 .race-quiz-choices {
   display: flex;

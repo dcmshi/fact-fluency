@@ -35,7 +35,7 @@
   color: var(--ink-soft);
 }
 .feast-q {
-  color: var(--sun-shadow);
+  color: var(--ink-accent);
 }
 .feast-timer {
   font-family: var(--font-display);
@@ -45,7 +45,7 @@
   text-align: right;
 }
 .feast-timer.low {
-  color: var(--sub);
+  color: var(--ink-wrong);
 }
 
 /* The round belt: a square stage; plates + munchers are placed by % from the
@@ -264,7 +264,7 @@
   font-family: var(--font-display);
   font-weight: 700;
   font-size: clamp(3rem, 18vw, 6rem);
-  color: var(--sun-shadow);
+  color: var(--ink-accent);
 }
 .feast-standings {
   display: flex;

@@ -32,6 +32,19 @@
   --correct: #2fb87a;
   --wrong: #ff6b5c;
 
+  /* Readable inks. The candy palette above is tuned to be a *fill*: white text
+     on it lands at 2.1–3.7:1, which fails WCAG AA everywhere and the 3:1
+     large-text bar on three of the four. These are the foregrounds to reach for
+     instead of a raw palette color whenever the thing being colored is text.
+     --on-op  — ink for text sitting on an operation/feedback fill. Clears 4.5:1
+                on all four; theme-fixed, because the op colors are.
+     --ink-accent — the warm accent *as text* on paper/card. --sun-shadow reads
+                as a highlight but is only ~2:1 against paper.
+     --ink-wrong  — "running out of time"/error red as text, not as a fill. */
+  --on-op: #1c1330;
+  --ink-accent: #8a5c14;
+  --ink-wrong: #b83a2d;
+
   /* tactile button depth (hard, no blur) */
   --press: 6px;
 
@@ -290,7 +303,7 @@ button {
   justify-content: center;
   font-family: var(--font-display);
   font-weight: 600;
-  color: #fff;
+  color: var(--on-op);
   border-radius: 999px;
   padding: 0.15rem 0.7rem;
   font-size: 0.8rem;
@@ -384,6 +397,7 @@ body[data-theme='ocean'] {
   --sun: #16b5c9;
   --sun-shadow: #0e8494;
   --on-sun: #06333b;
+  --ink-accent: #0d6e7b;
   --ink: #123b47;
   --ink-soft: #4d7682;
   --line: #cfe6ee;
@@ -395,6 +409,7 @@ body[data-theme='candy'] {
   --sun: #ff5fa2;
   --sun-shadow: #cf3d7c;
   --on-sun: #46102a;
+  --ink-accent: #a13c66;
   --ink: #4a1d3a;
   --ink-soft: #9b5e80;
   --line: #f4d3e6;
@@ -406,6 +421,7 @@ body[data-theme='forest'] {
   --sun: #3a9d54;
   --sun-shadow: #29753d;
   --on-sun: #0e2a15;
+  --ink-accent: #296f3c;
   --ink: #1f3a25;
   --ink-soft: #5b7560;
   --line: #d3e6cd;
@@ -417,6 +433,7 @@ body[data-theme='sunset'] {
   --sun: #ff7a3d;
   --sun-shadow: #d55a20;
   --on-sun: #3d1a0b;
+  --ink-accent: #9c4a25;
   --ink: #4a2418;
   --ink-soft: #9b6a55;
   --line: #f6d9c8;
@@ -428,6 +445,10 @@ body[data-theme='midnight'] {
   --sun: #7c9cff;
   --sun-shadow: #5064c9;
   --on-sun: #141833;
+  /* midnight reads light-on-dark: its own --sun clears the dark paper,
+     and the warm reds below would not. */
+  --ink-accent: var(--sun);
+  --ink-wrong: #ff9d92;
   --ink: #eef1ff;
   --on-ink: #191c2b;
   --ink-soft: #a6adcc;

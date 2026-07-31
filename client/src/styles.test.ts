@@ -68,17 +68,17 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+const cssFiles = readdirSync(resolve('.'), { recursive: true })
+  .map(String)
+  .filter((f) => f.endsWith('.css'))
+  .map((f) => f.replaceAll('\\', '/'));
+
 describe('one global CSS namespace', () => {
   // Route stylesheets ride along with lazy-loaded chunks, so they all land in
   // one global namespace in whatever order the kid happens to navigate. Two
   // files declaring the same bare class means the winner depends on that order:
   // `.big-emoji` existed three times at two sizes, and a stale `.muncher` rule
   // in MunchBoard.css restyled the race-track and feast-belt munchers.
-  const cssFiles = readdirSync(resolve('.'), { recursive: true })
-    .map(String)
-    .filter((f) => f.endsWith('.css'))
-    .map((f) => f.replaceAll('\\', '/'));
-
   it('found the stylesheets', () => {
     expect(cssFiles).toContain('index.css');
     expect(cssFiles.length).toBeGreaterThan(10);
@@ -145,5 +145,47 @@ describe('theme companion tokens', () => {
         4.5,
       );
     }
+  });
+});
+
+describe('readable inks', () => {
+  // The candy palette is tuned as a *fill*. White on it is 2.1–3.7:1 — below
+  // even the 3:1 large-text bar for three of the four — so anything drawing text
+  // on an operation or feedback color has to use --on-op.
+  it('--on-op clears AA on every operation and feedback fill', () => {
+    const p = palette('classic');
+    for (const fill of ['--add', '--sub', '--mul', '--div', '--correct', '--wrong']) {
+      expect(contrast(p['--on-op'], p[fill]), `--on-op on ${fill}`).toBeGreaterThan(4.5);
+    }
+  });
+
+  it('--ink-accent is readable as text on paper and on a card, per theme', () => {
+    for (const theme of ALL_THEMES) {
+      const p = palette(theme);
+      for (const bg of ['--paper', '--paper-2', '--card']) {
+        const label = `--ink-accent on ${bg} (${theme})`;
+        expect(contrast(p['--ink-accent'], p[bg]), label).toBeGreaterThan(4.5);
+      }
+    }
+  });
+
+  // Only used at display sizes (the feast timer, 1.4rem/700), so 3:1 applies.
+  it('--ink-wrong is readable as text on paper, per theme', () => {
+    for (const theme of ALL_THEMES) {
+      const p = palette(theme);
+      const label = `--ink-wrong on --paper (${theme})`;
+      expect(contrast(p['--ink-wrong'], p['--paper']), label).toBeGreaterThan(3);
+    }
+  });
+
+  // The rule the tokens above exist to enforce: a literal white foreground is
+  // how every one of those failures got in, and it hides which fill it sits on.
+  it('no stylesheet hardcodes a white text color', () => {
+    const offenders = cssFiles.flatMap((file) =>
+      [...readCss(`./${file}`).matchAll(/^\s*color:\s*(#fff\b|#ffffff\b|white\b).*$/gim)].map(
+        (m) => `${file}:${m[0].trim()}`,
+      ),
+    );
+    expect(offenders).toEqual([]);
   });
 });

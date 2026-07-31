@@ -138,7 +138,7 @@
 /* The kid's personalized "fast enough" bar for this operation. */
 .grid-fastbar {
   font-weight: 700;
-  color: var(--div);
+  color: var(--ink-accent);
 }
 /* "Getting faster" callout — speed progress, not just accuracy. */
 .speed-note {

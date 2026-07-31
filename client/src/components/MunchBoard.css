@@ -88,13 +88,13 @@
 .munch-cell.flash-ok {
   background: var(--correct);
   border-color: var(--correct);
-  color: #fff;
+  color: var(--on-op);
   animation: munch-pop 0.3s ease;
 }
 .munch-cell.flash-no {
   background: var(--wrong);
   border-color: var(--wrong);
-  color: #fff;
+  color: var(--on-op);
   animation: munch-shake 0.3s ease;
 }
 @keyframes munch-pop {

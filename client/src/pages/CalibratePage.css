@@ -55,7 +55,7 @@
   color: var(--ink-soft);
 }
 .cal-q {
-  color: var(--sun-shadow);
+  color: var(--ink-accent);
 }
 
 /* Answer choices — 2×2 chunky number buttons with instant right/wrong feedback. */
@@ -77,13 +77,13 @@
   --shadow: #1f8c5b;
   background: var(--correct);
   border-color: var(--correct);
-  color: #fff;
+  color: var(--on-op);
   opacity: 1; /* keep the feedback vivid even though tapping disables the row */
 }
 .btn.cal-choice.wrong {
   --shadow: #d24a3d;
   background: var(--wrong);
   border-color: var(--wrong);
-  color: #fff;
+  color: var(--on-op);
   opacity: 1;
 }

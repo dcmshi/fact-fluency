@@ -139,9 +139,19 @@
   font-size: 0.9rem;
   transition: all 0.1s ease;
 }
+/* AddProfileModal's grade-band picker reuses .set-pill without an operation
+   class, so `on` needs a fill of its own here: it used to set white text and
+   leave the cream background, making the selected band invisible. */
 .set-pill.on {
-  color: #fff;
+  background: var(--ink);
+  color: var(--on-ink);
   border-color: transparent;
+}
+.set-pill.add.on,
+.set-pill.sub.on,
+.set-pill.mul.on,
+.set-pill.div.on {
+  color: var(--on-op);
 }
 .set-pill.add.on {
   background: var(--add);
@@ -309,9 +319,11 @@
   font-size: 0.9rem;
   text-decoration: underline;
 }
+/* Deeper than the --wrong coral: this is 1.05rem/800 body-size text, so it needs
+   4.5:1 against its own fill and the coral only reaches 4.0:1. */
 .btn.danger {
-  background: #e3463a;
-  color: #fff;
+  background: var(--ink-wrong);
+  color: var(--on-ink);
 }
 .confirm-delete .confirm-actions {
   display: flex;

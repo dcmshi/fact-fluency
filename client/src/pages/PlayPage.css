@@ -330,7 +330,7 @@
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 0.82rem;
-  color: #fff;
+  color: var(--on-op);
   background: var(--c, var(--add));
   border-radius: 999px;
   padding: 0.15rem 0.6rem;
