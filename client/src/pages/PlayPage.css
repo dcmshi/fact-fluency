@@ -230,6 +230,13 @@
   gap: 0.6rem;
   margin: 0.5rem 0 0.4rem;
 }
+/* Four fixed columns put each uppercase, letter-spaced label in ~100px on a
+   small phone; the translated ones ("DOMINADAS", "MAÎTRISÉS") don't fit. */
+@media (max-width: 420px) {
+  .summary-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 .stat {
   background: var(--card);
   border-radius: var(--r-md);
