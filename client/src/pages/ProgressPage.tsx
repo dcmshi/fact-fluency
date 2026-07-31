@@ -30,6 +30,24 @@ function cellColor(op: keyof typeof OP_HEX, box: Box | null, state: CellState): 
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+/**
+ * The same mastery level again, as length rather than color: a bar along the
+ * bottom of the cell that grows a sixth per box. Shade was the only cue, and
+ * boxes 0–4 differ by alpha alone (0.2 → 0.66) with "unseen" reading much like
+ * box 0 — a grid nobody with a color vision deficiency could read (WCAG 1.4.1).
+ *
+ * Drawn as a background layer instead of a child element on purpose: a grid is
+ * ~170 cells per operation, so one extra span each is ~700 more nodes on the
+ * page for a 3px rule.
+ */
+export function cellBackground(op: keyof typeof OP_HEX, box: Box | null, state: CellState): string {
+  const fill = cellColor(op, box, state);
+  if (state === 'unseen' || box === null) return fill;
+  const pct = (((box + 1) / 6) * 100).toFixed(1);
+  const bar = 'color-mix(in srgb, var(--on-op) 55%, transparent)';
+  return `linear-gradient(to right, ${bar} 0 ${pct}%, transparent ${pct}%) no-repeat bottom / 100% 3px, ${fill}`;
+}
+
 export function ProgressPage() {
   const { t } = useTranslation();
   const { profileId = '' } = useParams();
@@ -131,7 +149,11 @@ export function ProgressPage() {
                   key={i}
                   className={`legend-swatch${b === 5 ? ' mastered' : ''}`}
                   style={{
-                    background: cellColor('mul', b as Box | null, b === null ? 'unseen' : 'review'),
+                    background: cellBackground(
+                      'mul',
+                      b as Box | null,
+                      b === null ? 'unseen' : 'review',
+                    ),
                   }}
                 />
               ))}
@@ -637,7 +659,7 @@ function OperationGrid({
               type="button"
               key={`${c.operandA}-${c.operandB}`}
               className={`fact-cell${c.state === 'mastered' ? ' mastered' : ''}`}
-              style={{ background: cellColor(grid.operation, c.box, c.state) }}
+              style={{ background: cellBackground(grid.operation, c.box, c.state) }}
               title={label}
               aria-label={label}
               tabIndex={-1}
