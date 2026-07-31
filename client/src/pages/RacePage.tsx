@@ -83,9 +83,11 @@ export function RacePage() {
   useEffect(() => {
     if (!roomRaceId) return;
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws = new WebSocket(
-      `${proto}://${location.host}/api/race-ws?raceId=${roomRaceId}&profileId=${profileId}`,
-    );
+    // Encoded even though both ids are server-issued and same-origin: a raw
+    // interpolation into a query string is the wrong habit to leave lying around
+    // next to the next id that isn't.
+    const query = new URLSearchParams({ raceId: roomRaceId, profileId });
+    const ws = new WebSocket(`${proto}://${location.host}/api/race-ws?${query}`);
     wsRef.current = ws;
     let intentional = false;
     ws.onmessage = (ev) => {

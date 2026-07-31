@@ -1,8 +1,8 @@
 /**
  * i18n setup (react-i18next). Resources are bundled inline (no async backend →
  * no Suspense needed). Language is detected from localStorage then the browser,
- * and persisted to localStorage so the choice sticks. Supported: English +
- * Spanish; unknown locales fall back to English.
+ * and persisted to localStorage so the choice sticks. Supported: English,
+ * Spanish, French and Chinese; unknown locales fall back to English.
  */
 import i18n from 'i18next';
 import type { TFunction } from 'i18next';

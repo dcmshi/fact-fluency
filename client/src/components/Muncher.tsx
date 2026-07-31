@@ -217,8 +217,6 @@ const ANIMALS: Record<string, AnimalSpec> = {
   },
 };
 
-export const MUNCHER_KEYS = Object.keys(ANIMALS);
-
 const Eye = ({ cx }: { cx: number }) => (
   <g className="m-eye">
     <circle cx={cx} cy="53" r="7.5" fill={INK} />

@@ -77,7 +77,8 @@ export function FeastPage() {
 
   useEffect(() => {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws = new WebSocket(`${proto}://${location.host}/api/feast-ws?profileId=${profileId}`);
+    const query = new URLSearchParams({ profileId });
+    const ws = new WebSocket(`${proto}://${location.host}/api/feast-ws?${query}`);
     wsRef.current = ws;
     // React 18 StrictMode double-invokes this effect in dev: the first socket is
     // closed mid-handshake by the cleanup below. Ignore that aborted socket's
