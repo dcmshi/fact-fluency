@@ -12,7 +12,7 @@ const resolve = (rel: string) => fileURLToPath(new URL(rel, import.meta.url));
 const sources = readdirSync(resolve('.'), { recursive: true })
   .map(String)
   .map((f) => f.replaceAll('\\', '/'))
-  .filter((f) => f.endsWith('.tsx') && !f.endsWith('.test.tsx'));
+  .filter((f) => f.endsWith('.tsx') && !f.endsWith('.test.tsx') && !f.startsWith('test/'));
 
 /**
  * Every JSX opening tag in a file, as raw text.

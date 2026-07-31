@@ -11,5 +11,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // Unmounts every render and clears global stubs between tests — see the
+    // file for why @testing-library's own auto-cleanup doesn't apply here.
+    setupFiles: ['./src/test/setup.ts'],
   },
 });

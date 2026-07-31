@@ -1,47 +1,71 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
-import type { Profile } from '@shared';
-import '../../i18n';
+import { screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { FactSet } from '@shared';
+import { api } from '../../api';
+import { profile } from '../../test/fixtures';
+import { renderWithProviders } from '../../test/harness';
 import { FactSetsModal } from './FactSetsModal';
 
-/**
- * Static-markup render (no @testing-library in this workspace) — enough to pin
- * the one thing that matters here: what Save looks like *before* the catalog
- * query resolves. `enabled` starts as an empty Set, so a Save that is reachable
- * while loading writes "no sets enabled" to the kid's profile and their next
- * session dies with no_enabled_sets.
- */
-const profile: Profile = {
-  id: 'p1',
-  accountId: 'a1',
-  displayName: 'Ada',
-  avatar: '🦊',
-  settings: { sessionCards: 20, sessionSeconds: 300, newPerSession: 2 },
-  streak: 0,
-  lastPlayedDay: null,
-  coins: 0,
-  theme: 'classic',
-  createdAt: 0,
-};
+const catalog: FactSet[] = [
+  {
+    id: 'add-0-5',
+    operation: 'add',
+    label: 'Addition 0–5',
+    rangeSpec: { aMin: 0, aMax: 5, bMin: 0, bMax: 5 },
+  },
+  {
+    id: 'add-0-10',
+    operation: 'add',
+    label: 'Addition 0–10',
+    rangeSpec: { aMin: 0, aMax: 10, bMin: 0, bMax: 10 },
+  },
+];
 
-function renderLoading(): string {
-  // No queryFn results and retry off: the render sees the pending state, which
-  // is the state under test.
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return renderToStaticMarkup(
-    <QueryClientProvider client={client}>
-      <FactSetsModal profile={profile} onClose={() => {}} />
-    </QueryClientProvider>,
-  );
+/** A promise the test resolves by hand, to hold the query in its pending state. */
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => (resolve = r));
+  return { promise, resolve };
 }
 
+const save = () => screen.getByRole('button', { name: /save/i }) as HTMLButtonElement;
+
+beforeEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe('FactSetsModal', () => {
-  it('disables Save until the fact-set catalog has loaded', () => {
-    const html = renderLoading();
-    expect(html).toContain('Loading');
-    const save = /<button class="btn sun full"([^>]*)>\s*Save/.exec(html);
-    expect(save, 'Save button not found in markup').not.toBeNull();
-    expect(save![1]).toContain('disabled');
+  /**
+   * `enabled` starts as an empty Set and is only filled when the query lands, so
+   * a Save that is reachable while loading writes "no sets enabled" to the kid's
+   * profile — and their next session dies with no_enabled_sets.
+   */
+  it('disables Save until the catalog has loaded', async () => {
+    const pending = deferred<{ catalog: FactSet[]; enabledIds: string[] }>();
+    vi.spyOn(api, 'getFactSets').mockReturnValue(pending.promise);
+    const setFactSets = vi.spyOn(api, 'setFactSets');
+
+    renderWithProviders(<FactSetsModal profile={profile} onClose={() => {}} />);
+
+    expect(screen.getByText(/loading/i)).toBeTruthy();
+    expect(save().disabled).toBe(true);
+
+    pending.resolve({ catalog, enabledIds: ['add-0-5'] });
+    await waitFor(() => expect(save().disabled).toBe(false));
+    expect(setFactSets).not.toHaveBeenCalled();
+  });
+
+  it('saves the sets that are enabled once loaded', async () => {
+    vi.spyOn(api, 'getFactSets').mockResolvedValue({ catalog, enabledIds: ['add-0-5'] });
+    const setFactSets = vi.spyOn(api, 'setFactSets').mockResolvedValue({ enabledIds: [] });
+    const onClose = vi.fn();
+
+    renderWithProviders(<FactSetsModal profile={profile} onClose={onClose} />);
+    await waitFor(() => expect(save().disabled).toBe(false));
+
+    save().click();
+
+    await waitFor(() => expect(setFactSets).toHaveBeenCalledWith('p1', ['add-0-5']));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 });
