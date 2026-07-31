@@ -45,6 +45,12 @@
   --ink-accent: #8a5c14;
   --ink-wrong: #b83a2d;
 
+  /* Shadow tint, as an rgb triple so each shadow keeps its own alpha:
+     `rgb(var(--shade) / 0.45)`. The whole design language is hard offset
+     shadows, and hardcoding the ink navy meant every one of them disappeared
+     under midnight — a navy shadow on a darker navy surface. */
+  --shade: 43 36 64;
+
   /* tactile button depth (hard, no blur) */
   --press: 6px;
 
@@ -73,7 +79,7 @@ body {
   background-color: var(--paper);
   /* subtle dotted playground texture + warm vignette */
   background-image:
-    radial-gradient(circle at 1px 1px, rgba(43, 36, 64, 0.05) 1px, transparent 0),
+    radial-gradient(circle at 1px 1px, rgb(var(--shade) / 0.05) 1px, transparent 0),
     radial-gradient(120% 80% at 50% -10%, var(--paper-2), var(--paper) 60%);
   background-size:
     22px 22px,
@@ -159,7 +165,7 @@ button {
   padding: clamp(1.3rem, 4vw, 2rem);
   box-shadow:
     0 2px 0 var(--line),
-    0 18px 40px -24px rgba(43, 36, 64, 0.45);
+    0 18px 40px -24px rgb(var(--shade) / 0.45);
 }
 
 /* --- chunky pressable button --- */
@@ -453,6 +459,8 @@ body[data-theme='midnight'] {
   --sun: #7c9cff;
   --sun-shadow: #5064c9;
   --on-sun: #141833;
+  /* black, not the ink navy: on these surfaces a navy shadow is invisible. */
+  --shade: 0 0 0;
   /* midnight reads light-on-dark: its own --sun clears the dark paper,
      and the warm reds below would not. */
   --ink-accent: var(--sun);
@@ -479,7 +487,7 @@ body[data-theme='midnight'] {
   font-weight: 700;
   color: var(--on-sun);
   background: var(--sun);
-  box-shadow: 0 2px 0 rgba(43, 36, 64, 0.12);
+  box-shadow: 0 2px 0 rgb(var(--shade) / 0.12);
 }
 
 /* Visually hidden but available to screen readers (aria-live regions, labels). */

@@ -88,7 +88,7 @@
   font-family: var(--font-display);
   font-weight: 700;
   font-size: clamp(1rem, 3vw, 1.4rem);
-  box-shadow: 0 3px 0 rgba(43, 36, 64, 0.15);
+  box-shadow: 0 3px 0 rgb(var(--shade) / 0.15);
   cursor: pointer;
 }
 .feast-plate:active {
@@ -109,7 +109,7 @@
   pointer-events: none;
 }
 .feast-muncher.you {
-  filter: drop-shadow(0 0 0 var(--sun)) drop-shadow(0 3px 6px rgba(43, 36, 64, 0.25));
+  filter: drop-shadow(0 0 0 var(--sun)) drop-shadow(0 3px 6px rgb(var(--shade) / 0.25));
 }
 .feast-muncher.stunned {
   opacity: 0.6;

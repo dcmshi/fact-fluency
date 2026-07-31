@@ -37,12 +37,12 @@
   font-family: var(--font-display);
   font-weight: 700;
   font-size: clamp(1.4rem, 5vw, 2rem);
-  box-shadow: 0 4px 0 rgba(43, 36, 64, 0.15);
+  box-shadow: 0 4px 0 rgb(var(--shade) / 0.15);
   cursor: pointer;
 }
 .race-quiz-choice:active {
   transform: translateY(2px);
-  box-shadow: 0 2px 0 rgba(43, 36, 64, 0.15);
+  box-shadow: 0 2px 0 rgb(var(--shade) / 0.15);
 }
 /* aria-disabled, not :disabled — the lock must not drop keyboard focus. */
 .race-quiz-choice[aria-disabled='true'] {
