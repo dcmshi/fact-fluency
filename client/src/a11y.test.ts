@@ -75,6 +75,21 @@ describe('live regions', () => {
   });
 });
 
+describe('labels', () => {
+  it('has no <label> that labels nothing', () => {
+    // These render as ordinary small bold text, so they look right and do
+    // nothing: no htmlFor, and nothing wrapped. Groups of controls (the buddy
+    // picker, the grade bands) use role="group" + aria-labelledby and a
+    // .field-label span instead.
+    const orphans = sources.flatMap((file) =>
+      tags(file)
+        .filter((tag) => tag.startsWith('<label') && !/\bhtmlFor=/.test(tag))
+        .map(() => file),
+    );
+    expect(orphans).toEqual([]);
+  });
+});
+
 describe('custom interactive elements', () => {
   it('gives every focusable div with a keyboard handler a role', () => {
     // A tabbable div with its own key bindings and no role is announced as

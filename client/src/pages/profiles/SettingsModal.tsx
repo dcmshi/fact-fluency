@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Profile, ProfileSettings } from '@shared';
@@ -57,6 +57,7 @@ export function SettingsModal({
     return !Number.isInteger(v) || v < min || v > max;
   });
   const nameEmpty = !name.trim();
+  const buddyLabel = useId();
 
   const [error, setError] = useState<string | null>(null);
   const saveMut = useMutation({
@@ -94,8 +95,10 @@ export function SettingsModal({
         <input id="edit-name" value={name} onChange={(e) => setName(e.target.value)} />
       </div>
       <div className="field">
-        <label>{t('modals.buddy')}</label>
-        <AvatarPicker value={avatar} onChange={setAvatar} />
+        <span className="field-label" id={buddyLabel}>
+          {t('modals.buddy')}
+        </span>
+        <AvatarPicker value={avatar} onChange={setAvatar} labelledBy={buddyLabel} />
       </div>
       {SETTING_FIELDS.map(({ key, labelKey, hintKey }) => {
         const [min, max] = bounds[key];

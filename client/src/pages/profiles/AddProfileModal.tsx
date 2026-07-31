@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError, qk } from '../../api';
@@ -20,6 +20,8 @@ export function AddProfileModal({
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState(AVATARS[0]);
   const [band, setBand] = useState(''); // '' = starter mix (default sets)
+  const buddyLabel = useId();
+  const bandLabel = useId();
 
   const { data: bands = [] } = useQuery({
     queryKey: qk.catalog,
@@ -53,12 +55,16 @@ export function AddProfileModal({
         <input id="kid-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
       </div>
       <div className="field">
-        <label>{t('modals.pickBuddy')}</label>
-        <AvatarPicker value={avatar} onChange={setAvatar} />
+        <span className="field-label" id={buddyLabel}>
+          {t('modals.pickBuddy')}
+        </span>
+        <AvatarPicker value={avatar} onChange={setAvatar} labelledBy={buddyLabel} />
       </div>
       <div className="field">
-        <label>{t('modals.startingLevel')}</label>
-        <div className="band-picker">
+        <span className="field-label" id={bandLabel}>
+          {t('modals.startingLevel')}
+        </span>
+        <div className="band-picker" role="group" aria-labelledby={bandLabel}>
           <button
             className={`set-pill ${band === '' ? 'on' : ''}`}
             onClick={() => setBand('')}

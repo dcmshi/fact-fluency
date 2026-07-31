@@ -249,7 +249,12 @@ button {
   flex-direction: column;
   gap: 0.35rem;
 }
-.field label {
+/* .field-label is for a group of controls (the buddy picker, the grade bands)
+   rather than one input: a <label> that wraps nothing and points at nothing is
+   invisible to assistive tech, so those groups carry role="group" +
+   aria-labelledby and this is the visible heading they point at. */
+.field label,
+.field .field-label {
   font-weight: 700;
   font-size: 0.85rem;
   color: var(--ink-soft);
