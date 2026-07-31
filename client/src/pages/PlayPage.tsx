@@ -366,8 +366,11 @@ export function PlayPage() {
         </button>
       </header>
 
-      {/* Screen-reader announcements for study intros and munch instructions. */}
-      <div className="sr-only" role="status" aria-live="assertive">
+      {/* Screen-reader announcements for study intros and munch instructions.
+          polite, not assertive: one lands per round, a few seconds apart, and
+          assertive cuts off whatever the kid is having read to them mid-word —
+          including the previous round's own announcement. */}
+      <div className="sr-only" role="status" aria-live="polite">
         {announce}
       </div>
 
