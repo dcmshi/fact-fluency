@@ -1,8 +1,13 @@
 User-agent: *
 # The app screens behind these paths are auth-gated SPA routes — nothing
-# indexable, so save the crawl budget for the landing page.
+# indexable, so save the crawl budget for the landing page. Logged out they all
+# render the landing content at a 200 (the SPA catch-all), so leaving one out
+# means a crawler finds the same page under many URLs.
 Disallow: /play/
 Disallow: /progress/
+Disallow: /calibrate/
+Disallow: /race/
+Disallow: /feast/
 Disallow: /api/
 Allow: /
 

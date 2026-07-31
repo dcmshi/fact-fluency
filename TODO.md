@@ -665,7 +665,21 @@ technical handicap, and a custom domain would beat the shared-reputation
       repetition, made-for-families) so search engines have real text to rank.
 - Not done (bigger levers, deliberate): SSR/prerender (Google renders JS fine
   at this scale), a custom domain, paid tier for cold starts, and off-page
-  links. Submit the site in Google Search Console to start indexing.
+  links.
+
+## Search Console submission (2026-07-31)
+
+- [x] Verified the URL-prefix property — `client/public/google*.html`, served
+      byte-for-byte (Prettier ignores it, or its HTML parser rewrites the token).
+- [x] **Per-route canonical.** `index.html` hardcodes the landing canonical and
+      the prod catch-all serves that shell for every route, so `/how-it-works`
+      declared the homepage as its canonical and would have been folded into it
+      — while `sitemap.xml` asked Google to index it. `seo.ts` rewrites
+      canonical + og:url per public route; non-public paths collapse to `/`.
+- [x] `robots.txt` was missing `/calibrate/`, `/race/`, `/feast/` — logged out
+      those render the landing content at a 200, i.e. duplicate URLs.
+- [ ] In Search Console: submit `sitemap.xml`, then request indexing for `/`
+      and `/how-it-works`. Check _Test live URL_ renders the `<h1>` (SPA).
 
 ## Audit pass 9 (2026-07-10) — coverage check after the P4–P7 clear
 

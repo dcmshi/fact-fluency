@@ -2,6 +2,7 @@
  * Express app assembly (DESIGN.md §5.2). Separated from the listen() bootstrap
  * so tests can construct the app over an in-memory DB.
  */
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
@@ -10,6 +11,7 @@ import { createApiRouter } from './api';
 import { attachAccount } from './auth/middleware';
 import type { Db } from './db';
 import { sameOriginGuard, securityHeaders } from './security';
+import { canonicalPath, withCanonical } from './seo';
 
 export function createApp(db: Db, isProd: boolean): Application {
   const app = express();
@@ -63,11 +65,24 @@ export function createApp(db: Db, isProd: boolean): Application {
         },
       }),
     );
-    app.get('*', (_req, res) =>
-      res.sendFile(path.join(clientDist, 'index.html'), {
-        headers: { 'Cache-Control': 'no-cache' },
-      }),
-    );
+    // The shell is served with a per-route canonical (seo.ts), so it can't just
+    // be sendFile'd. There are only two distinct results (landing,
+    // /how-it-works), so read and rewrite once each and serve from memory —
+    // the cache is per-process and a deploy restarts it.
+    const shells = new Map<string, string>();
+    const shell = (pathname: string): string => {
+      const route = canonicalPath(pathname);
+      let html = shells.get(route);
+      if (html === undefined) {
+        html = withCanonical(readFileSync(path.join(clientDist, 'index.html'), 'utf8'), route);
+        shells.set(route, html);
+      }
+      return html;
+    };
+    app.get('*', (req, res) => {
+      res.setHeader('Cache-Control', 'no-cache');
+      res.type('html').send(shell(req.path));
+    });
   }
 
   // Centralized error handler — route handlers forward errors via next(err).
