@@ -427,7 +427,9 @@ export function FeastPage() {
             </span>
           ) : null}
         </div>
-        <div className={`feast-timer ${seconds <= 10 ? 'low' : ''}`}>{seconds}s</div>
+        <div className={`feast-timer ${seconds <= 10 ? 'low' : ''}`}>
+          {t('common.seconds', { n: seconds })}
+        </div>
       </header>
 
       {/* The round belt. Plates ride an inner ring; munchers sit on the rim.

@@ -13,7 +13,6 @@ import './RacePage.css';
 type Phase = 'lobby' | 'room' | 'racing' | 'placing' | 'done';
 type Mode = 'live' | 'bot';
 
-const secs = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
 const isYou = (profileId: string, id: string) => profileId === id;
 
 /**
@@ -26,6 +25,9 @@ export function RacePage() {
   const { t } = useTranslation();
   const { profileId = '' } = useParams();
   const navigate = useNavigate();
+  // The unit and the ordinal marker are both copy: 'fr' wants '12,3 s' spacing
+  // and 'n° 3', 'zh' wants '秒' and '第 3 名'.
+  const secs = (ms: number) => t('common.seconds', { n: (ms / 1000).toFixed(1) });
 
   const [phase, setPhase] = useState<Phase>('lobby');
   const [active, setActive] = useState<RaceStartResponse | null>(null);
@@ -405,7 +407,7 @@ export function RacePage() {
     const myCoins = liveStandings
       ? (standings.find((s) => s.you)?.coins ?? 0)
       : (result?.coinsEarned ?? 0);
-    const place = ['🥇', '🥈', '🥉'][myPlace - 1] ?? `#${myPlace}`;
+    const place = ['🥇', '🥈', '🥉'][myPlace - 1] ?? t('race.placeNum', { n: myPlace });
     return (
       <div className="screen center-y">
         <div className="card stack rise" style={{ textAlign: 'center' }}>

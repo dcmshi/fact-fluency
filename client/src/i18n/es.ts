@@ -12,6 +12,7 @@ export const es: typeof en = {
     cancel: 'Cancelar',
     tryAgain: 'Reintentar',
     loading: 'Cargando…',
+    seconds: '{{n}} s',
     language: 'Idioma',
     close: 'Cerrar',
     offline: '📡 Sin conexión: tu progreso se guarda y se sincroniza cuando vuelvas a conectarte.',
@@ -185,6 +186,7 @@ export const es: typeof en = {
     roomHint:
       'Abre esta carrera en otro dispositivo (misma cuenta) para competir con un hermano en vivo.',
     youWord: 'tú',
+    placeNum: 'n.º {{n}}',
     imReady: '¡Estoy listo!',
     readyWaiting: 'Listo ✓ — esperando a los demás…',
     raceBot: '🤖 Competir contra el robot',

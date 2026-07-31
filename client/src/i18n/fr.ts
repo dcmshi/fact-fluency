@@ -11,6 +11,7 @@ export const fr: typeof en = {
     cancel: 'Annuler',
     tryAgain: 'Réessayer',
     loading: 'Chargement…',
+    seconds: '{{n}} s',
     language: 'Langue',
     close: 'Fermer',
     offline: '📡 Hors ligne — ta progression est enregistrée et se synchronise dès la reconnexion.',
@@ -186,6 +187,7 @@ export const fr: typeof en = {
     roomHint:
       'Ouvre cette course sur un autre appareil (même compte) pour affronter un frère ou une sœur en direct.',
     youWord: 'toi',
+    placeNum: 'n° {{n}}',
     imReady: 'Je suis prêt !',
     readyWaiting: 'Prêt ✓ — en attente des autres…',
     raceBot: '🤖 Course contre le robot',

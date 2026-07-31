@@ -274,7 +274,9 @@ function Dashboard({ dash, profileId }: { dash: DashboardView; profileId: string
         />
         <StatCard
           label={t('progress.statSpeed')}
-          value={typicalMs != null ? `${(typicalMs / 1000).toFixed(1)}s` : '—'}
+          value={
+            typicalMs != null ? t('common.seconds', { n: (typicalMs / 1000).toFixed(1) }) : '—'
+          }
           sub={t('progress.perAnswer')}
           accent="var(--div)"
         />
@@ -423,7 +425,9 @@ function TrendChart({
     if (d.attempts === 0) return t('progress.tipNoPractice', { day: d.day });
     const acc = `${Math.round(d.accuracy * 100)}% (${d.correct}/${d.attempts})`;
     const speed =
-      d.medianMs != null ? `, ${(d.medianMs / 1000).toFixed(1)}s ${t('progress.typical')}` : '';
+      d.medianMs != null
+        ? `, ${t('common.seconds', { n: (d.medianMs / 1000).toFixed(1) })} ${t('progress.typical')}`
+        : '';
     return `${d.day}: ${acc}${speed}`;
   };
 
