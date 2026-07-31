@@ -71,8 +71,10 @@
   transition:
     left 0.09s linear,
     top 0.09s linear;
-  width: clamp(40px, 10vw, 58px);
-  height: clamp(40px, 10vw, 58px);
+  /* 44px floor, not 40: 10vw bottoms out on a 360px phone, and this is the
+     primary rapid-tap target of the whole game (WCAG 2.5.5). */
+  width: clamp(44px, 10vw, 58px);
+  height: clamp(44px, 10vw, 58px);
   border-radius: 50%;
   border: 3px solid var(--sun-shadow);
   background: var(--card);

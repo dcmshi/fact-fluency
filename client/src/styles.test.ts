@@ -108,6 +108,29 @@ describe('one global CSS namespace', () => {
   });
 });
 
+describe('touch targets', () => {
+  // A `clamp()` on a tap target is only as good as its floor — the vw term
+  // bottoms out on a narrow phone, which is the device this is played on.
+  it('never drops a kid-facing tap target below 44px', () => {
+    const targets = [
+      ['./pages/FeastPage.css', '.feast-plate'],
+      ['./components/RaceQuiz.css', '.race-quiz-choice'],
+    ] as const;
+    for (const [file, selector] of targets) {
+      const css = readCss(file);
+      // `.race-quiz-choice` is a prefix of `.race-quiz-choices`, so anchor on
+      // the opening brace rather than the bare selector.
+      const at = css.indexOf(`${selector} {`);
+      const block = css.slice(at, css.indexOf('}', at));
+      const floors = [...block.matchAll(/(?:min-)?(?:width|height):\s*clamp\((\d+)px/g)];
+      expect(floors.length, `${selector}: no clamped size found`).toBeGreaterThan(0);
+      for (const [, px] of floors) {
+        expect(Number(px), `${selector} in ${file}`).toBeGreaterThanOrEqual(44);
+      }
+    }
+  });
+});
+
 describe('keyboard focus', () => {
   it('never suppresses the outline outside a :focus-visible rule', () => {
     // The global `:focus-visible { outline: 3px solid … }` is the only focus
