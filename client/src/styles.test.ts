@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { OP_HEX } from './ops';
 
 /**
  * Invariants over the stylesheets themselves — the things nothing else can
@@ -149,6 +150,48 @@ describe('one global CSS namespace', () => {
       .filter(([, files]) => files.size > 1)
       .map(([sel, files]) => `${sel}: ${[...files].sort().join(', ')}`);
     expect(shared).toEqual([]);
+  });
+});
+
+describe('operation colors', () => {
+  // Two sources of truth that have to agree: CSS owns the tokens, and ops.ts
+  // owns OP_HEX because the progress grid computes alpha shades in JS and CSS
+  // can't hand a var() to parseInt. Nothing but this test connects them, and
+  // they'd drift silently — as a grid whose shades no longer match the chips.
+  it('OP_HEX matches the CSS tokens', () => {
+    const p = palette('classic');
+    expect(OP_HEX).toEqual({
+      add: p['--add'],
+      sub: p['--sub'],
+      mul: p['--mul'],
+      div: p['--div'],
+    });
+  });
+
+  it('states each operation shade once', () => {
+    // Every op fill and pressed-shadow shade is a token; a literal copy in a
+    // page stylesheet is how the four shadow hexes ended up retyped in three
+    // places with nothing tying them together.
+    const tokens = new Set(
+      (['add', 'sub', 'mul', 'div'] as const).flatMap((op) => [
+        OP_HEX[op],
+        palette('classic')[`--${op}-shadow`],
+      ]),
+    );
+    // The :root block is where they're allowed to be literals; anywhere else is
+    // a copy. Located by position rather than by listing the expected
+    // occurrences, so reordering the tokens doesn't fail the test.
+    const rootStart = indexCss.indexOf(':root {');
+    const rootEnd = indexCss.indexOf('\n}', rootStart);
+    const copies = cssFiles.flatMap((file) =>
+      [...readCss(`./${file}`).matchAll(/#[0-9a-f]{6}/gi)]
+        .filter(({ 0: hex, index }) => {
+          if (!tokens.has(hex.toLowerCase())) return false;
+          return !(file === 'index.css' && index > rootStart && index < rootEnd);
+        })
+        .map(({ 0: hex }) => `${file}: ${hex}`),
+    );
+    expect(copies).toEqual([]);
   });
 });
 

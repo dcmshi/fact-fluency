@@ -74,14 +74,14 @@
   padding: 1.1rem 0.5rem;
 }
 .btn.cal-choice.right {
-  --shadow: #1f8c5b;
+  --shadow: var(--add-shadow);
   background: var(--correct);
   border-color: var(--correct);
   color: var(--on-op);
   opacity: 1; /* keep the feedback vivid even though tapping disables the row */
 }
 .btn.cal-choice.wrong {
-  --shadow: #d24a3d;
+  --shadow: var(--sub-shadow);
   background: var(--wrong);
   border-color: var(--wrong);
   color: var(--on-op);

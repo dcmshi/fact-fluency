@@ -31,6 +31,13 @@
   --div: #f59e0b;
   --correct: #2fb87a;
   --wrong: #ff6b5c;
+  /* Pressed-shadow shade per operation. Named tokens because these four
+     hexes were being retyped in CalibratePage.css and on the summary's
+     spend-coins button, with nothing tying the copies together. */
+  --add-shadow: #1f8c5b;
+  --sub-shadow: #d24a3d;
+  --mul-shadow: #2563c9;
+  --div-shadow: #c87d08;
 
   /* Readable inks. The candy palette above is tuned to be a *fill*: white text
      on it lands at 2.1–3.7:1, which fails WCAG AA everywhere and the 3:1
@@ -227,7 +234,7 @@ button {
    and sub-ordinate to the sun "Play again"/"Done" primary. */
 .btn.spend-coins {
   --c: var(--div);
-  --shadow: #c87d08;
+  --shadow: var(--div-shadow);
   color: var(--on-sun);
 }
 .btn.done-for-now {
@@ -239,19 +246,19 @@ button {
 /* operation accents */
 .op-add {
   --c: var(--add);
-  --shadow: #1f8c5b;
+  --shadow: var(--add-shadow);
 }
 .op-sub {
   --c: var(--sub);
-  --shadow: #d24a3d;
+  --shadow: var(--sub-shadow);
 }
 .op-mul {
   --c: var(--mul);
-  --shadow: #2563c9;
+  --shadow: var(--mul-shadow);
 }
 .op-div {
   --c: var(--div);
-  --shadow: #c87d08;
+  --shadow: var(--div-shadow);
 }
 
 /* --- form fields --- */
