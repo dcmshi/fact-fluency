@@ -208,9 +208,20 @@ export function PlayPage() {
     }
   }, [profileId, goNext]);
 
+  // One server session per profile, however many times this effect is asked to
+  // run. `start` closes over `t` (through goNext), so keying the effect on its
+  // identity would silently abandon the session and mint a new one when the
+  // language changed; and StrictMode's deliberate setup→cleanup→setup in dev
+  // minted two on every load. Both are POSTs that create real rows, so the
+  // guard is a ref, not a dep list.
+  const startRef = useRef(start);
+  startRef.current = start;
+  const startedFor = useRef<string | null>(null);
   useEffect(() => {
-    start();
-  }, [start]);
+    if (startedFor.current === profileId) return;
+    startedFor.current = profileId;
+    void startRef.current();
+  }, [profileId]);
 
   // Study card becomes dismissible after a short beat (study-first, §4.6).
   useEffect(() => {
