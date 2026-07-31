@@ -74,9 +74,11 @@
   transform: translateY(-2px);
   border-color: var(--sun);
 }
+/* The halo has to follow --sun like the border does: hardcoded gold put a gold
+   ring around a periwinkle border under midnight. */
 .munch-cell.here {
   border-color: var(--sun);
-  box-shadow: 0 0 0 3px rgba(255, 200, 61, 0.35);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sun) 35%, transparent);
 }
 .munch-cell.eaten {
   background: var(--paper-2);

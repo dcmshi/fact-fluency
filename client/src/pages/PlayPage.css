@@ -100,11 +100,11 @@
   align-self: center;
   font-family: var(--font-display);
   font-weight: 600;
-  color: #b8541f;
-  background: #ffe6c7;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--div) 26%, var(--card));
   border-radius: 999px;
   padding: 0.35rem 1rem;
-  box-shadow: 0 3px 0 #f0c79a;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--div) 45%, var(--card));
 }
 /* Streak shield: the celebratory "your streak was saved" moment (blue, distinct
    from the fire streak), and a quiet "ready" status when it's just armed. */
@@ -112,11 +112,11 @@
   align-self: center;
   font-family: var(--font-display);
   font-weight: 600;
-  color: #1e40af;
-  background: #dbe8ff;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--mul) 20%, var(--card));
   border-radius: 999px;
   padding: 0.35rem 1rem;
-  box-shadow: 0 3px 0 #b6ccf5;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--mul) 36%, var(--card));
 }
 .shield-note {
   align-self: center;

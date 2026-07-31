@@ -45,6 +45,11 @@
   --ink-accent: #8a5c14;
   --ink-wrong: #b83a2d;
 
+  /* Input/pill surface — the card, warmed a touch toward the paper. Derived
+     rather than a literal near-white, which rendered as a bright island on a
+     dark theme. */
+  --field: color-mix(in srgb, var(--paper) 35%, var(--card));
+
   /* Shadow tint, as an rgb triple so each shadow keeps its own alpha:
      `rgb(var(--shade) / 0.45)`. The whole design language is hard offset
      shadows, and hardcoding the ink navy meant every one of them disappeared
@@ -273,7 +278,7 @@ button {
   padding: 0.85rem 1rem;
   border: 2px solid var(--line);
   border-radius: var(--r-md);
-  background: #fffdf8;
+  background: var(--field);
   color: var(--ink);
   /* No `outline: none` here: a plain declaration on `.field input` (0,1,1)
      outranks the global :focus-visible rule (0,1,0) in every state, so it took
@@ -302,8 +307,8 @@ button {
   cursor: pointer;
 }
 .error-banner {
-  background: #ffe8e5;
-  color: #b83a2d;
+  background: color-mix(in srgb, var(--ink-wrong) 14%, var(--card));
+  color: var(--ink-wrong);
   border-radius: var(--r-md);
   padding: 0.7rem 1rem;
   font-weight: 700;
@@ -413,7 +418,7 @@ body[data-theme='ocean'] {
   --on-sun: #06333b;
   --ink-accent: #0d6e7b;
   --ink: #123b47;
-  --ink-soft: #4d7682;
+  --ink-soft: #466b76;
   --line: #cfe6ee;
   --card: #ffffff;
 }
@@ -425,7 +430,7 @@ body[data-theme='candy'] {
   --on-sun: #46102a;
   --ink-accent: #a13c66;
   --ink: #4a1d3a;
-  --ink-soft: #9b5e80;
+  --ink-soft: #87526f;
   --line: #f4d3e6;
   --card: #ffffff;
 }
@@ -437,7 +442,7 @@ body[data-theme='forest'] {
   --on-sun: #0e2a15;
   --ink-accent: #296f3c;
   --ink: #1f3a25;
-  --ink-soft: #5b7560;
+  --ink-soft: #536a57;
   --line: #d3e6cd;
   --card: #ffffff;
 }
@@ -449,7 +454,7 @@ body[data-theme='sunset'] {
   --on-sun: #3d1a0b;
   --ink-accent: #9c4a25;
   --ink: #4a2418;
-  --ink-soft: #9b6a55;
+  --ink-soft: #845a48;
   --line: #f6d9c8;
   --card: #fffdfb;
 }

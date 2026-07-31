@@ -9,13 +9,13 @@
   aspect-ratio: 1;
   border: 2px solid var(--line);
   border-radius: var(--r-sm);
-  background: #fffdf8;
+  background: var(--field);
   transition:
     transform 0.08s ease,
     border-color 0.1s ease;
 }
 .avatar-option.selected {
   border-color: var(--sun);
-  background: #fff6dd;
+  background: color-mix(in srgb, var(--sun) 18%, var(--card));
   transform: scale(1.08);
 }

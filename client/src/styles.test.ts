@@ -71,6 +71,50 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+const channels = (hex: string): number[] => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const toHex = (rgb: number[]) =>
+  `#${rgb.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
+
+/**
+ * Resolve a CSS color expression to a hex literal under one theme's palette.
+ *
+ * Handles the three forms the stylesheets use: a literal, `var(--token)`, and
+ * `color-mix(in srgb, <a> N%, <b>)` — the last is how every warm tint in the app
+ * is derived, so a resolver without it can't check the surfaces most likely to
+ * be unreadable on a dark theme.
+ */
+function resolveColor(expr: string, p: Record<string, string>): string {
+  const value = expr.trim();
+  if (/^#[0-9a-f]{6}$/i.test(value)) return value;
+
+  const ref = /^var\((--[\w-]+)\)$/.exec(value);
+  if (ref) return resolveColor(p[ref[1]] ?? '', p);
+
+  const mix = /^color-mix\(in srgb,\s*(.+?)\s+(\d+)%,\s*(.+)\)$/.exec(value);
+  if (mix) {
+    const [, a, pct, b] = mix;
+    const weight = Number(pct) / 100;
+    // `transparent` over an opaque base is just the base, faded — for contrast
+    // purposes the composite against that base is the base itself.
+    if (b.trim() === 'transparent') return resolveColor(a, p);
+    const [ca, cb] = [resolveColor(a, p), resolveColor(b, p)].map(channels);
+    return toHex(ca.map((v, i) => v * weight + cb[i] * (1 - weight)));
+  }
+  throw new Error(`unresolvable color: ${expr}`);
+}
+
+/** The `color` and `background` a rule declares, as raw CSS expressions. */
+function ruleColors(file: string, selector: string): { color?: string; background?: string } {
+  const css = readCss(file);
+  const at = css.indexOf(`${selector} {`);
+  if (at === -1) throw new Error(`${file}: selector not found: ${selector}`);
+  const block = css.slice(at, css.indexOf('}', at));
+  return {
+    color: /(?:^|\s)color:\s*([^;]+);/.exec(block)?.[1],
+    background: /(?:^|\s)background:\s*([^;]+);/.exec(block)?.[1],
+  };
+}
+
 const cssFiles = readdirSync(resolve('.'), { recursive: true })
   .map(String)
   .filter((f) => f.endsWith('.css'))
@@ -180,6 +224,19 @@ describe('theme companion tokens', () => {
     }
   });
 
+  // --ink-soft is the second most-used text color in the app (every .muted line,
+  // every stat label, .btn.ghost, .btn.done-for-now) and always at small sizes,
+  // so it needs the full 4.5:1 against every surface it can land on.
+  it('keeps muted text readable on every surface, per theme', () => {
+    for (const theme of ALL_THEMES) {
+      const p = palette(theme);
+      for (const bg of ['--paper', '--paper-2', '--card', '--field']) {
+        const label = `--ink-soft on ${bg} (${theme})`;
+        expect(contrast(p['--ink-soft'], resolveColor(p[bg], p)), label).toBeGreaterThan(4.5);
+      }
+    }
+  });
+
   it('keeps sun-colored surfaces readable in every theme', () => {
     for (const theme of ALL_THEMES) {
       const p = palette(theme);
@@ -217,6 +274,29 @@ describe('readable inks', () => {
       const p = palette(theme);
       const label = `--ink-wrong on --paper (${theme})`;
       expect(contrast(p['--ink-wrong'], p['--paper']), label).toBeGreaterThan(3);
+    }
+  });
+
+  // Warm tinted panels used to be literal creams, which meant a bright island
+  // on a dark theme (the play summary's streak and shield ribbons are on the one
+  // screen themes actually apply to). They are derived from the palette now, so
+  // check that every theme's derivation is still readable.
+  it.each([
+    ['./index.css', '.error-banner'],
+    ['./pages/PlayPage.css', '.streak-ribbon'],
+    ['./pages/PlayPage.css', '.shield-ribbon'],
+    ['./pages/ProfilesPage.css', '.streak-badge'],
+    ['./components/AvatarPicker.css', '.avatar-option.selected'],
+    ['./pages/ProfilesPage.css', '.set-pill'],
+  ])('keeps %s > %s readable in every theme', (file, selector) => {
+    const rule = ruleColors(file, selector);
+    expect(rule.background, `${selector} declares no background`).toBeDefined();
+    for (const theme of ALL_THEMES) {
+      const p = palette(theme);
+      // No `color` of its own means it inherits the body's --ink.
+      const fg = resolveColor(rule.color ?? 'var(--ink)', p);
+      const bg = resolveColor(rule.background!, p);
+      expect(contrast(fg, bg), `${selector} (${theme}): ${fg} on ${bg}`).toBeGreaterThan(4.5);
     }
   });
 
