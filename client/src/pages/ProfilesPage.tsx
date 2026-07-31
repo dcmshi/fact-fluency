@@ -57,7 +57,7 @@ export function ProfilesPage() {
           </span>{' '}
           Fact Fluency
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <div className="hub-header-actions">
           <LanguageSwitcher />
           {!guest && (
             <button className="btn ghost" onClick={() => setAccountOpen(true)}>

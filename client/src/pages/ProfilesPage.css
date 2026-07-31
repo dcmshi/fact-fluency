@@ -1,11 +1,21 @@
+/* Wraps like .howto-header does: brand + language switcher + Account + Sign out
+   overflow a 360px viewport once the labels are translated ("Se déconnecter"). */
 .hub-header {
   display: flex;
   width: 100%;
   max-width: 720px;
   flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 0.4rem;
   margin-bottom: 1.5rem;
+}
+.hub-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .profile-grid {
