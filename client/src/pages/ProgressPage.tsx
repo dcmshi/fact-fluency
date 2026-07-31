@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -90,7 +90,10 @@ export function ProgressPage() {
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
+      // Revoked on a later task, not inline: Firefox starts the download
+      // asynchronously after click() returns and cancels it if the blob URL has
+      // already been released.
+      setTimeout(() => URL.revokeObjectURL(url), 0);
     } catch {
       setExportError(t('progress.exportError'));
     }
@@ -497,6 +500,31 @@ function TrendChart({
 }
 
 /**
+ * Arm a print-only sheet, open the dialog once it has rendered, and tear it down
+ * when the dialog closes.
+ *
+ * `window.print()` blocks until the dialog is dismissed in Chrome and Firefox,
+ * but returns immediately in Safari — so clearing the flag on the next line
+ * unmounted the sheet before Safari had rendered it, and printed the rest of the
+ * page instead. `afterprint` is the event that actually means "done".
+ */
+function usePrintSheet(): [armed: boolean, print: () => void] {
+  const [printing, setPrinting] = useState(false);
+  useEffect(() => {
+    if (!printing) return;
+    const done = () => setPrinting(false);
+    window.addEventListener('afterprint', done);
+    // One frame so the sheet is in the DOM before the dialog snapshots the page.
+    const raf = requestAnimationFrame(() => window.print());
+    return () => {
+      window.removeEventListener('afterprint', done);
+      cancelAnimationFrame(raf);
+    };
+  }, [printing]);
+  return [printing, () => setPrinting(true)];
+}
+
+/**
  * Fridge-door output: a print-friendly certificate for a fully-mastered
  * operation. The printable node exists only while printing is armed; print CSS
  * hides everything else (`.certificate-sheet` + @media print in the page CSS).
@@ -509,16 +537,7 @@ function CertificateButton({
   operation: ProgressGrid['operation'];
 }) {
   const { t, i18n } = useTranslation();
-  const [printing, setPrinting] = useState(false);
-
-  function print() {
-    setPrinting(true);
-    // Let the sheet render before opening the dialog; clean up after.
-    requestAnimationFrame(() => {
-      window.print();
-      setPrinting(false);
-    });
-  }
+  const [printing, print] = usePrintSheet();
 
   const today = new Date().toLocaleDateString(i18n.language, {
     year: 'numeric',
@@ -562,14 +581,7 @@ function CertificateButton({
  */
 function WorksheetButton({ kidName, facts }: { kidName: string; facts: TrickyFact[] }) {
   const { t, i18n } = useTranslation();
-  const [printing, setPrinting] = useState(false);
-  function print() {
-    setPrinting(true);
-    requestAnimationFrame(() => {
-      window.print();
-      setPrinting(false);
-    });
-  }
+  const [printing, print] = usePrintSheet();
   const today = new Date().toLocaleDateString(i18n.language, {
     year: 'numeric',
     month: 'long',
