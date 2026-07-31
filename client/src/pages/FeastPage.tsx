@@ -398,9 +398,12 @@ export function FeastPage() {
   };
   const onRingPointerMove = (e: ReactPointerEvent) => aimAt(e.clientX, e.clientY);
   const onKeyControl = (e: ReactKeyboardEvent) => {
-    if (e.key === 'ArrowLeft') selfAim.current = clamp01(selfAim.current - 0.05);
-    else if (e.key === 'ArrowRight') selfAim.current = clamp01(selfAim.current + 0.05);
-    else if (e.key === ' ' || e.key === 'Enter') {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      // The ring is focusable, so the arrows keep their default behaviour too —
+      // steering scrolled the page out from under the arena.
+      e.preventDefault();
+      selfAim.current = clamp01(selfAim.current + (e.key === 'ArrowLeft' ? -0.05 : 0.05));
+    } else if (e.key === ' ' || e.key === 'Enter') {
       e.preventDefault();
       fire();
     }
@@ -413,12 +416,15 @@ export function FeastPage() {
           <span aria-hidden="true">← </span>
           {t('play.quit')}
         </button>
-        <div className="feast-fact" aria-live="polite" key={factPulse}>
+        {/* The live region itself must stay mounted — a remounted one usually
+            fails to announce at all. `factPulse` keys the inner span instead, so
+            the pop animation still replays on each fact rotation. */}
+        <div className="feast-fact" aria-live="polite">
           {snap ? (
-            <>
+            <span className="feast-fact-pop" key={factPulse}>
               {snap.factA} <span className="feast-op">{OP_SYMBOL[snap.factOp]}</span> {snap.factB}{' '}
               <span className="feast-op">=</span> <span className="feast-q">?</span>
-            </>
+            </span>
           ) : null}
         </div>
         <div className={`feast-timer ${seconds <= 10 ? 'low' : ''}`}>{seconds}s</div>
@@ -429,6 +435,11 @@ export function FeastPage() {
       <div
         className="feast-ring"
         ref={ringRef}
+        // A focusable div with its own keyboard model and no role reads as
+        // nothing at all. `application` is the honest one here: the arrows and
+        // space are live game controls, not document navigation, so a screen
+        // reader should hand them straight through.
+        role="application"
         aria-label={t('feast.beltLabel')}
         onPointerMove={onRingPointerMove}
         onPointerDown={(e) => {

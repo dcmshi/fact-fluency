@@ -16,6 +16,12 @@
   font-size: clamp(1.3rem, 5vw, 2rem);
   display: flex;
   align-items: center;
+}
+/* The pop lives on the inner span: .feast-fact is an aria-live region and has to
+   stay mounted across fact rotations to announce them. */
+.feast-fact-pop {
+  display: flex;
+  align-items: center;
   gap: 0.35rem;
   animation: feast-fact-pulse 0.4s ease-out;
 }
