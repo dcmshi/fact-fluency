@@ -264,7 +264,10 @@ button {
   border-radius: var(--r-md);
   background: #fffdf8;
   color: var(--ink);
-  outline: none;
+  /* No `outline: none` here: a plain declaration on `.field input` (0,1,1)
+     outranks the global :focus-visible rule (0,1,0) in every state, so it took
+     the focus ring away outright and left the auth form's fields marked only by
+     a shift between two pale creams. */
   transition: border-color 0.15s ease;
 }
 .field input:focus {

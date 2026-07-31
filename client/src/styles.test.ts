@@ -17,7 +17,10 @@ import { describe, expect, it } from 'vitest';
 // Resolved through a parameter, not a literal: Vite rewrites a statically
 // analysable `new URL('…', import.meta.url)` into a served asset URL.
 const resolve = (rel: string) => fileURLToPath(new URL(rel, import.meta.url));
-const readCss = (path: string) => readFileSync(resolve(path), 'utf8');
+// Comments are stripped: these tests scan for declarations, and the stylesheets
+// discuss the very patterns being scanned for (a comment explaining why there is
+// no `outline: none` here reads as an `outline: none`).
+const readCss = (path: string) => readFileSync(resolve(path), 'utf8').replace(/\/\*[^]*?\*\//g, '');
 
 const indexCss = readCss('./index.css');
 
@@ -102,6 +105,22 @@ describe('one global CSS namespace', () => {
       .filter(([, files]) => files.size > 1)
       .map(([sel, files]) => `${sel}: ${[...files].sort().join(', ')}`);
     expect(shared).toEqual([]);
+  });
+});
+
+describe('keyboard focus', () => {
+  it('never suppresses the outline outside a :focus-visible rule', () => {
+    // The global `:focus-visible { outline: 3px solid … }` is the only focus
+    // indicator in the app, and it is easy to outrank by accident: `outline:
+    // none` on a plain selector wins on specificity in every state, silently
+    // leaving a control with no visible focus at all (WCAG 2.4.7).
+    const suppressed = cssFiles.flatMap((file) => {
+      const css = readCss(`./${file}`);
+      return [...css.matchAll(/([^{}]*)\{[^}]*outline:\s*(none|0)\b/g)]
+        .map(([, selector]) => `${file}: ${selector.trim().split('\n').pop()}`)
+        .filter((hit) => !hit.includes(':focus-visible'));
+    });
+    expect(suppressed).toEqual([]);
   });
 });
 
