@@ -385,7 +385,19 @@ export function PlayPage() {
         {announce}
       </div>
 
-      {phase === 'loading' && <div className="play-center muted">{t('play.settingUp')}</div>}
+      {phase === 'loading' && (
+        <div className="play-center">
+          {/* Shaped like the study card about to replace it, so the most-visited
+              transition in the app doesn't jump — the same treatment every other
+              page's loading state got. The copy stays, for screen readers. */}
+          <div className="card study-card" aria-hidden="true">
+            <div className="skeleton" style={{ width: '40%', height: 14 }} />
+            <div className="skeleton" style={{ width: '75%', height: 56 }} />
+            <div className="skeleton" style={{ width: '100%', height: 52 }} />
+          </div>
+          <p className="sr-only">{t('play.settingUp')}</p>
+        </div>
+      )}
 
       {phase === 'error' && (
         <div className="play-center stack" style={{ textAlign: 'center' }}>
