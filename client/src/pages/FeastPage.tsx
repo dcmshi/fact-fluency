@@ -68,7 +68,9 @@ export function FeastPage() {
   const snapRef = useRef<FeastSnapshot | null>(null); // latest snapshot, for fresh reads in the rAF loop
   const seededPos = useRef(false); // have we placed the muncher at the server's seed yet?
   const [selfRender, setSelfRender] = useState({ pos: 0.5, aim: 0.5 });
-  const [firing, setFiring] = useState(0); // >0 while the tongue is out
+  const [firing, setFiring] = useState(0); // >0 while the tongue is out (renders)
+  const firingRef = useRef(0); // the same count, for the steering loop to read
+  const fireTimers = useRef<number[]>([]); // pending tongue-retract timers
   const lastFact = useRef(''); // detect fact rotation to fire the cue
   const [factPulse, setFactPulse] = useState(0); // remounts the fact banner to replay its pop
   const bumpAt = useRef(0); // local anti-spam gate for positional bump
@@ -218,7 +220,12 @@ export function FeastPage() {
       );
       if (t - lastSent > 80) {
         lastSent = t;
-        send({ type: 'move', rimPos: selfPos.current, aim: selfAim.current, firing: firing > 0 });
+        send({
+          type: 'move',
+          rimPos: selfPos.current,
+          aim: selfAim.current,
+          firing: firingRef.current > 0,
+        });
       }
       // Positional bump: steer into a rival to stun them (server enforces the
       // real cooldown; this local gate just avoids spamming the socket).
@@ -236,8 +243,15 @@ export function FeastPage() {
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
+    // Not `firing`: the loop only needs its current value, which it reads from
+    // firingRef. Depending on the state tore the whole steering loop down and
+    // restarted it on every tongue shot — twice per shot, mid-play.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, firing]);
+  }, [phase]);
+
+  // A quit mid-tongue must not leave a retract timer to fire into an unmounted
+  // arena.
+  useEffect(() => () => fireTimers.current.forEach((id) => clearTimeout(id)), []);
 
   // ---- lobby ----
   if (phase === 'connecting' || phase === 'lobby') {
@@ -366,12 +380,21 @@ export function FeastPage() {
     const cy = r.top + r.height / 2;
     selfAim.current = invPlateFrac(fracFromPoint(cx, cy, clientX, clientY));
   };
+  /** Keep the render state and the loop's ref copy of the tongue count in step. */
+  const bumpFiring = (delta: number) => {
+    firingRef.current = Math.max(0, firingRef.current + delta);
+    setFiring(firingRef.current);
+  };
   const fire = () => {
     if (me?.stunned) return;
     const id = pickTarget(platesRef.current, selfPos.current, selfAim.current);
     if (id != null) send({ type: 'grab', plateId: id });
-    setFiring((n) => n + 1);
-    window.setTimeout(() => setFiring((n) => Math.max(0, n - 1)), 180);
+    bumpFiring(1);
+    const timer = window.setTimeout(() => {
+      fireTimers.current = fireTimers.current.filter((t) => t !== timer);
+      bumpFiring(-1);
+    }, 180);
+    fireTimers.current.push(timer);
   };
   const onRingPointerMove = (e: ReactPointerEvent) => aimAt(e.clientX, e.clientY);
   const onKeyControl = (e: ReactKeyboardEvent) => {
