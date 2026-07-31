@@ -24,7 +24,14 @@ function audio(): AudioContext | null {
 }
 
 export function isMuted(): boolean {
-  return localStorage.getItem(MUTE_KEY) === '1';
+  try {
+    return localStorage.getItem(MUTE_KEY) === '1';
+  } catch {
+    // Same reason setMuted swallows: storage access throws outright in some
+    // privacy modes. Every sound in the app goes through here, so an unguarded
+    // read doesn't lose the mute preference — it takes down play.
+    return false;
+  }
 }
 
 /** Set mute and return the new state. */

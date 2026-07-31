@@ -43,5 +43,8 @@ export function activeNow(): number {
 /** Test seam — resets the accumulated hidden time. */
 export function resetActiveClock(): void {
   hiddenTotalMs = 0;
-  hiddenSince = document !== undefined && document.hidden ? performance.now() : null;
+  // `typeof`, not `document !== undefined`: an undeclared global is a
+  // ReferenceError to read, so the bare comparison threw wherever there is no
+  // document — and always evaluated true wherever there is one.
+  hiddenSince = typeof document !== 'undefined' && document.hidden ? performance.now() : null;
 }
