@@ -375,7 +375,7 @@ export function PlayPage() {
 
       {phase === 'error' && (
         <div className="play-center stack" style={{ textAlign: 'center' }}>
-          <div className="big-emoji" aria-hidden="true">
+          <div className="big-emoji hero" aria-hidden="true">
             📚
           </div>
           <h2>
@@ -458,7 +458,7 @@ export function PlayPage() {
 
       {phase === 'done' && !summary && offlineFinish && (
         <div className="play-center stack done-card rise" style={{ textAlign: 'center' }}>
-          <div className="big-emoji" aria-hidden="true">
+          <div className="big-emoji hero" aria-hidden="true">
             📡
           </div>
           <h1>{t('play.offlineTitle')}</h1>
@@ -472,7 +472,7 @@ export function PlayPage() {
       {phase === 'done' && summary && (
         <div className="play-center stack done-card rise" style={{ textAlign: 'center' }}>
           {(caughtUp || summary.allMastered) && <Confetti />}
-          <div className="big-emoji" aria-hidden="true">
+          <div className="big-emoji hero" aria-hidden="true">
             {summary.allMastered ? '🏆' : caughtUp ? '🎉' : '🌟'}
           </div>
           <h1>

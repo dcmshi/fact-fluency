@@ -309,6 +309,20 @@ button {
   background: var(--div);
 }
 
+/* Page-scale status/celebration emoji (error, offline, lobby, summary). Defined
+   here rather than per page: every lazy chunk shares one global CSS namespace,
+   so the three page-level copies at two different sizes meant the rendered size
+   depended on which route was visited last — and ErrorBoundary, which lives in
+   the app shell with no stylesheet of its own, got whichever copy happened to be
+   loaded. `.hero` is the larger play-summary variant. */
+.big-emoji {
+  font-size: 3rem;
+  line-height: 1;
+}
+.big-emoji.hero {
+  font-size: 4.5rem;
+}
+
 /* --- entrance animation --- */
 @keyframes rise {
   from {

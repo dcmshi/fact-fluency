@@ -85,13 +85,6 @@
   color: transparent;
   cursor: default;
 }
-.muncher {
-  position: absolute;
-  font-size: 1.4em;
-  line-height: 1;
-  pointer-events: none;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2));
-}
 .munch-cell.flash-ok {
   background: var(--correct);
   border-color: var(--correct);
@@ -155,7 +148,11 @@
   pointer-events: none;
   z-index: 2;
 }
+/* Scoped to the slot on purpose: components/Muncher.css owns the `.muncher` SVG,
+   and a bare `.muncher` rule here also styled the munchers on the race track and
+   the feast belt, depending on which chunk's CSS was injected last. */
 .muncher-slot .muncher {
   width: 100%;
   height: 100%;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2));
 }

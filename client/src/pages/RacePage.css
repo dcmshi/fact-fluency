@@ -1,8 +1,4 @@
 /* Multiplayer race (pages/RacePage.tsx). */
-.big-emoji {
-  font-size: 3rem;
-  line-height: 1;
-}
 
 /* Lobby: recent races to join / rematch. */
 .race-list {

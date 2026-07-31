@@ -166,10 +166,6 @@
 }
 
 /* --- done / summary --- */
-.big-emoji {
-  font-size: 4.5rem;
-  line-height: 1;
-}
 .done-card h1 {
   font-size: clamp(2rem, 8vw, 2.8rem);
 }

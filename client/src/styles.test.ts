@@ -1,19 +1,23 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Invariants over the stylesheets themselves.
+ * Invariants over the stylesheets themselves — the things nothing else can
+ * catch, because CSS has no build-time checks and the failure mode is usually
+ * invisible in the default theme on the developer's machine.
  *
- * The design system leans on companion tokens (`--sun` / `--on-sun`) so that a
- * theme which remaps a surface color also remaps the ink that has to stay
- * readable on it. Nothing enforces that pairing at build time, and the failure
- * mode is invisible in the default theme — midnight's near-white `--ink` turned
- * the default `.btn` into white-on-white and nobody noticed. These tests pin the
- * pairing and the resulting contrast ratios instead.
+ * The design system leans on companion tokens (`--sun` / `--on-sun`) so a theme
+ * that remaps a surface also remaps the ink that has to stay readable on it.
+ * Midnight remapped `--ink` and not its companion, and the default `.btn` went
+ * white-on-white with nobody noticing. So: assert the resolved contrast ratios,
+ * that the reduced-motion reset actually stops animations, and that route
+ * stylesheets don't fight over the one global class namespace they share.
  */
-const readCss = (path: string) =>
-  readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8');
+// Resolved through a parameter, not a literal: Vite rewrites a statically
+// analysable `new URL('…', import.meta.url)` into a served asset URL.
+const resolve = (rel: string) => fileURLToPath(new URL(rel, import.meta.url));
+const readCss = (path: string) => readFileSync(resolve(path), 'utf8');
 
 const indexCss = readCss('./index.css');
 
@@ -39,7 +43,7 @@ function palette(theme: string): Record<string, string> {
       ? { ...root }
       : { ...root, ...declarations(indexCss, `body[data-theme='${theme}']`) };
   // One level of indirection is enough — a token either holds a literal or
-  // points at a sibling token (midnight's --ink-accent is its --sun).
+  // points at a sibling token in the same table.
   for (const [k, v] of Object.entries(merged)) {
     const ref = /^var\((--[\w-]+)\)$/.exec(v);
     if (ref) merged[k] = merged[ref[1]] ?? v;
@@ -63,6 +67,43 @@ function contrast(a: string, b: string): number {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return (hi + 0.05) / (lo + 0.05);
 }
+
+describe('one global CSS namespace', () => {
+  // Route stylesheets ride along with lazy-loaded chunks, so they all land in
+  // one global namespace in whatever order the kid happens to navigate. Two
+  // files declaring the same bare class means the winner depends on that order:
+  // `.big-emoji` existed three times at two sizes, and a stale `.muncher` rule
+  // in MunchBoard.css restyled the race-track and feast-belt munchers.
+  const cssFiles = readdirSync(resolve('.'), { recursive: true })
+    .map(String)
+    .filter((f) => f.endsWith('.css'))
+    .map((f) => f.replaceAll('\\', '/'));
+
+  it('found the stylesheets', () => {
+    expect(cssFiles).toContain('index.css');
+    expect(cssFiles.length).toBeGreaterThan(10);
+  });
+
+  it('declares each bare class selector in exactly one stylesheet', () => {
+    const owners = new Map<string, Set<string>>();
+    for (const file of cssFiles) {
+      // Rules whose whole selector is one or more bare classes — `.a`, or a
+      // `.a,\n.b {` group. Anything more specific (`.a .b`, `.a.b`, `.a:hover`)
+      // is deliberate layering, not a collision.
+      for (const [, group] of readCss(`./${file}`).matchAll(
+        /^((?:\.[\w-]+,\s*\n)*\.[\w-]+)\s*\{/gm,
+      )) {
+        for (const [sel] of group.matchAll(/\.[\w-]+/g)) {
+          (owners.get(sel) ?? owners.set(sel, new Set()).get(sel)!).add(file);
+        }
+      }
+    }
+    const shared = [...owners]
+      .filter(([, files]) => files.size > 1)
+      .map(([sel, files]) => `${sel}: ${[...files].sort().join(', ')}`);
+    expect(shared).toEqual([]);
+  });
+});
 
 describe('prefers-reduced-motion', () => {
   it('stops infinite animations instead of running them at full speed', () => {
