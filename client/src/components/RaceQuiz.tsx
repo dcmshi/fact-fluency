@@ -65,19 +65,25 @@ export function RaceQuiz({
     );
   };
 
+  // Number keys 1-n pick a choice. The handler routes through a ref rather than
+  // capturing `pick`: `pick` closes over `locked` *and* over props, and
+  // RacePage's onComplete captures its current roundIndex, so a handler pinned
+  // to one render would report a stale round for keyboard players the moment
+  // anything else in that closure starts changing mid-round.
+  const pickRef = useRef(pick);
+  pickRef.current = pick;
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.repeat) return;
       const n = Number(e.key);
       if (Number.isInteger(n) && n >= 1 && n <= choices.length) {
         e.preventDefault();
-        pick(n - 1);
+        pickRef.current(n - 1);
       }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [choices.length, locked]);
+  }, [choices.length]);
 
   return (
     <div className="race-quiz">
