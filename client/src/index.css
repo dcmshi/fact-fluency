@@ -329,6 +329,12 @@ button {
   *::before,
   *::after {
     animation-duration: 0.001ms !important;
+    /* Crushing the duration alone turns an `infinite` animation into a strobe —
+       it just loops at maximum speed (the muncher bob, the scroll cues, the
+       skeleton shimmer, the feast wobble), which is constant repaints and a
+       WCAG 2.3.1 flash risk for exactly the users who asked for less motion.
+       One iteration at ~0ms lands on the keyframe end state and stops. */
+    animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
 }

@@ -64,6 +64,17 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+describe('prefers-reduced-motion', () => {
+  it('stops infinite animations instead of running them at full speed', () => {
+    const at = indexCss.indexOf('@media (prefers-reduced-motion: reduce) {');
+    expect(at, 'global reduced-motion rule missing').toBeGreaterThan(-1);
+    const rule = indexCss.slice(at, indexCss.indexOf('\n}', at));
+    expect(rule).toContain('animation-duration: 0.001ms !important;');
+    // Without this, `animation: … infinite` keeps looping — at 0.001ms a cycle.
+    expect(rule).toContain('animation-iteration-count: 1 !important;');
+  });
+});
+
 describe('theme companion tokens', () => {
   it('found the themes and the base palette', () => {
     expect(THEMES).toEqual(['ocean', 'candy', 'forest', 'sunset', 'midnight']);
