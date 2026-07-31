@@ -52,7 +52,11 @@ self.addEventListener('fetch', (event) => {
           }
           return res;
         })
-        .catch(() => caches.match('/')),
+        // respondWith rejects on undefined, which is what caches.match resolves
+        // to when '/' was never cached or was evicted while this SW lived — so
+        // the offline navigation failed with a confusing SW error instead of the
+        // browser's own offline page.
+        .catch(async () => (await caches.match('/')) ?? Response.error()),
     );
     return;
   }
