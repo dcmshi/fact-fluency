@@ -89,6 +89,20 @@ export function HowItWorksPage() {
             {t('methodology.ctaBack')}
           </Link>
         </div>
+
+        <div className="meta-links">
+          <a href="https://github.com/sponsors/dcmshi" target="_blank" rel="noopener noreferrer">
+            {t('landing.supportLink')}
+          </a>
+          <span aria-hidden="true">·</span>
+          <a
+            href="https://github.com/dcmshi/fact-fluency"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {t('landing.sourceLink')}
+          </a>
+        </div>
       </article>
     </div>
   );

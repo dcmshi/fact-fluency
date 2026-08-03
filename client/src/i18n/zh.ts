@@ -69,6 +69,8 @@ export const zh: typeof en = {
     family3: '金币、可解锁的角色、主题和连续记录让动力十足。',
     family4: '免费使用，没有广告 — 无需账号即可立即试玩。',
     howItWorks: '工作原理',
+    supportLink: '❤️ 支持本项目',
+    sourceLink: '在 GitHub 上查看源码',
   },
   profiles: {
     account: '账号',

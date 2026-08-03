@@ -610,6 +610,17 @@ spaced-repetition engine and its state are never touched by the games.
   (honest — no invented efficacy claims — with a children's-data promise);
   curriculum-standards labels in the Facts view; a printable trickiest-facts
   worksheet alongside the mastery certificate.
+- **Landing structure.** The logged-out page is one scroll: a `100svh` hero
+  (tagline → Play → sign-in form → "Learn more ↓") over a crawlable info
+  section. The hero is the conversion zone and carries **no** secondary links —
+  the single route out to `/how-it-works` sits at the end of the info section,
+  where a reader who just finished "Built on spaced repetition" wants the deep
+  dive. `/how-it-works` stays a separate route rather than a final scroll
+  section: it earns its own `document.title` and crawlable content, and it's the
+  only entry point once logged in. A quiet `.meta-links` footer (sponsor ·
+  source) closes **both public pages and nothing else** — every other screen is
+  one a kid touches, and an external link there sends them into GitHub's payment
+  flow.
 - **Reward meta.** A collectible **sticker-book** gallery over the reward
   catalog (owned vs. locked), on top of the existing unlockables + streak
   shield.

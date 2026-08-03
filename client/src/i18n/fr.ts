@@ -72,6 +72,8 @@ export const fr: typeof en = {
       'Des pièces, des personnages à débloquer, des thèmes et des séries pour la motivation.',
     family4: 'Gratuit, sans pub — et tu peux l’essayer tout de suite sans compte.',
     howItWorks: 'Comment ça marche',
+    supportLink: '❤️ Soutenir ce projet',
+    sourceLink: 'Voir le code source sur GitHub',
   },
   profiles: {
     account: 'Compte',

@@ -658,16 +658,26 @@ body[data-theme='midnight'] {
 .landing-more .btn {
   text-decoration: none;
 }
-/* Above-the-fold "How it works" link in the auth hero. */
-.hero-more {
-  text-align: center;
-  margin-top: -0.3rem;
+/* Quiet sponsor/source row closing out the two public pages. Deliberately the
+   smallest type on the screen so it never competes with the Play CTA above it. */
+.meta-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.6rem;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
 }
-.hero-more a {
-  color: var(--ink);
-  font-weight: 700;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
+.meta-links a {
+  color: inherit;
+  text-decoration: none;
+}
+@media (hover: hover) {
+  .meta-links a:hover {
+    color: var(--ink);
+    text-decoration: underline;
+  }
 }
 
 /* Loading skeletons — shimmer placeholders shown while data loads. */

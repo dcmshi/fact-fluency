@@ -72,6 +72,8 @@ export const en = {
     family3: 'Coins, unlockable characters, themes, and streaks keep motivation up.',
     family4: 'Free to use, no ads — and you can try it instantly without an account.',
     howItWorks: 'How it works',
+    supportLink: '❤️ Support this project',
+    sourceLink: 'View source on GitHub',
   },
   profiles: {
     account: 'Account',

@@ -100,10 +100,6 @@ export function AuthPage() {
             <p className="muted" style={{ textAlign: 'center', marginTop: '-0.4rem' }}>
               {t('landing.tagline')}
             </p>
-            <p className="hero-more">
-              <Link to="/how-it-works">{t('landing.howItWorks')} →</Link>
-            </p>
-
             <button
               type="button"
               className="btn sun full"
@@ -220,6 +216,20 @@ export function AuthPage() {
           <Link to="/how-it-works" className="btn ghost">
             {t('landing.howItWorks')} →
           </Link>
+        </div>
+
+        <div className="meta-links">
+          <a href="https://github.com/sponsors/dcmshi" target="_blank" rel="noopener noreferrer">
+            {t('landing.supportLink')}
+          </a>
+          <span aria-hidden="true">·</span>
+          <a
+            href="https://github.com/dcmshi/fact-fluency"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {t('landing.sourceLink')}
+          </a>
         </div>
       </section>
     </div>

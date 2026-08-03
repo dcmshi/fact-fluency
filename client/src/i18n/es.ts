@@ -72,6 +72,8 @@ export const es: typeof en = {
     family3: 'Monedas, personajes desbloqueables, temas y rachas mantienen la motivación.',
     family4: 'Gratis y sin anuncios, y puedes probarlo al instante sin crear una cuenta.',
     howItWorks: 'Cómo funciona',
+    supportLink: '❤️ Apoya este proyecto',
+    sourceLink: 'Ver el código fuente en GitHub',
   },
   profiles: {
     account: 'Cuenta',
