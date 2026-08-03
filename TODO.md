@@ -872,7 +872,7 @@ tests passing. Remaining §5 items are all externally gated: emailed recap
 (#6, parked on a COPPA/consent decision — the methodology page shipped), and
 classroom/SSO (#9, vendor-gated). See the COMPETITORS.md §5 checklist for status.
 
-- [x] **Localization (4 languages).** react-i18next; English + Spanish + French + Simplified Chinese. `client/src/i18n/{en,es,fr,zh}.ts` (es/fr/zh typed
+- [x] **Localization (5 languages).** react-i18next; English + Spanish + French + Simplified Chinese + Japanese. `client/src/i18n/{en,es,fr,zh,ja}.ts` (es/fr/zh/ja typed
       `typeof en`, so a missing key fails the build). Device-level detection
       (localStorage `ff_lang` + navigator), switcher on the landing hero +
       profiles header, `<html lang>` synced. **Server-generated prose** is

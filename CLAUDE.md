@@ -10,7 +10,8 @@ repetition** with a **fluency gate** (correct _and_ fast). An adult
 (parent/teacher) account holds multiple kid profiles. Beyond the Number Munchers
 solo mode there are two multiplayer games — an async/live **Race**
 (`MULTIPLAYER.md`) and the real-time **Number Feast** arena (`FEAST.md`) — a
-public `/how-it-works` methodology page, and full UI localization in en/es/fr/zh.
+public `/how-it-works` methodology page, and full UI localization in
+en/es/fr/zh/ja.
 `TODO.md` is the working backlog; `COMPETITORS.md` the competitive scan.
 
 ## Stack
@@ -41,8 +42,9 @@ npm-workspaces monorepo (`shared` / `server` / `client`):
   /data        Seed catalog + reward/settings data
 /client        Vite + React SPA
   /pages       Route screens (Auth, Profiles, Play, Progress, Race, Feast, …)
-  /i18n        react-i18next setup + en/es/fr/zh dictionaries (es/fr/zh typed
-               `typeof en`, so a missing key fails the build)
+  /i18n        react-i18next setup + en/es/fr/zh/ja dictionaries (the four
+               non-English ones typed `typeof en`, so a missing key fails the
+               build)
   /components  Shared UI (Muncher, MunchBoard, Modal, ErrorBoundary, …)
   timing.ts    `activeNow()` — the clock all answer timing uses
 /scripts       Dev CLIs (git hooks installer, Postgres test runner)
@@ -170,8 +172,8 @@ better-sqlite3 and applies its schema in the constructor; Postgres
   offline queue must be free to replay. Relatedly, `answer()` is serialized per
   session (`session/sessionLock.ts`): it reads working state, grades against it,
   and writes it back, and the client doesn't wait for the previous POST.
-- **Localize every user-facing string.** Add new copy to all four dictionaries in
-  `client/src/i18n/` (the build enforces it — es/fr/zh are typed `typeof en`).
+- **Localize every user-facing string.** Add new copy to all five dictionaries in
+  `client/src/i18n/` (the build enforces it — es/fr/zh/ja are typed `typeof en`).
   Never build user-facing prose on the server; emit a `LocalizedText {key,
 params}` (see `Card.strategy`, `SetSuggestion.reason`) or a stable id the
   client resolves via `tLabel()`. Standards codes (`FactSet.standards`) stay

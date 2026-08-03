@@ -2,7 +2,7 @@
  * i18n setup (react-i18next). Resources are bundled inline (no async backend →
  * no Suspense needed). Language is detected from localStorage then the browser,
  * and persisted to localStorage so the choice sticks. Supported: English,
- * Spanish, French and Chinese; unknown locales fall back to English.
+ * Spanish, French, Chinese and Japanese; unknown locales fall back to English.
  */
 import i18n from 'i18next';
 import type { TFunction } from 'i18next';
@@ -12,6 +12,7 @@ import { en } from './en';
 import { es } from './es';
 import { fr } from './fr';
 import { zh } from './zh';
+import { ja } from './ja';
 
 /** The languages offered in the switcher. */
 export const LANGUAGES = [
@@ -19,6 +20,7 @@ export const LANGUAGES = [
   { code: 'es', label: 'Español' },
   { code: 'fr', label: 'Français' },
   { code: 'zh', label: '中文' },
+  { code: 'ja', label: '日本語' },
 ] as const;
 
 void i18n
@@ -30,9 +32,10 @@ void i18n
       es: { translation: es },
       fr: { translation: fr },
       zh: { translation: zh },
+      ja: { translation: ja },
     },
     fallbackLng: 'en',
-    supportedLngs: ['en', 'es', 'fr', 'zh'],
+    supportedLngs: ['en', 'es', 'fr', 'zh', 'ja'],
     nonExplicitSupportedLngs: true, // es-MX → es, fr-CA → fr, zh-CN → zh
     interpolation: { escapeValue: false }, // React already escapes
     detection: {

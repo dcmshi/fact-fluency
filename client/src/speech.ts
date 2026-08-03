@@ -13,6 +13,7 @@ const LANG_TAG: Record<string, string> = {
   es: 'es-ES',
   fr: 'fr-FR',
   zh: 'zh-CN',
+  ja: 'ja-JP',
 };
 
 /** True if this browser can speak (so callers can hide a replay control). */

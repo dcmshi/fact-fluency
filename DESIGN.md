@@ -595,8 +595,8 @@ spaced-repetition engine and its state are never touched by the games.
   plates; tap the ones matching the fact for points; bump rivals; solo-vs-bots
   or live) — see `FEAST.md`. Both are ephemeral (only coins persist) and share
   the fact pool via a pure engine + a WS tick loop.
-- **Localization (en/es/fr/zh).** react-i18next; `client/src/i18n` holds the
-  dictionaries (es/fr/zh typed `typeof en`). Server-generated prose is emitted
+- **Localization (en/es/fr/zh/ja).** react-i18next; `client/src/i18n` holds the
+  dictionaries (es/fr/zh/ja typed `typeof en`). Server-generated prose is emitted
   as `LocalizedText {key, params}` (e.g. `Card.strategy`, `SetSuggestion.reason`)
   or resolved by id, so all copy lives client-side and the server needs no
   locale. Device-level detection + a switcher.
