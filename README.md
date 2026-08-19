@@ -159,3 +159,21 @@ instance's internal hostname. Two possible causes:
   `ssl.rejectUnauthorized=false` for it.
 
 Neither is fixable from the repo — it's dashboard/infra state, not code.
+
+**Recreating a deleted database:** a plain redeploy only restarts the web
+service — databases are provisioned by the blueprint, not by deploys. Either:
+
+- **Re-sync the blueprint.** Dashboard → **Blueprints** → this repo's
+  blueprint → **Manual Sync**. Render sees `fact-fluency-db` is missing and
+  recreates it, and the `fromDatabase` wiring re-points the web service's
+  `DATABASE_URL` automatically. (If the deleted DB shows as "unlinked" and
+  isn't recreated, use the manual route.)
+- **Create it manually.** Dashboard → **New + → PostgreSQL**: name
+  `fact-fluency-db` (must match `render.yaml`), free plan, **same region as
+  the web service**. Then web service → **Environment** → set `DATABASE_URL`
+  to the new database's **Internal Database URL** (its Connect panel).
+
+The fresh database starts empty — `migrate()` re-applies the schema on boot,
+but free instances have no backups, so prior user data is gone. The new free
+database expires 30 days after creation; upgrade to a paid plan before then
+to avoid a repeat.
