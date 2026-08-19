@@ -400,7 +400,7 @@ export const en = {
     bumpLabel: 'Bump {{name}}',
     you: 'You',
     tapHint:
-      'Steer to aim · tap FIRE (or a plate) to shoot your tongue · bump rivals by nudging into them',
+      'WASD / arrows or point to steer · Space / FIRE shoots · bump rivals by nudging into them',
     fire: 'FIRE',
     aimHint: 'Aim at a plate',
     stunned: 'Dizzy! 💫',

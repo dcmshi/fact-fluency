@@ -405,7 +405,7 @@ export const es: typeof en = {
     bumpLabel: 'Empujar a {{name}}',
     you: 'Tú',
     tapHint:
-      'Muévete para apuntar · pulsa DISPARA (o un plato) para lanzar la lengua · empuja a tus rivales para aturdirlos',
+      'WASD / flechas o apunta para moverte · Espacio / DISPARA lanza la lengua · aparta a tus rivales chocando con ellos',
     fire: 'DISPARA',
     aimHint: 'Apunta a un plato',
     stunned: '¡Mareado! 💫',

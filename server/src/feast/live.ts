@@ -2,7 +2,7 @@
  * Number Feast — live arena over WebSockets (FEAST.md, slice 2). A server-
  * authoritative real-time room: a tick loop steps the pure engine (engine/
  * feast.ts) and broadcasts snapshots; clients only render and send inputs
- * (grab/bump). Rooms are in-memory and ephemeral (like the live Race); only
+ * (grab/move). Rooms are in-memory and ephemeral (like the live Race); only
  * placement coins are written on finish.
  *
  * A room is keyed by **accountId** — every device on one account joins the same
@@ -10,8 +10,9 @@
  * play. There's no discovery/lobby list, so no persisted entity is needed.
  *
  * Protocol (JSON):
- *   client → server: {ready}, {addBot}, {grab, plateId}, {bump, targetId},
- *                    {move, rimPos, aim, firing}, {again}
+ *   client → server: {ready}, {addBot}, {grab, plateId},
+ *                    {move, x, y, vx, vy, impactX, impactY,
+ *                     impactVx, impactVy, aimX, aimY, firing}, {again}
  *   server → client: {joined}, {lobby, players}, {countdown, ms}, {snapshot,...},
  *                    {finished, standings}, {error, code}
  */
@@ -24,7 +25,6 @@ import { SEED_CATALOG } from '../data/catalog';
 import type { Db } from '../db';
 import { generateFactsForSets } from '../engine/facts';
 import {
-  applyBump,
   applyGrab,
   applyMove,
   createFeastState,
@@ -234,9 +234,16 @@ function joinRoom(
     let msg: {
       type?: string;
       plateId?: unknown;
-      targetId?: unknown;
-      rimPos?: unknown;
-      aim?: unknown;
+      x?: unknown;
+      y?: unknown;
+      vx?: unknown;
+      vy?: unknown;
+      impactX?: unknown;
+      impactY?: unknown;
+      impactVx?: unknown;
+      impactVy?: unknown;
+      aimX?: unknown;
+      aimY?: unknown;
       firing?: unknown;
     };
     try {
@@ -281,9 +288,16 @@ function onMessage(
   msg: {
     type?: string;
     plateId?: unknown;
-    targetId?: unknown;
-    rimPos?: unknown;
-    aim?: unknown;
+    x?: unknown;
+    y?: unknown;
+    vx?: unknown;
+    vy?: unknown;
+    impactX?: unknown;
+    impactY?: unknown;
+    impactVx?: unknown;
+    impactVy?: unknown;
+    aimX?: unknown;
+    aimY?: unknown;
     firing?: unknown;
   },
 ): void {
@@ -304,20 +318,38 @@ function onMessage(
         applyGrab(room.state, player.profileId, msg.plateId, Date.now());
       }
       return;
-    case 'bump':
-      if (room.phase === 'playing' && room.state && typeof msg.targetId === 'string') {
-        applyBump(room.state, player.profileId, msg.targetId, Date.now());
-      }
-      return;
     case 'move':
       if (
         room.phase === 'playing' &&
         room.state &&
-        typeof msg.rimPos === 'number' &&
-        typeof msg.aim === 'number' &&
+        typeof msg.x === 'number' &&
+        typeof msg.y === 'number' &&
+        typeof msg.vx === 'number' &&
+        typeof msg.vy === 'number' &&
+        typeof msg.impactX === 'number' &&
+        typeof msg.impactY === 'number' &&
+        typeof msg.impactVx === 'number' &&
+        typeof msg.impactVy === 'number' &&
+        typeof msg.aimX === 'number' &&
+        typeof msg.aimY === 'number' &&
         typeof msg.firing === 'boolean'
       ) {
-        applyMove(room.state, player.profileId, msg.rimPos, msg.aim, msg.firing);
+        applyMove(
+          room.state,
+          player.profileId,
+          msg.x,
+          msg.y,
+          msg.vx,
+          msg.vy,
+          msg.impactX,
+          msg.impactY,
+          msg.impactVx,
+          msg.impactVy,
+          msg.aimX,
+          msg.aimY,
+          msg.firing,
+          Date.now(),
+        );
       }
       return;
     case 'again':

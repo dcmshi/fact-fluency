@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { FeastSnapshot, FeastStanding } from '@shared';
@@ -7,22 +7,29 @@ import { Muncher } from '../components/Muncher';
 import { OP_SYMBOL } from '../ops';
 import { playComplete, playCorrect, playFactChange, playWrong } from '../sound';
 import {
-  clamp01,
-  fracFromPoint,
-  inBumpRange,
-  invPlateFrac,
+  ARENA_RENDER_RADIUS,
+  clampToArena,
+  normalizeVector,
   pickTarget,
-  plateFrac,
-  pointOnCircle,
-  stepRimPos,
+  plateArenaPoint,
+  PLATE_RENDER_RADIUS,
+  pointInArena,
+  pointOnBelt,
+  pointerSteerInput,
+  resolvePlayerCollisions,
+  stepArenaMotion,
+  tongueEnd,
+  vectorLength,
+  type Vec2,
 } from './feastArena';
 import './FeastPage.css';
 
 type Phase = 'connecting' | 'lobby' | 'countdown' | 'playing' | 'finished';
 
-/** Belt-fraction movement below this is invisible (the belt is ~360px wide, so
- *  this is well under a pixel) — not worth re-rendering the arena for. */
+/** Normalized arena movement below this is visually sub-pixel. */
 const MOVE_EPSILON = 0.0005;
+/** Long enough to read as a tongue strike without making repeat shots sluggish. */
+const TONGUE_VISIBLE_MS = 260;
 
 interface LobbyPlayer {
   profileId: string;
@@ -36,10 +43,9 @@ interface LobbyPlayer {
 
 /**
  * Number Feast — the real-time arena client (FEAST.md, slice 3). Renders
- * server snapshots (belt of plates + players + fact + timer); tap a plate to
- * grab it, tap a rival to bump. The server is authoritative — this only renders
- * and sends inputs. Plate motion is smoothed by a CSS transition on `left`,
- * so no client-side interpolation loop is needed for ~15 Hz snapshots.
+ * server snapshots (belt of plates + players + fact + timer); steer with a
+ * pointer or keyboard and fire the tongue to grab a plate. The server is
+ * authoritative for game truth; the client owns immediate movement/aiming.
  */
 export function FeastPage() {
   const { t } = useTranslation();
@@ -62,18 +68,29 @@ export function FeastPage() {
 
   // Client-owned spatial layer (the server owns scoring/stun; see FEAST.md).
   const ringRef = useRef<HTMLDivElement | null>(null);
-  const selfPos = useRef(0.5); // muncher position (belt 0→1), owned locally
-  const selfAim = useRef(0.5); // pointer target (belt 0→1)
+  const selfPos = useRef<Vec2>({ x: 0, y: -0.45 }); // normalized arena position
+  const selfVelocity = useRef<Vec2>({ x: 0, y: 0 });
+  const selfImpactPos = useRef<Vec2>({ x: 0, y: -0.45 });
+  const selfImpactVelocity = useRef<Vec2>({ x: 0, y: 0 });
+  const lastServerPush = useRef<Vec2>({ x: 0, y: 0 });
+  const selfAim = useRef<Vec2>({ x: 0, y: -1 }); // unit tongue/facing direction
+  const pointerTarget = useRef<Vec2>({ x: 0, y: -0.45 });
+  const controlMode = useRef<'pointer' | 'keyboard'>('pointer');
+  const keyboardInput = useRef<Vec2>({ x: 0, y: 0 });
+  const keyboardHeld = useRef({ left: false, right: false, up: false, down: false });
+  const fireAction = useRef<() => void>(() => {});
   const platesRef = useRef<FeastSnapshot['plates']>([]);
   const snapRef = useRef<FeastSnapshot | null>(null); // latest snapshot, for fresh reads in the rAF loop
   const seededPos = useRef(false); // have we placed the muncher at the server's seed yet?
-  const [selfRender, setSelfRender] = useState({ pos: 0.5, aim: 0.5 });
+  const [selfRender, setSelfRender] = useState({
+    pos: { x: 0, y: -0.45 },
+    aim: { x: 0, y: -1 },
+  });
   const [firing, setFiring] = useState(0); // >0 while the tongue is out (renders)
   const firingRef = useRef(0); // the same count, for the steering loop to read
   const fireTimers = useRef<number[]>([]); // pending tongue-retract timers
   const lastFact = useRef(''); // detect fact rotation to fire the cue
   const [factPulse, setFactPulse] = useState(0); // remounts the fact banner to replay its pop
-  const bumpAt = useRef(0); // local anti-spam gate for positional bump
 
   useEffect(() => {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -113,6 +130,7 @@ export function FeastPage() {
           setPhase('countdown');
           setCountdown(Math.ceil((msg.ms ?? 0) / 1000));
           seededPos.current = false; // re-seed the muncher position for a rematch
+          lastServerPush.current = { x: 0, y: 0 };
           lastFact.current = ''; // avoid a spurious cue on the first snapshot of a rematch
           break;
         case 'snapshot': {
@@ -134,9 +152,39 @@ export function FeastPage() {
           if (me) {
             if (!seededPos.current) {
               seededPos.current = true;
-              selfPos.current = me.rimPos;
-              selfAim.current = me.rimPos;
-              setSelfRender({ pos: me.rimPos, aim: me.rimPos });
+              selfPos.current = { x: me.x, y: me.y };
+              selfVelocity.current = { x: 0, y: 0 };
+              selfImpactPos.current = { x: me.x, y: me.y };
+              selfImpactVelocity.current = { x: 0, y: 0 };
+              lastServerPush.current = { x: me.pushX, y: me.pushY };
+              selfAim.current = { x: me.aimX, y: me.aimY };
+              pointerTarget.current = selfPos.current;
+              setSelfRender({ pos: selfPos.current, aim: selfAim.current });
+            } else {
+              const requestedPush = {
+                x: me.pushX - lastServerPush.current.x,
+                y: me.pushY - lastServerPush.current.y,
+              };
+              lastServerPush.current = { x: me.pushX, y: me.pushY };
+              if (Math.hypot(requestedPush.x, requestedPush.y) > MOVE_EPSILON) {
+                const before = selfPos.current;
+                selfPos.current = clampToArena({
+                  x: before.x + requestedPush.x,
+                  y: before.y + requestedPush.y,
+                });
+                const appliedPush = {
+                  x: selfPos.current.x - before.x,
+                  y: selfPos.current.y - before.y,
+                };
+                selfVelocity.current = { x: me.pushVx, y: me.pushVy };
+                // Preserve pointer-steering intent: the shove moves both the
+                // muncher and its virtual-stick target by the same amount.
+                pointerTarget.current = {
+                  x: pointerTarget.current.x + appliedPush.x,
+                  y: pointerTarget.current.y + appliedPush.y,
+                };
+                setSelfRender({ pos: { ...selfPos.current }, aim: { ...selfAim.current } });
+              }
             }
             if (me.score > myScore.current) {
               playCorrect();
@@ -195,8 +243,8 @@ export function FeastPage() {
     return () => clearTimeout(id);
   }, [phase, countdown]);
 
-  // Steering + throttled move broadcast while playing. The muncher eases toward
-  // the pointer target (selfAim); scoring stays server-side.
+  // Steering + throttled move broadcast while playing. Physics mirrors the
+  // original Sushi-Go-Round ratios: quick pickup, heavier braking/reversal.
   useEffect(() => {
     if (phase !== 'playing') return;
     let raf = 0;
@@ -206,39 +254,61 @@ export function FeastPage() {
       const dt = last ? t - last : 16;
       last = t;
       const meNow = snapRef.current?.players.find((p) => p.profileId === profileId);
+      let moved = { pos: selfPos.current, velocity: selfVelocity.current };
       if (!meNow?.stunned) {
-        selfPos.current = stepRimPos(selfPos.current, selfAim.current, dt);
+        const input =
+          controlMode.current === 'keyboard'
+            ? keyboardInput.current
+            : pointerSteerInput(selfPos.current, pointerTarget.current);
+        moved = stepArenaMotion(selfPos.current, selfVelocity.current, input, dt);
+        if (vectorLength(input) > 0) selfAim.current = normalizeVector(input, selfAim.current);
+      } else {
+        moved = { pos: selfPos.current, velocity: { x: 0, y: 0 } };
       }
+      selfImpactPos.current = moved.pos;
+      selfImpactVelocity.current = moved.velocity;
+      const collision = resolvePlayerCollisions(
+        moved.pos,
+        moved.velocity,
+        (snapRef.current?.players ?? [])
+          .filter((p) => p.profileId !== profileId)
+          .map((p) => ({
+            id: p.profileId,
+            pos: { x: p.x, y: p.y },
+            velocity: { x: p.vx, y: p.vy },
+          })),
+        dt,
+      );
+      selfPos.current = collision.pos;
+      selfVelocity.current = collision.velocity;
       // Only re-render when the muncher actually moved. A fresh object every
       // frame reconciled the whole arena — every plate, rival, and the
       // scoreboard — 60×/s even while standing still, which is real dropped
       // frames on the older tablets this is meant to run on.
       setSelfRender((prev) =>
-        Math.abs(prev.pos - selfPos.current) < MOVE_EPSILON &&
-        Math.abs(prev.aim - selfAim.current) < MOVE_EPSILON
+        Math.abs(prev.pos.x - selfPos.current.x) < MOVE_EPSILON &&
+        Math.abs(prev.pos.y - selfPos.current.y) < MOVE_EPSILON &&
+        Math.abs(prev.aim.x - selfAim.current.x) < MOVE_EPSILON &&
+        Math.abs(prev.aim.y - selfAim.current.y) < MOVE_EPSILON
           ? prev
-          : { pos: selfPos.current, aim: selfAim.current },
+          : { pos: { ...selfPos.current }, aim: { ...selfAim.current } },
       );
       if (t - lastSent > 80) {
         lastSent = t;
         send({
           type: 'move',
-          rimPos: selfPos.current,
-          aim: selfAim.current,
+          x: selfPos.current.x,
+          y: selfPos.current.y,
+          vx: selfVelocity.current.x,
+          vy: selfVelocity.current.y,
+          impactX: selfImpactPos.current.x,
+          impactY: selfImpactPos.current.y,
+          impactVx: selfImpactVelocity.current.x,
+          impactVy: selfImpactVelocity.current.y,
+          aimX: selfAim.current.x,
+          aimY: selfAim.current.y,
           firing: firingRef.current > 0,
         });
-      }
-      // Positional bump: steer into a rival to stun them (server enforces the
-      // real cooldown; this local gate just avoids spamming the socket).
-      if (!meNow?.stunned && t - bumpAt.current > 400) {
-        for (const other of snapRef.current?.players ?? []) {
-          if (other.profileId === profileId) continue;
-          if (inBumpRange(selfPos.current, other.rimPos)) {
-            bumpAt.current = t;
-            send({ type: 'bump', targetId: other.profileId });
-            break;
-          }
-        }
       }
       raf = requestAnimationFrame(loop);
     };
@@ -248,6 +318,72 @@ export function FeastPage() {
     // firingRef. Depending on the state tore the whole steering loop down and
     // restarted it on every tongue shot — twice per shot, mid-play.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  // Stadium controls belong to the game, not to whichever child happened to
+  // receive focus. Listen for them for the whole playing phase so clicking a
+  // plate or FIRE cannot silently disable movement.
+  useEffect(() => {
+    if (phase !== 'playing') return;
+    type Direction = keyof typeof keyboardHeld.current;
+    const directionFor = (key: string): Direction | null => {
+      switch (key.toLowerCase()) {
+        case 'arrowleft':
+        case 'a':
+          return 'left';
+        case 'arrowright':
+        case 'd':
+          return 'right';
+        case 'arrowup':
+        case 'w':
+          return 'up';
+        case 'arrowdown':
+        case 's':
+          return 'down';
+        default:
+          return null;
+      }
+    };
+    const refreshInput = () => {
+      keyboardInput.current = {
+        x: Number(keyboardHeld.current.right) - Number(keyboardHeld.current.left),
+        y: Number(keyboardHeld.current.down) - Number(keyboardHeld.current.up),
+      };
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      const direction = directionFor(event.key);
+      if (direction) {
+        event.preventDefault();
+        controlMode.current = 'keyboard';
+        keyboardHeld.current[direction] = true;
+        refreshInput();
+        if (vectorLength(keyboardInput.current) > 0) {
+          selfAim.current = normalizeVector(keyboardInput.current, selfAim.current);
+        }
+        return;
+      }
+      if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) {
+        // Native buttons synthesize their own click for Space/Enter.
+        if (event.target instanceof HTMLButtonElement) return;
+        event.preventDefault();
+        fireAction.current();
+      }
+    };
+    const onKeyUp = (event: KeyboardEvent) => {
+      const direction = directionFor(event.key);
+      if (!direction) return;
+      event.preventDefault();
+      keyboardHeld.current[direction] = false;
+      refreshInput();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      keyboardHeld.current = { left: false, right: false, up: false, down: false };
+      keyboardInput.current = { x: 0, y: 0 };
+    };
   }, [phase]);
 
   // A quit mid-tongue must not leave a retract timer to fire into an unmounted
@@ -370,16 +506,26 @@ export function FeastPage() {
   const me = snap?.players.find((p) => p.profileId === profileId);
   const seconds = snap ? Math.ceil(snap.timeLeftMs / 1000) : 0;
 
-  // Point-to-aim: the pointer sets both where the muncher steers (selfAim, eased
-  // in the rAF loop) and where the tongue points. Fire shoots at the nearest
-  // in-reach plate; the server decides right/wrong.
+  // The pointer is a virtual analogue stick: its vector from the muncher sets
+  // both movement and facing. Coordinates are normalized by the playable
+  // interior radius, so a belt plate sits just outside the movement boundary.
   const aimAt = (clientX: number, clientY: number) => {
     const el = ringRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return;
     const cx = r.left + r.width / 2;
     const cy = r.top + r.height / 2;
-    selfAim.current = invPlateFrac(fracFromPoint(cx, cy, clientX, clientY));
+    const target = {
+      x: (clientX - cx) / ((r.width * ARENA_RENDER_RADIUS) / 100),
+      y: (clientY - cy) / ((r.height * ARENA_RENDER_RADIUS) / 100),
+    };
+    controlMode.current = 'pointer';
+    pointerTarget.current = target;
+    selfAim.current = normalizeVector(
+      { x: target.x - selfPos.current.x, y: target.y - selfPos.current.y },
+      selfAim.current,
+    );
   };
   /** Keep the render state and the loop's ref copy of the tongue count in step. */
   const bumpFiring = (delta: number) => {
@@ -394,21 +540,25 @@ export function FeastPage() {
     const timer = window.setTimeout(() => {
       fireTimers.current = fireTimers.current.filter((t) => t !== timer);
       bumpFiring(-1);
-    }, 180);
+    }, TONGUE_VISIBLE_MS);
     fireTimers.current.push(timer);
   };
+  fireAction.current = fire;
   const onRingPointerMove = (e: ReactPointerEvent) => aimAt(e.clientX, e.clientY);
-  const onKeyControl = (e: ReactKeyboardEvent) => {
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-      // The ring is focusable, so the arrows keep their default behaviour too —
-      // steering scrolled the page out from under the arena.
-      e.preventDefault();
-      selfAim.current = clamp01(selfAim.current + (e.key === 'ArrowLeft' ? -0.05 : 0.05));
-    } else if (e.key === ' ' || e.key === 'Enter') {
-      e.preventDefault();
-      fire();
-    }
-  };
+
+  const tongueLines = [
+    ...(snap?.players
+      .filter((p) => p.profileId !== profileId && p.firing)
+      .map((p) => ({
+        id: p.profileId,
+        from: { x: p.x, y: p.y },
+        aim: { x: p.aimX, y: p.aimY },
+        you: false,
+      })) ?? []),
+    ...(me && firing > 0
+      ? [{ id: profileId, from: selfPos.current, aim: selfAim.current, you: true }]
+      : []),
+  ];
 
   return (
     <div className="screen feast">
@@ -433,8 +583,8 @@ export function FeastPage() {
         </div>
       </header>
 
-      {/* The round belt. Plates ride an inner ring; munchers sit on the rim.
-          Point anywhere to steer + aim; tap/click (or FIRE) shoots the tongue. */}
+      {/* Plates ride the belt while munchers move freely inside it. Pointer or
+          keyboard input steers; tap/click (or FIRE) shoots the tongue. */}
       <div
         className="feast-ring"
         ref={ringRef}
@@ -450,11 +600,10 @@ export function FeastPage() {
           fire();
         }}
         tabIndex={0}
-        onKeyDown={onKeyControl}
       >
         <div className="feast-ring-track" aria-hidden="true" />
         {snap?.plates.map((plate) => {
-          const { x, y } = pointOnCircle(50, 50, 38, plateFrac(plate.pos));
+          const { x, y } = pointOnBelt(50, 50, PLATE_RENDER_RADIUS, plate.pos);
           return (
             <button
               key={plate.id}
@@ -469,7 +618,13 @@ export function FeastPage() {
               // same tongue mechanic as tapping the belt, reach still honoured.
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => {
-                selfAim.current = plate.pos;
+                const target = plateArenaPoint(plate.pos);
+                controlMode.current = 'pointer';
+                pointerTarget.current = target;
+                selfAim.current = normalizeVector(
+                  { x: target.x - selfPos.current.x, y: target.y - selfPos.current.y },
+                  selfAim.current,
+                );
                 fire();
               }}
               disabled={me?.stunned}
@@ -479,35 +634,60 @@ export function FeastPage() {
             </button>
           );
         })}
+        {tongueLines.length > 0 && (
+          <svg
+            className="feast-tongues"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            {tongueLines.map((line) => {
+              const from = pointInArena(50, 50, ARENA_RENDER_RADIUS, line.from);
+              const to = pointInArena(50, 50, ARENA_RENDER_RADIUS, tongueEnd(line.from, line.aim));
+              return (
+                <line
+                  key={line.id}
+                  className={line.you ? 'you' : undefined}
+                  x1={from.x}
+                  y1={from.y}
+                  x2={to.x}
+                  y2={to.y}
+                />
+              );
+            })}
+          </svg>
+        )}
         {snap?.players
           .filter((p) => p.profileId !== profileId)
           .map((p) => {
-            const { x, y } = pointOnCircle(50, 50, 48, p.rimPos);
+            const { x, y } = pointInArena(50, 50, ARENA_RENDER_RADIUS, {
+              x: p.x,
+              y: p.y,
+            });
             return (
               <span
                 key={p.profileId}
                 className={`feast-muncher ${p.stunned ? 'stunned' : ''}`}
                 style={{ left: `${x}%`, top: `${y}%` }}
               >
-                <Muncher animal={p.muncher} state={p.stunned ? 'bleh' : 'still'} size={44} />
+                <Muncher animal={p.muncher} state={p.stunned ? 'bleh' : 'still'} size="100%" />
                 {p.stunned && (
                   <span className="feast-stun" aria-hidden="true">
                     💫
                   </span>
                 )}
-                {p.firing && <span className="feast-tongue-mini" aria-hidden="true" />}
               </span>
             );
           })}
         {me &&
           (() => {
-            const { x, y } = pointOnCircle(50, 50, 48, selfRender.pos);
+            const { x, y } = pointInArena(50, 50, ARENA_RENDER_RADIUS, selfRender.pos);
             return (
               <span
-                className={`feast-muncher you ${me.stunned ? 'stunned' : ''} ${firing > 0 ? 'firing' : ''}`}
+                className={`feast-muncher you ${me.stunned ? 'stunned' : ''}`}
                 style={{ left: `${x}%`, top: `${y}%` }}
               >
-                <Muncher animal={me.muncher} state={me.stunned ? 'bleh' : 'still'} size={48} />
+                <Muncher animal={me.muncher} state={me.stunned ? 'bleh' : 'still'} size="100%" />
                 {me.stunned && (
                   <span className="feast-stun" aria-hidden="true">
                     💫

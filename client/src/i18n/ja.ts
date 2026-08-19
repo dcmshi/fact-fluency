@@ -401,7 +401,7 @@ export const ja: typeof en = {
     bumpLabel: '{{name}}にぶつかる',
     you: 'あなた',
     tapHint:
-      '動かしてねらう · FIRE（またはお皿）をタップして舌を伸ばす · ぶつかってライバルをはじく',
+      'WASD / 矢印キーまたはポインターで移動 · スペース / FIREで舌を伸ばす · ぶつかってライバルをはじく',
     fire: 'FIRE',
     aimHint: 'お皿をねらおう',
     stunned: 'めまい！ 💫',

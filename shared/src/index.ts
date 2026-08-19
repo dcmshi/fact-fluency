@@ -402,10 +402,11 @@ export interface FeastPlateView {
 }
 
 /** A player as broadcast to clients (score + stun state, no server internals).
- *  `rimPos`/`aim` are the muncher's position and tongue direction along the belt
- *  (both 0→1, same coordinate as a plate's `pos`); `firing` is whether the tongue
- *  is currently out — all render-only, relayed so everyone sees everyone. Clients
- *  send their own via a throttled `{type:'move', rimPos, aim, firing}`. */
+ *  `(x,y)` is the muncher's normalized position inside the circular arena,
+ *  `(vx,vy)` its velocity, `(pushX,pushY)` its cumulative server-applied
+ *  displacement, and `(aimX,aimY)` its unit facing/tongue direction. Spatial
+ *  fields are relays; the cumulative push lets an owning client consume every
+ *  remote collision even when an intermediate snapshot is dropped. */
 export interface FeastPlayerView {
   profileId: string;
   name: string;
@@ -414,8 +415,16 @@ export interface FeastPlayerView {
   score: number;
   stunned: boolean;
   isBot: boolean;
-  rimPos: number;
-  aim: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  pushX: number;
+  pushY: number;
+  pushVx: number;
+  pushVy: number;
+  aimX: number;
+  aimY: number;
   firing: boolean;
 }
 

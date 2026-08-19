@@ -403,7 +403,7 @@ export const fr: typeof en = {
     bumpLabel: 'Bousculer {{name}}',
     you: 'Toi',
     tapHint:
-      'Dirige-toi pour viser · appuie sur FEU (ou une assiette) pour lancer ta langue · bouscule tes rivaux pour les étourdir',
+      'WASD / flèches ou pointe pour te déplacer · Espace / FEU lance la langue · repousse tes rivaux en les bousculant',
     fire: 'FEU',
     aimHint: 'Vise une assiette',
     stunned: 'Étourdi ! 💫',

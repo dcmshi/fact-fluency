@@ -386,7 +386,7 @@ export const zh: typeof en = {
     beltLabel: '盘子传送带',
     bumpLabel: '撞 {{name}}',
     you: '你',
-    tapHint: '移动来瞄准 · 点击“发射”（或盘子）伸出舌头 · 撞向对手让他们晕眩',
+    tapHint: '用 WASD / 方向键或指针移动 · 空格 / 发射伸出舌头 · 撞开对手',
     fire: '发射',
     aimHint: '瞄准一个盘子',
     stunned: '晕了！💫',
