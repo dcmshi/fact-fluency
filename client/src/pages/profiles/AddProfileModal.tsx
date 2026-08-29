@@ -49,7 +49,11 @@ export function AddProfileModal({
 
   return (
     <Modal onClose={onClose} title={t('modals.addTitle')}>
-      {error && <div className="error-banner">{error}</div>}
+      {error && (
+        <div className="error-banner" role="alert">
+          {error}
+        </div>
+      )}
       <div className="field">
         <label htmlFor="kid-name">{t('modals.name')}</label>
         <input id="kid-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />

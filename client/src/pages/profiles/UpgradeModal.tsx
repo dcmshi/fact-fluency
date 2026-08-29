@@ -33,7 +33,11 @@ export function UpgradeModal({ onClose, onDone }: { onClose: () => void; onDone:
         {t('modals.upgradeSub')}
       </p>
       <form className="stack" onSubmit={save} style={{ gap: '0.9rem' }}>
-        {error && <div className="error-banner">{error}</div>}
+        {error && (
+          <div className="error-banner" role="alert">
+            {error}
+          </div>
+        )}
         <div className="field">
           <label htmlFor="up-email">{t('landing.email')}</label>
           <input

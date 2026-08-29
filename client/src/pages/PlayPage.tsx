@@ -6,6 +6,7 @@ import type { Card, Operation, SessionResponse, SessionSummary } from '@shared';
 import { tLabel } from '../i18n';
 import { api, ApiError, qk } from '../api';
 import { Confetti } from '../components/Confetti';
+import { Modal } from '../components/Modal';
 import { MunchBoard, type RoundResult } from '../components/MunchBoard';
 import { spliceInject } from '../injects';
 import { onInteractive } from '../keys';
@@ -21,6 +22,7 @@ import {
 } from '../syncQueue';
 import { activeNow } from '../timing';
 import { useTheme } from '../useTheme';
+import { useDocumentTitle } from '../useDocumentTitle';
 import './PlayPage.css';
 
 /** Mirrors the server's REHEARSAL_GAP for offline self-requeues (§4.4). */
@@ -54,6 +56,9 @@ export function PlayPage() {
   const [announce, setAnnounce] = useState('');
   const [studySeen, setStudySeen] = useState(false);
   const [muted, setMutedState] = useState(isMuted());
+  const [confirmQuit, setConfirmQuit] = useState(false);
+
+  useDocumentTitle(t('titles.play'));
 
   const sessionStart = useRef(0);
   const sessionRef = useRef<SessionResponse | null>(null);
@@ -354,11 +359,16 @@ export function PlayPage() {
   const progress = session ? Math.min(100, (played / Math.max(1, played + queue.length)) * 100) : 0;
 
   return (
-    <div className={`screen play ${opClass}`}>
+    <main className={`screen play ${opClass}`}>
       <header className="play-header">
         {/* No aria-label override: the accessible name must match the visible
             "Quit" (WCAG 2.5.3, label in name). The arrow is decoration. */}
-        <button className="btn ghost" onClick={() => navigate('/')}>
+        <button
+          className="btn ghost"
+          onClick={() =>
+            phase === 'study' || phase === 'munch' ? setConfirmQuit(true) : navigate('/')
+          }
+        >
           <span aria-hidden="true">← </span>
           {t('play.quit')}
         </button>
@@ -576,7 +586,20 @@ export function PlayPage() {
           )}
         </div>
       )}
-    </div>
+      {confirmQuit && (
+        <Modal title={t('play.quitTitle')} onClose={() => setConfirmQuit(false)}>
+          <p className="muted" style={{ marginTop: '-0.3rem' }}>
+            {t('play.quitBody')}
+          </p>
+          <button className="btn sun full" onClick={() => setConfirmQuit(false)}>
+            {t('play.quitStay')}
+          </button>
+          <button className="btn danger" onClick={() => navigate('/')}>
+            {t('play.quitConfirm')}
+          </button>
+        </Modal>
+      )}
+    </main>
   );
 }
 

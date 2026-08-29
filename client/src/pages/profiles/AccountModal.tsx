@@ -79,7 +79,11 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
   return (
     <Modal onClose={onClose} title={t('modals.accountTitle')}>
       <form className="stack" onSubmit={save} style={{ gap: '0.9rem' }}>
-        {error && <div className="error-banner">{error}</div>}
+        {error && (
+          <div className="error-banner" role="alert">
+            {error}
+          </div>
+        )}
         {saved && (
           <div className="muted" style={{ color: 'var(--add)' }}>
             {t('modals.saved')}
@@ -150,7 +154,9 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
 
       <div className="danger-zone">
         {deleteMut.isError && (
-          <div className="error-banner">{deleteError ?? t('errors.deleteFailed')}</div>
+          <div className="error-banner" role="alert">
+            {deleteError ?? t('errors.deleteFailed')}
+          </div>
         )}
         {!confirming ? (
           <button className="btn danger-link" onClick={() => setConfirming(true)}>

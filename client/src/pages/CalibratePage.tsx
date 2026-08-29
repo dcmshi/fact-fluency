@@ -7,6 +7,7 @@ import { tLabel } from '../i18n';
 import { api, qk } from '../api';
 import { OP_SYMBOL } from '../ops';
 import { activeNow } from '../timing';
+import { useDocumentTitle } from '../useDocumentTitle';
 import './CalibratePage.css';
 
 type Phase = 'grade' | 'probe' | 'placing';
@@ -19,6 +20,7 @@ type Phase = 'grade' | 'probe' | 'placing';
  */
 export function CalibratePage() {
   const { t } = useTranslation();
+  useDocumentTitle(t('titles.calibrate'));
   const { profileId = '' } = useParams();
   const navigate = useNavigate();
   const { data: catalog } = useQuery({ queryKey: qk.catalog, queryFn: api.catalog });
@@ -85,7 +87,7 @@ export function CalibratePage() {
 
   if (phase === 'grade') {
     return (
-      <div className="screen center-y">
+      <main className="screen center-y">
         <div className="stack rise" style={{ textAlign: 'center' }}>
           <div className="big-emoji" aria-hidden="true">
             ✨
@@ -111,26 +113,26 @@ export function CalibratePage() {
             {t('calibrate.skip')}
           </button>
         </div>
-      </div>
+      </main>
     );
   }
 
   if (phase === 'placing') {
     return (
-      <div className="screen center-y">
+      <main className="screen center-y">
         <div className="stack rise" style={{ textAlign: 'center' }}>
           <div className="big-emoji" aria-hidden="true">
             🎯
           </div>
           <h1>{t('calibrate.placing')}</h1>
         </div>
-      </div>
+      </main>
     );
   }
 
   const q = questions[index];
   return (
-    <div className="screen center-y">
+    <main className="screen center-y">
       <div className="stack rise" style={{ textAlign: 'center' }}>
         <div className="cal-head muted">
           <span aria-hidden="true">⚡</span> {t('calibrate.warmup')}
@@ -169,7 +171,10 @@ export function CalibratePage() {
             );
           })}
         </div>
+        <button type="button" className="btn ghost" onClick={() => navigate('/')}>
+          {t('play.quit')}
+        </button>
       </div>
-    </div>
+    </main>
   );
 }

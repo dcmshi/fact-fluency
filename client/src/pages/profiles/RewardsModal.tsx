@@ -130,7 +130,11 @@ export function RewardsModal({ profile, onClose }: { profile: Profile; onClose: 
       <div className="coin-balance" role="img" aria-label={t('rewards.coins', { count: coins })}>
         <span aria-hidden="true">⭐</span> {t('rewards.coins', { count: coins })}
       </div>
-      {error && <div className="error-banner">{error}</div>}
+      {error && (
+        <div className="error-banner" role="alert">
+          {error}
+        </div>
+      )}
       {goal && (
         <div className="notice-banner" role="status">
           {goal}

@@ -52,6 +52,8 @@ export const es: typeof en = {
     welcomeBack: '¡Bienvenido de nuevo!',
     email: 'Correo electrónico',
     password: 'Contraseña',
+    showPassword: 'Mostrar contraseña',
+    hidePassword: 'Ocultar contraseña',
     createBtn: 'Crear cuenta',
     logInBtn: 'Iniciar sesión',
     oneSec: 'Un momento…',
@@ -97,6 +99,8 @@ export const es: typeof en = {
     progress: 'Progreso',
     facts: 'Operaciones',
     settings: 'Ajustes',
+    more: 'Más ▾',
+    less: 'Menos ▴',
     addKid: 'Agregar un niño',
     exitTitle: '¿Ya te vas?',
     exitBody:
@@ -119,6 +123,10 @@ export const es: typeof en = {
   },
   play: {
     quit: 'Salir',
+    quitTitle: '¿Salir de esta sesión?',
+    quitBody: 'Vas a la mitad — si sales ahora, esta sesión de práctica termina.',
+    quitStay: 'Seguir jugando',
+    quitConfirm: 'Sí, salir',
     mute: 'Silenciar sonidos',
     unmute: 'Activar sonidos',
     settingUp: 'Preparando…',
@@ -503,5 +511,13 @@ export const es: typeof en = {
       'Nunca venderemos los datos de tu hijo, ni los compartiremos con anunciantes, ni los usaremos para mostrarle publicidad. No hay anuncios ni rastreadores de terceros. Los niños no inician sesión —los perfiles están dentro de la cuenta de un adulto— y solo guardamos lo necesario para su práctica, nada más.',
     ctaPlay: 'Pruébalo: juega gratis',
     ctaBack: '← Volver al inicio',
+  },
+  titles: {
+    profiles: '¿Quién practica? — Fact Fluency',
+    play: 'Jugar — Fact Fluency',
+    calibrate: 'Calentamiento — Fact Fluency',
+    race: 'Carrera — Fact Fluency',
+    feast: 'Festín de números — Fact Fluency',
+    progress: 'Progreso — Fact Fluency',
   },
 };

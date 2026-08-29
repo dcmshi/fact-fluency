@@ -51,6 +51,8 @@ export const fr: typeof en = {
     welcomeBack: 'Content de te revoir',
     email: 'E-mail',
     password: 'Mot de passe',
+    showPassword: 'Afficher le mot de passe',
+    hidePassword: 'Masquer le mot de passe',
     createBtn: 'Créer un compte',
     logInBtn: 'Se connecter',
     oneSec: 'Un instant…',
@@ -98,6 +100,8 @@ export const fr: typeof en = {
     progress: 'Progrès',
     facts: 'Calculs',
     settings: 'Réglages',
+    more: 'Plus ▾',
+    less: 'Moins ▴',
     addKid: 'Ajouter un enfant',
     exitTitle: 'Déjà parti ?',
     exitBody:
@@ -120,6 +124,10 @@ export const fr: typeof en = {
   },
   play: {
     quit: 'Quitter',
+    quitTitle: 'Quitter cette session ?',
+    quitBody: 'Tu es en pleine session — quitter maintenant met fin à cet entraînement.',
+    quitStay: 'Continuer à jouer',
+    quitConfirm: 'Oui, quitter',
     mute: 'Couper le son',
     unmute: 'Activer le son',
     settingUp: 'Préparation…',
@@ -502,5 +510,13 @@ export const fr: typeof en = {
       'Nous ne vendrons jamais les données de votre enfant, ne les partagerons pas avec des annonceurs et ne les utiliserons pas pour lui faire de la publicité. Il n’y a ni pub ni traqueurs tiers. Les enfants ne se connectent pas — les profils sont dans le compte d’un adulte — et nous ne conservons que ce qui est nécessaire à sa pratique, rien de plus.',
     ctaPlay: 'Essaie — joue gratuitement',
     ctaBack: '← Retour à l’accueil',
+  },
+  titles: {
+    profiles: 'Qui s’entraîne ? — Fact Fluency',
+    play: 'Jouer — Fact Fluency',
+    calibrate: 'Échauffement — Fact Fluency',
+    race: 'Course — Fact Fluency',
+    feast: 'Festin de nombres — Fact Fluency',
+    progress: 'Progrès — Fact Fluency',
   },
 };

@@ -97,6 +97,10 @@
   /* Kid fingers: keep every tile action at the 44px minimum touch target. */
   min-height: 44px;
 }
+/* The "More ▾" toggle spans the full tile width, above the collapsed extras. */
+.tile-more {
+  grid-column: 1 / -1;
+}
 
 .add-tile {
   cursor: pointer;

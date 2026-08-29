@@ -22,6 +22,7 @@ import {
   vectorLength,
   type Vec2,
 } from './feastArena';
+import { useDocumentTitle } from '../useDocumentTitle';
 import './FeastPage.css';
 
 type Phase = 'connecting' | 'lobby' | 'countdown' | 'playing' | 'finished';
@@ -49,6 +50,7 @@ interface LobbyPlayer {
  */
 export function FeastPage() {
   const { t } = useTranslation();
+  useDocumentTitle(t('titles.feast'));
   const { profileId = '' } = useParams();
   const navigate = useNavigate();
 
@@ -393,14 +395,16 @@ export function FeastPage() {
   // ---- lobby ----
   if (phase === 'connecting' || phase === 'lobby') {
     return (
-      <div className="screen center-y">
+      <main className="screen center-y">
         <div className="stack rise" style={{ textAlign: 'center' }}>
           <div className="big-emoji" aria-hidden="true">
             🍣
           </div>
           <h1>{t('feast.title')}</h1>
           {wsError ? (
-            <p className="error-banner">{wsError}</p>
+            <p className="error-banner" role="alert">
+              {wsError}
+            </p>
           ) : phase === 'connecting' ? (
             <p className="muted">{t('feast.connecting')}</p>
           ) : (
@@ -431,14 +435,14 @@ export function FeastPage() {
             {t('common.back')}
           </button>
         </div>
-      </div>
+      </main>
     );
   }
 
   // ---- countdown ----
   if (phase === 'countdown') {
     return (
-      <div className="screen center-y">
+      <main className="screen center-y">
         <div className="stack rise" style={{ textAlign: 'center' }}>
           <div className="big-emoji" aria-hidden="true">
             🍣
@@ -447,7 +451,7 @@ export function FeastPage() {
             {countdown && countdown > 0 ? countdown : t('feast.go')}
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -456,7 +460,7 @@ export function FeastPage() {
     const me = standings.find((s) => s.profileId === profileId);
     const won = me?.placement === 1;
     return (
-      <div className="screen center-y">
+      <main className="screen center-y">
         <div className="card stack rise" style={{ textAlign: 'center' }}>
           <div className="big-emoji" aria-hidden="true">
             {won ? '🏆' : '🍣'}
@@ -498,7 +502,7 @@ export function FeastPage() {
             {t('common.done')}
           </button>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -561,7 +565,7 @@ export function FeastPage() {
   ];
 
   return (
-    <div className="screen feast">
+    <main className="screen feast">
       <header className="feast-header">
         <button className="btn ghost" onClick={leave}>
           <span aria-hidden="true">← </span>
@@ -724,7 +728,7 @@ export function FeastPage() {
       </button>
 
       <p className="feast-hint muted">{t('feast.tapHint')}</p>
-    </div>
+    </main>
   );
 }
 

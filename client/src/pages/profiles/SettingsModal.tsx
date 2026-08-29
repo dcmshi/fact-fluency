@@ -89,7 +89,11 @@ export function SettingsModal({
       onClose={onClose}
       title={t('modals.settingsTitle', { avatar: profile.avatar, name: profile.displayName })}
     >
-      {error && <div className="error-banner">{error}</div>}
+      {error && (
+        <div className="error-banner" role="alert">
+          {error}
+        </div>
+      )}
       <div className="field">
         <label htmlFor="edit-name">{t('modals.name')}</label>
         <input id="edit-name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -191,7 +195,11 @@ export function SettingsModal({
       </button>
 
       <div className="danger-zone">
-        {deleteMut.isError && <div className="error-banner">{t('errors.deleteFailed')}</div>}
+        {deleteMut.isError && (
+          <div className="error-banner" role="alert">
+            {t('errors.deleteFailed')}
+          </div>
+        )}
         {!confirmingDelete ? (
           <button className="btn danger-link" onClick={() => setConfirmingDelete(true)}>
             {t('modals.deleteProfile', { name: profile.displayName })}

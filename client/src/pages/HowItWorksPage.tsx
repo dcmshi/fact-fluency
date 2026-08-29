@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { useDocumentTitle } from '../useDocumentTitle';
 import './HowItWorksPage.css';
 
 /**
@@ -14,19 +14,13 @@ export function HowItWorksPage() {
   const { t } = useTranslation();
 
   // Give the route its own document title (SEO + tab clarity for a public page).
-  useEffect(() => {
-    const prev = document.title;
-    document.title = t('methodology.pageTitle');
-    return () => {
-      document.title = prev;
-    };
-  }, [t]);
+  useDocumentTitle(t('methodology.pageTitle'));
 
   const method = ['goal', 'spacing', 'gate', 'adaptive', 'throttle', 'warm'] as const;
   const research = ['r1', 'r2', 'r3', 'r4'] as const;
 
   return (
-    <div className="screen howto">
+    <main className="screen howto">
       <header className="howto-header">
         <Link to="/" className="brand" style={{ fontSize: '1.15rem' }}>
           <span className="glyph" aria-hidden="true">
@@ -104,6 +98,6 @@ export function HowItWorksPage() {
           </a>
         </div>
       </article>
-    </div>
+    </main>
   );
 }

@@ -29,9 +29,9 @@ const HowItWorksPage = lazy(() =>
 function LoadingScreen() {
   const { t } = useTranslation();
   return (
-    <div className="screen center-y">
+    <main className="screen center-y">
       <p className="muted">{t('common.loading')}</p>
-    </div>
+    </main>
   );
 }
 

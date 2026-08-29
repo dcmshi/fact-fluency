@@ -60,7 +60,11 @@ export function FactSetsModal({ profile, onClose }: { profile: Profile; onClose:
       title={t('modals.factsTitle', { avatar: profile.avatar, name: profile.displayName })}
     >
       {!catalog && <p className="muted">{t('common.loading')}</p>}
-      {error && <div className="error-banner">{error}</div>}
+      {error && (
+        <div className="error-banner" role="alert">
+          {error}
+        </div>
+      )}
       {Object.entries(grouped).map(([op, sets]) => {
         const opWord = t(`ops.${op as Operation}`);
         // Localized full label ("Suma 0–5") minus the op prefix already shown in

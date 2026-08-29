@@ -51,6 +51,8 @@ export const ja: typeof en = {
     welcomeBack: 'おかえりなさい',
     email: 'メールアドレス',
     password: 'パスワード',
+    showPassword: 'パスワードを表示',
+    hidePassword: 'パスワードを隠す',
     createBtn: 'アカウントを作成',
     logInBtn: 'ログイン',
     oneSec: '少々お待ちください…',
@@ -95,6 +97,8 @@ export const ja: typeof en = {
     progress: '進捗',
     facts: '問題',
     settings: '設定',
+    more: 'もっと ▾',
+    less: 'とじる ▴',
     addKid: '子どもを追加',
     exitTitle: 'もう終わりますか？',
     exitBody:
@@ -117,6 +121,10 @@ export const ja: typeof en = {
   },
   play: {
     quit: 'やめる',
+    quitTitle: 'このセッションをやめる？',
+    quitBody: 'まだ途中だよ — いまやめると、この練習は終わりになる。',
+    quitStay: 'つづけて遊ぶ',
+    quitConfirm: 'やめる',
     mute: '音を消す',
     unmute: '音を出す',
     settingUp: '準備中…',
@@ -504,5 +512,13 @@ export const ja: typeof en = {
       '私たちはお子さまのデータを販売したり、広告主と共有したり、お子さまへの広告に使ったりすることは決してありません。広告も第三者トラッカーもありません。子どもはログインせず、プロフィールは大人のアカウントの内側にあります。練習の実行に必要なものだけを保持し、それ以上は保持しません。',
     ctaPlay: '無料で試してみる',
     ctaBack: '← ホームにもどる',
+  },
+  titles: {
+    profiles: 'だれが練習する？ — Fact Fluency',
+    play: 'プレイ — Fact Fluency',
+    calibrate: 'ウォームアップ — Fact Fluency',
+    race: 'レース — Fact Fluency',
+    feast: 'ナンバーごちそう — Fact Fluency',
+    progress: '進捗 — Fact Fluency',
   },
 };

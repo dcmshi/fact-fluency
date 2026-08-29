@@ -4,10 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { LiveStanding, RaceResult, RaceStartResponse } from '@shared';
 import { api, qk } from '../api';
+import { Modal } from '../components/Modal';
 import { MunchBoard, type RoundResult } from '../components/MunchBoard';
 import { Muncher } from '../components/Muncher';
 import { RaceQuiz } from '../components/RaceQuiz';
 import { playComplete, playCorrect, playWrong } from '../sound';
+import { useDocumentTitle } from '../useDocumentTitle';
 import './RacePage.css';
 
 type Phase = 'lobby' | 'room' | 'racing' | 'placing' | 'done';
@@ -32,6 +34,9 @@ export function RacePage() {
   const [phase, setPhase] = useState<Phase>('lobby');
   const [active, setActive] = useState<RaceStartResponse | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmQuit, setConfirmQuit] = useState(false);
+
+  useDocumentTitle(t('titles.race'));
 
   // Live room (WebSocket) state.
   const [roomRaceId, setRoomRaceId] = useState<string | null>(null);
@@ -242,7 +247,7 @@ export function RacePage() {
   // ---- lobby ----
   if (phase === 'lobby') {
     return (
-      <div className="screen center-y">
+      <main className="screen center-y">
         <div className="stack rise" style={{ textAlign: 'center' }}>
           <div className="big-emoji" aria-hidden="true">
             🏁
@@ -281,7 +286,7 @@ export function RacePage() {
             {t('common.back')}
           </button>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -290,7 +295,7 @@ export function RacePage() {
   // dead socket during 'racing' means nothing they do can ever be scored.
   if (wsError === 'lost' && (phase === 'racing' || phase === 'placing')) {
     return (
-      <div className="screen center-y">
+      <main className="screen center-y">
         <div className="stack rise" style={{ textAlign: 'center' }}>
           <div className="big-emoji" aria-hidden="true">
             📡
@@ -306,14 +311,14 @@ export function RacePage() {
             {t('common.back')}
           </button>
         </div>
-      </div>
+      </main>
     );
   }
 
   // ---- live room / waiting ----
   if (phase === 'room') {
     return (
-      <div className="screen center-y">
+      <main className="screen center-y">
         <div className="stack rise" style={{ textAlign: 'center' }}>
           <div className="big-emoji" aria-hidden="true">
             🏁
@@ -361,21 +366,21 @@ export function RacePage() {
             {t('common.back')}
           </button>
         </div>
-      </div>
+      </main>
     );
   }
 
   // ---- placing (submitting / awaiting finish) ----
   if (phase === 'placing') {
     return (
-      <div className="screen center-y">
+      <main className="screen center-y">
         <div className="stack rise" style={{ textAlign: 'center' }}>
           <div className="big-emoji" aria-hidden="true">
             🏁
           </div>
           <h1>{t('race.placing')}</h1>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -411,7 +416,7 @@ export function RacePage() {
       : (result?.coinsEarned ?? 0);
     const place = ['🥇', '🥈', '🥉'][myPlace - 1] ?? t('race.placeNum', { n: myPlace });
     return (
-      <div className="screen center-y">
+      <main className="screen center-y">
         <div className="card stack rise" style={{ textAlign: 'center' }}>
           <div className="big-emoji" aria-hidden="true">
             {myPlace === 1 ? '🏆' : '🏁'}
@@ -460,7 +465,7 @@ export function RacePage() {
             {t('common.done')}
           </button>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -497,9 +502,9 @@ export function RacePage() {
         ];
 
   return (
-    <div className="screen race">
+    <main className="screen race">
       <header className="play-header">
-        <button className="btn ghost" onClick={leave}>
+        <button className="btn ghost" onClick={() => setConfirmQuit(true)}>
           <span aria-hidden="true">← </span>
           {t('play.quit')}
         </button>
@@ -533,7 +538,21 @@ export function RacePage() {
           />
         )}
       </div>
-    </div>
+
+      {confirmQuit && (
+        <Modal title={t('play.quitTitle')} onClose={() => setConfirmQuit(false)}>
+          <p className="muted" style={{ marginTop: '-0.3rem' }}>
+            {t('play.quitBody')}
+          </p>
+          <button className="btn sun full" onClick={() => setConfirmQuit(false)}>
+            {t('play.quitStay')}
+          </button>
+          <button className="btn danger" onClick={leave}>
+            {t('play.quitConfirm')}
+          </button>
+        </Modal>
+      )}
+    </main>
   );
 }
 

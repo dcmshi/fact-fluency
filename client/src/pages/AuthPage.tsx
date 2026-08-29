@@ -15,6 +15,7 @@ export function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [guestBusy, setGuestBusy] = useState(false);
+  const [showPw, setShowPw] = useState(false);
 
   function errorText(code: string): string {
     switch (code) {
@@ -82,7 +83,7 @@ export function AuthPage() {
   }
 
   return (
-    <div className="screen auth">
+    <main className="screen auth">
       <section className="auth-hero" ref={heroRef}>
         <div className="auth-hero-body">
           <div className="stack rise">
@@ -123,7 +124,11 @@ export function AuthPage() {
             <form className="card stack" onSubmit={submit} style={{ gap: '1rem' }}>
               <h2>{mode === 'signup' ? t('landing.createAccount') : t('landing.welcomeBack')}</h2>
 
-              {error && <div className="error-banner">{error}</div>}
+              {error && (
+                <div className="error-banner" role="alert">
+                  {error}
+                </div>
+              )}
 
               <div className="field">
                 <label htmlFor="email">{t('landing.email')}</label>
@@ -138,14 +143,25 @@ export function AuthPage() {
               </div>
               <div className="field">
                 <label htmlFor="password">{t('landing.password')}</label>
-                <input
-                  id="password"
-                  type="password"
-                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
+                <div className="pw-wrap">
+                  <input
+                    id="password"
+                    type={showPw ? 'text' : 'password'}
+                    autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="pw-toggle"
+                    aria-pressed={showPw}
+                    aria-label={showPw ? t('landing.hidePassword') : t('landing.showPassword')}
+                    onClick={() => setShowPw((v) => !v)}
+                  >
+                    {showPw ? '🙈' : '👁️'}
+                  </button>
+                </div>
               </div>
 
               <button className="btn sun full" type="submit" disabled={busy}>
@@ -232,6 +248,6 @@ export function AuthPage() {
           </a>
         </div>
       </section>
-    </div>
+    </main>
   );
 }

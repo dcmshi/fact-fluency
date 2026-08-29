@@ -14,6 +14,7 @@ import { RewardsModal } from './profiles/RewardsModal';
 import { StickerBookModal } from './profiles/StickerBookModal';
 import { SettingsModal } from './profiles/SettingsModal';
 import { UpgradeModal } from './profiles/UpgradeModal';
+import { useDocumentTitle } from '../useDocumentTitle';
 import './ProfilesPage.css';
 
 export function ProfilesPage() {
@@ -28,6 +29,9 @@ export function ProfilesPage() {
   const [upgrading, setUpgrading] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [exiting, setExiting] = useState(false);
+  const [moreFor, setMoreFor] = useState<string | null>(null);
+
+  useDocumentTitle(t('titles.profiles'));
 
   const {
     data: profiles,
@@ -49,7 +53,7 @@ export function ProfilesPage() {
   }, [searchParams, profiles, setSearchParams]);
 
   return (
-    <div className="screen">
+    <main className="screen">
       <header className="hub-header">
         <div className="brand">
           <span className="glyph" aria-hidden="true">
@@ -153,22 +157,33 @@ export function ProfilesPage() {
                 <button className="btn ghost" onClick={() => navigate(`/feast/${p.id}`)}>
                   {t('profiles.feast')}
                 </button>
-                <button className="btn ghost" onClick={() => setRewardsFor(p)}>
-                  {t('profiles.rewards')}
-                </button>
-                <button className="btn ghost" onClick={() => setStickersFor(p)}>
-                  {t('profiles.stickers')}
-                </button>
-                <button className="btn ghost" onClick={() => navigate(`/progress/${p.id}`)}>
-                  {t('profiles.progress')}
-                </button>
-                <button className="btn ghost" onClick={() => setManaging(p)}>
-                  {t('profiles.facts')}
-                </button>
-                <button className="btn ghost" onClick={() => setSettingsFor(p)}>
-                  {t('profiles.settings')}
+                <button
+                  className="btn ghost tile-more"
+                  aria-expanded={moreFor === p.id}
+                  onClick={() => setMoreFor(moreFor === p.id ? null : p.id)}
+                >
+                  {moreFor === p.id ? t('profiles.less') : t('profiles.more')}
                 </button>
               </div>
+              {moreFor === p.id && (
+                <div className="tile-actions">
+                  <button className="btn ghost" onClick={() => setRewardsFor(p)}>
+                    {t('profiles.rewards')}
+                  </button>
+                  <button className="btn ghost" onClick={() => setStickersFor(p)}>
+                    {t('profiles.stickers')}
+                  </button>
+                  <button className="btn ghost" onClick={() => navigate(`/progress/${p.id}`)}>
+                    {t('profiles.progress')}
+                  </button>
+                  <button className="btn ghost" onClick={() => setManaging(p)}>
+                    {t('profiles.facts')}
+                  </button>
+                  <button className="btn ghost" onClick={() => setSettingsFor(p)}>
+                    {t('profiles.settings')}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
 
@@ -221,6 +236,6 @@ export function ProfilesPage() {
           </button>
         </Modal>
       )}
-    </div>
+    </main>
   );
 }

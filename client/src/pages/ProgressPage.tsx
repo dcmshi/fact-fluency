@@ -14,6 +14,7 @@ import type {
 import { tLabel } from '../i18n';
 import { api, qk } from '../api';
 import { OP_HEX, OP_SYMBOL } from '../ops';
+import { useDocumentTitle } from '../useDocumentTitle';
 import './ProgressPage.css';
 
 /** Mastery shade: pale for unseen, deepening to the solid op color at box 5. */
@@ -71,6 +72,8 @@ export function ProgressPage() {
   const loadFailed = dashError || viewError;
   const [exportError, setExportError] = useState<string | null>(null);
 
+  useDocumentTitle(t('titles.progress'));
+
   // Fetch the export with credentials so a server error shows a message instead
   // of the browser downloading the error JSON as a file (which a naked
   // <a download> would do).
@@ -100,7 +103,7 @@ export function ProgressPage() {
   }
 
   return (
-    <div className="screen">
+    <main className="screen">
       <header className="hub-header">
         <button className="btn ghost" onClick={() => navigate('/')}>
           {t('common.back')}
@@ -175,12 +178,12 @@ export function ProgressPage() {
           </button>
         </div>
         {exportError && (
-          <div className="error-banner" style={{ textAlign: 'center' }}>
+          <div className="error-banner" role="alert" style={{ textAlign: 'center' }}>
             {exportError}
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }
 

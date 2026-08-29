@@ -53,6 +53,8 @@ export const en = {
     welcomeBack: 'Welcome back',
     email: 'Email',
     password: 'Password',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
     createBtn: 'Create account',
     logInBtn: 'Log in',
     oneSec: 'One sec…',
@@ -97,6 +99,8 @@ export const en = {
     progress: 'Progress',
     facts: 'Facts',
     settings: 'Settings',
+    more: 'More ▾',
+    less: 'Less ▴',
     addKid: 'Add a kid',
     exitTitle: 'Leaving already?',
     exitBody:
@@ -119,6 +123,10 @@ export const en = {
   },
   play: {
     quit: 'Quit',
+    quitTitle: 'Quit this session?',
+    quitBody: 'You’re partway through — quitting now ends this practice session.',
+    quitStay: 'Keep playing',
+    quitConfirm: 'Yes, quit',
     mute: 'Mute sounds',
     unmute: 'Unmute sounds',
     settingUp: 'Setting up…',
@@ -504,5 +512,13 @@ export const en = {
       'We will never sell your child’s data, share it with advertisers, or use it to advertise to them. There are no ads and no third-party trackers. Kids don’t log in — profiles sit behind a grown-up’s account — and we keep only what’s needed to run their practice, nothing more.',
     ctaPlay: 'Try it — play for free',
     ctaBack: '← Back to home',
+  },
+  titles: {
+    profiles: 'Who’s practicing? — Fact Fluency',
+    play: 'Play — Fact Fluency',
+    calibrate: 'Warm-up — Fact Fluency',
+    race: 'Race — Fact Fluency',
+    feast: 'Number Feast — Fact Fluency',
+    progress: 'Progress — Fact Fluency',
   },
 };

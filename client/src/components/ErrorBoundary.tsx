@@ -44,7 +44,7 @@ function markReloaded(): void {
 function CrashScreen() {
   const { t } = useTranslation();
   return (
-    <div className="screen center-y">
+    <main className="screen center-y">
       <div className="stack rise" style={{ textAlign: 'center' }}>
         <div className="big-emoji" aria-hidden="true">
           🧩
@@ -57,7 +57,7 @@ function CrashScreen() {
           {t('errors.reload')}
         </button>
       </div>
-    </div>
+    </main>
   );
 }
 
