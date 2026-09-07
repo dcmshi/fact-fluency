@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { LiveStanding, RaceResult, RaceStartResponse } from '@shared';
 import { api, qk } from '../api';
+import { Icon } from '../components/Icon';
 import { Modal } from '../components/Modal';
 import { MunchBoard, type RoundResult } from '../components/MunchBoard';
 import { Muncher } from '../components/Muncher';
@@ -448,7 +449,7 @@ export function RacePage() {
           )}
           {myCoins > 0 && (
             <div className="race-coins">
-              <span aria-hidden="true">⭐</span> {t('race.coinsPlus', { count: myCoins })}
+              <Icon name="star" /> {t('race.coinsPlus', { count: myCoins })}
             </div>
           )}
           <button
@@ -505,7 +506,9 @@ export function RacePage() {
     <main className="screen race">
       <header className="play-header">
         <button className="btn ghost" onClick={() => setConfirmQuit(true)}>
-          <span aria-hidden="true">← </span>
+          <span aria-hidden="true">
+            <Icon name="back" />
+          </span>{' '}
           {t('play.quit')}
         </button>
         <div className="race-round muted">

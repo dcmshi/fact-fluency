@@ -21,3 +21,9 @@
   align-items: center;
   justify-content: space-between;
 }
+.modal-close {
+  /* Icon-only button: keep the tap target while shrinking the visual weight. */
+  padding: 0.4rem 0.6rem;
+  font-size: 1.05rem;
+  line-height: 1;
+}

@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { Profile } from '@shared';
 import { api, qk } from '../api';
 import { useAuth } from '../auth';
+import { Icon } from '../components/Icon';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { Modal } from '../components/Modal';
 import { AccountModal } from './profiles/AccountModal';
@@ -57,7 +58,7 @@ export function ProfilesPage() {
       <header className="hub-header">
         <div className="brand">
           <span className="glyph" aria-hidden="true">
-            ✦
+            <Icon name="spark" />
           </span>{' '}
           Fact Fluency
         </div>
@@ -128,7 +129,7 @@ export function ProfilesPage() {
                   role="img"
                   aria-label={t('profiles.streakLabel', { count: p.streak })}
                 >
-                  <span aria-hidden="true">🔥</span> {p.streak}
+                  <Icon name="flame" /> {p.streak}
                 </div>
               )}
               <div
@@ -136,7 +137,7 @@ export function ProfilesPage() {
                 role="img"
                 aria-label={t('profiles.coinsLabel', { count: p.coins })}
               >
-                <span aria-hidden="true">⭐</span> {p.coins}
+                <Icon name="star" /> {p.coins}
               </div>
               {/* Positive framing only: an invitation, never a homework backlog.
                   Once today's session is done, celebrate rest over a review nag. */}
@@ -152,35 +153,36 @@ export function ProfilesPage() {
               </button>
               <div className="tile-actions">
                 <button className="btn ghost" onClick={() => navigate(`/race/${p.id}`)}>
-                  {t('profiles.race')}
+                  <Icon name="flag" /> {t('profiles.race')}
                 </button>
                 <button className="btn ghost" onClick={() => navigate(`/feast/${p.id}`)}>
-                  {t('profiles.feast')}
+                  <Icon name="bowl" /> {t('profiles.feast')}
                 </button>
                 <button
                   className="btn ghost tile-more"
                   aria-expanded={moreFor === p.id}
                   onClick={() => setMoreFor(moreFor === p.id ? null : p.id)}
                 >
+                  <Icon name={moreFor === p.id ? 'chevron-up' : 'chevron-down'} />{' '}
                   {moreFor === p.id ? t('profiles.less') : t('profiles.more')}
                 </button>
               </div>
               {moreFor === p.id && (
                 <div className="tile-actions">
                   <button className="btn ghost" onClick={() => setRewardsFor(p)}>
-                    {t('profiles.rewards')}
+                    <Icon name="gift" /> {t('profiles.rewards')}
                   </button>
                   <button className="btn ghost" onClick={() => setStickersFor(p)}>
-                    {t('profiles.stickers')}
+                    <Icon name="sticker" /> {t('profiles.stickers')}
                   </button>
                   <button className="btn ghost" onClick={() => navigate(`/progress/${p.id}`)}>
-                    {t('profiles.progress')}
+                    <Icon name="chart" /> {t('profiles.progress')}
                   </button>
                   <button className="btn ghost" onClick={() => setManaging(p)}>
-                    {t('profiles.facts')}
+                    <Icon name="grid" /> {t('profiles.facts')}
                   </button>
                   <button className="btn ghost" onClick={() => setSettingsFor(p)}>
-                    {t('profiles.settings')}
+                    <Icon name="gear" /> {t('profiles.settings')}
                   </button>
                 </div>
               )}

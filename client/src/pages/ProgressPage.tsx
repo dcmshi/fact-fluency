@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -13,6 +13,7 @@ import type {
 } from '@shared';
 import { tLabel } from '../i18n';
 import { api, qk } from '../api';
+import { Icon } from '../components/Icon';
 import { OP_HEX, OP_SYMBOL } from '../ops';
 import { useDocumentTitle } from '../useDocumentTitle';
 import './ProgressPage.css';
@@ -266,7 +267,11 @@ function Dashboard({ dash, profileId }: { dash: DashboardView; profileId: string
         />
         <StatCard
           label={t('progress.statStreak')}
-          value={`🔥 ${dash.streak}`}
+          value={
+            <>
+              <Icon name="flame" /> {dash.streak}
+            </>
+          }
           sub={t('progress.inARow')}
         />
         <StatCard
@@ -386,7 +391,7 @@ function StatCard({
   accent,
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   sub: string;
   accent?: string;
 }) {
@@ -555,7 +560,7 @@ function CertificateButton({
   return (
     <>
       <button className="btn ghost print-cert" onClick={print}>
-        <span aria-hidden="true">🖨️</span> {t('progress.printCert')}
+        <Icon name="print" /> {t('progress.printCert')}
       </button>
       {printing && (
         <div className="certificate-sheet">
@@ -597,7 +602,7 @@ function WorksheetButton({ kidName, facts }: { kidName: string; facts: TrickyFac
   return (
     <>
       <button className="btn ghost print-cert" onClick={print}>
-        <span aria-hidden="true">🖨️</span> {t('progress.printSheet')}
+        <Icon name="print" /> {t('progress.printSheet')}
       </button>
       {printing && (
         <div className="worksheet-sheet">

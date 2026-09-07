@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { ApiError } from '../api';
 import { useAuth } from '../auth';
+import { Icon } from '../components/Icon';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { Muncher } from '../components/Muncher';
 
 export function AuthPage() {
   const { t } = useTranslation();
@@ -92,9 +94,15 @@ export function AuthPage() {
             </div>
             {/* The site's <h1>: the landing page is the only public route, so this
             is what search engines index. Keep it in sync with index.html. */}
+            {/* The mascot greets above the fold — the same idle bob it has on
+                the munch board, so the landing page shows the game's character
+                before the first click. */}
+            <div className="hero-mascot" aria-hidden="true">
+              <Muncher animal="fox" state="idle" size={92} />
+            </div>
             <h1 className="brand" style={{ justifyContent: 'center', fontSize: '1.7rem' }}>
               <span className="glyph" aria-hidden="true">
-                ✦
+                <Icon name="spark" />
               </span>
               Fact Fluency
             </h1>
@@ -159,7 +167,7 @@ export function AuthPage() {
                     aria-label={showPw ? t('landing.hidePassword') : t('landing.showPassword')}
                     onClick={() => setShowPw((v) => !v)}
                   >
-                    {showPw ? '🙈' : '👁️'}
+                    <Icon name={showPw ? 'eye-off' : 'eye'} />
                   </button>
                 </div>
               </div>
@@ -194,7 +202,7 @@ export function AuthPage() {
         >
           {t('landing.learnMore')}
           <span className="cue-arrow" aria-hidden="true">
-            ↓
+            <Icon name="chevron-down" />
           </span>
         </button>
       </section>
@@ -210,7 +218,7 @@ export function AuthPage() {
           onClick={() => scrollToSection(heroRef.current)}
         >
           <span className="cue-arrow" aria-hidden="true">
-            ↑
+            <Icon name="chevron-up" />
           </span>
           {t('landing.playCta')}
         </button>

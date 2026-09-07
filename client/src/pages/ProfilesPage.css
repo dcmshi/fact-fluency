@@ -85,17 +85,24 @@
   font-size: 0.82rem;
   /* Labels vary a lot by language ("Facts" → "Operaciones"): let them wrap, and
      as a last resort in the narrowest (150px) tiles break rather than spill past
-     the pill. Center the (possibly two-line) label vertically. */
+     the pill. */
   white-space: normal;
   overflow-wrap: break-word;
   hyphens: auto;
   line-height: 1.12;
+  /* Icon stacked above the label: at ~55px per column there isn't room for
+     icon + word side by side, and a forced one-liner broke the word oddly. */
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 0.15rem;
   text-align: center;
   /* Kid fingers: keep every tile action at the 44px minimum touch target. */
   min-height: 44px;
+}
+.tile-actions .btn.ghost .icon {
+  font-size: 1.05rem;
 }
 /* The "More ▾" toggle spans the full tile width, above the collapsed extras. */
 .tile-more {

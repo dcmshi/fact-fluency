@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import { Icon } from '../components/Icon';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { useDocumentTitle } from '../useDocumentTitle';
 import './HowItWorksPage.css';
@@ -24,7 +25,7 @@ export function HowItWorksPage() {
       <header className="howto-header">
         <Link to="/" className="brand" style={{ fontSize: '1.15rem' }}>
           <span className="glyph" aria-hidden="true">
-            ✦
+            <Icon name="spark" />
           </span>{' '}
           Fact Fluency
         </Link>

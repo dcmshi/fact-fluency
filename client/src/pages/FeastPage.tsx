@@ -3,6 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { FeastSnapshot, FeastStanding } from '@shared';
+import { Icon } from '../components/Icon';
 import { Muncher } from '../components/Muncher';
 import { OP_SYMBOL } from '../ops';
 import { playComplete, playCorrect, playFactChange, playWrong } from '../sound';
@@ -419,7 +420,12 @@ export function FeastPage() {
                     className={`feast-roster-chip ${p.profileId === profileId ? 'you' : ''}`}
                   >
                     <span aria-hidden="true">{p.avatar}</span> {p.name}
-                    {p.ready && ' ✓'}
+                    {p.ready && (
+                      <>
+                        {' '}
+                        <Icon name="check" />
+                      </>
+                    )}
                   </span>
                 ))}
               </div>
@@ -481,7 +487,9 @@ export function FeastPage() {
                   {t('feast.points', { count: s.score })}
                 </span>
                 {s.coinsEarned ? (
-                  <span className="feast-standing-coins">+{s.coinsEarned} ⭐</span>
+                  <span className="feast-standing-coins">
+                    +{s.coinsEarned} <Icon name="star" />
+                  </span>
                 ) : null}
               </div>
             ))}
@@ -568,7 +576,9 @@ export function FeastPage() {
     <main className="screen feast">
       <header className="feast-header">
         <button className="btn ghost" onClick={leave}>
-          <span aria-hidden="true">← </span>
+          <span aria-hidden="true">
+            <Icon name="back" />
+          </span>{' '}
           {t('play.quit')}
         </button>
         {/* The live region itself must stay mounted — a remounted one usually

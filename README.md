@@ -123,6 +123,19 @@ so anything touching SQL should run it.
 Config is via env (`.env.example`): `PORT`, `DATABASE_URL` (the scheme —
 `sqlite:` vs `postgres://` — selects the adapter).
 
+### Visual checks
+
+`scripts/screenshot.mjs` is a dependency-free headless-Chrome screenshot driver
+(Node's built-in WebSocket + CDP) for eyeballing rendered pages:
+
+```bash
+node scripts/screenshot.mjs http://localhost:5173/ /tmp/shot.png 1440 900
+```
+
+Pass a width under 600 for a mobile viewport, and an `ff_session` cookie value
+as the fifth argument to shoot signed-in pages. Chrome is expected at its
+standard install path (edit `CHROME` in the script if yours differs).
+
 ## Deploy (Render)
 
 `render.yaml` is a Blueprint: one Node web service serving the built SPA + API,

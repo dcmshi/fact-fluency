@@ -564,6 +564,27 @@ body[data-theme='midnight'] {
   place-items: center;
 }
 
+/* The fox greets above the fold (AuthPage). A gentle drop-in on load; the
+   idle bob/blink come from the muncher rig itself. Negative bottom margin
+   lets it sit close to the wordmark, like it's peeking over it. */
+.hero-mascot {
+  display: flex;
+  justify-content: center;
+  margin-bottom: -0.7rem;
+  animation: mascot-drop 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  filter: drop-shadow(0 6px 0 rgb(var(--shade) / 0.08));
+}
+@keyframes mascot-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-18px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* Scroll cues: a small label + a chunky arrow badge that echoes the brand
    glyph and pressable buttons (hard offset shadow). The down cue stays quiet so
    it never competes with Play; the up cue is sun-colored to pull the reader
@@ -715,5 +736,41 @@ body[data-theme='midnight'] {
   }
   100% {
     background-position: 0 0;
+  }
+}
+
+/* Wide-screen atmosphere (components/Backdrop): faint candy numbers drifting
+   behind the content so a desktop viewport isn't empty paper. Below 900px the
+   column fills the screen anyway, so the layer stays off. Negative z-index
+   keeps it behind every screen; pointer-events off so it never intercepts. */
+.backdrop {
+  display: none;
+}
+@media (min-width: 900px) {
+  .backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .backdrop-glyph {
+    position: absolute;
+    font-family: var(--font-display);
+    font-weight: 700;
+    opacity: 0.1;
+    /* Start and end at the same spot: the reduced-motion reset freezes
+       animations on their end frame, and a frozen glyph should look placed,
+       not mid-flight. */
+    animation: backdrop-drift ease-in-out infinite alternate;
+  }
+  @keyframes backdrop-drift {
+    from {
+      transform: translateY(-8px) rotate(-4deg);
+    }
+    to {
+      transform: translateY(10px) rotate(5deg);
+    }
   }
 }

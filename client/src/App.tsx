@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
 import { useAuth } from './auth';
+import { Backdrop } from './components/Backdrop';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthPage } from './pages/AuthPage';
 import { flushAll } from './syncQueue';
@@ -100,6 +101,7 @@ function AppRoutes() {
 export function App() {
   return (
     <ErrorBoundary>
+      <Backdrop />
       <BrowserRouter>
         <NetworkStatus />
         <AppRoutes />

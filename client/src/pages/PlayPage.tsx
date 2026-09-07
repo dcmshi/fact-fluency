@@ -6,6 +6,7 @@ import type { Card, Operation, SessionResponse, SessionSummary } from '@shared';
 import { tLabel } from '../i18n';
 import { api, ApiError, qk } from '../api';
 import { Confetti } from '../components/Confetti';
+import { Icon } from '../components/Icon';
 import { Modal } from '../components/Modal';
 import { MunchBoard, type RoundResult } from '../components/MunchBoard';
 import { spliceInject } from '../injects';
@@ -369,7 +370,9 @@ export function PlayPage() {
             phase === 'study' || phase === 'munch' ? setConfirmQuit(true) : navigate('/')
           }
         >
-          <span aria-hidden="true">← </span>
+          <span aria-hidden="true">
+            <Icon name="back" />
+          </span>{' '}
           {t('play.quit')}
         </button>
         {phase !== 'done' && phase !== 'error' && (
@@ -383,7 +386,7 @@ export function PlayPage() {
           aria-pressed={muted}
           onClick={() => setMutedState(setMuted(!muted))}
         >
-          {muted ? '🔇' : '🔊'}
+          <Icon name={muted ? 'volume-off' : 'volume'} />
         </button>
       </header>
 
@@ -463,7 +466,7 @@ export function PlayPage() {
                 onClick={narrateStudy}
                 aria-label={t('play.replayAudio')}
               >
-                🔊
+                <Icon name="volume" />
               </button>
             )}
             <button
@@ -521,7 +524,7 @@ export function PlayPage() {
           {summary.allMastered && <p className="muted">{t('play.masteredAllBody')}</p>}
           {summary.streak > 1 && (
             <div className="streak-ribbon">
-              <span aria-hidden="true">🔥</span> {t('play.streakRibbon', { count: summary.streak })}
+              <Icon name="flame" /> {t('play.streakRibbon', { count: summary.streak })}
             </div>
           )}
           {summary.streakSaved && (
@@ -555,14 +558,14 @@ export function PlayPage() {
             <Stat label={t('play.statCoins')} value={summary.pointsEarned} accent />
           </div>
           <div className="coin-total">
-            <span aria-hidden="true">⭐</span> {t('play.coinsToSpend', { count: summary.coins })}
+            <Icon name="star" /> {t('play.coinsToSpend', { count: summary.coins })}
           </div>
           {summary.coins > 0 && (
             <button
               className="btn full spend-coins"
               onClick={() => navigate(`/?rewards=${profileId}`)}
             >
-              <span aria-hidden="true">⭐</span> {t('play.spendCoins')}
+              <Icon name="star" /> {t('play.spendCoins')}
             </button>
           )}
           {summary.allMastered ? (

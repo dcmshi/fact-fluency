@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Profile, RewardItem } from '@shared';
 import { api, qk } from '../../api';
+import { Icon } from '../../components/Icon';
 import { Modal } from '../../components/Modal';
 import { RewardPreview, itemLabel } from '../../components/RewardPreview';
 import { useTheme } from '../../useTheme';
@@ -128,7 +129,7 @@ export function RewardsModal({ profile, onClose }: { profile: Profile; onClose: 
       title={t('rewards.title', { avatar: equippedAvatar, name: profile.displayName })}
     >
       <div className="coin-balance" role="img" aria-label={t('rewards.coins', { count: coins })}>
-        <span aria-hidden="true">⭐</span> {t('rewards.coins', { count: coins })}
+        <Icon name="star" /> {t('rewards.coins', { count: coins })}
       </div>
       {error && (
         <div className="error-banner" role="alert">
@@ -212,12 +213,11 @@ function RewardTile({
         ) : locked ? (
           // Show the goal, not just the price: "⭐ 80 · 45 to go!"
           <>
-            <span aria-hidden="true">⭐</span> {item.cost} ·{' '}
-            {t('rewards.toGo', { n: item.cost - coins })}
+            <Icon name="star" /> {item.cost} · {t('rewards.toGo', { n: item.cost - coins })}
           </>
         ) : (
           <>
-            <span aria-hidden="true">⭐</span> {item.cost}
+            <Icon name="star" /> {item.cost}
           </>
         )}
       </div>
