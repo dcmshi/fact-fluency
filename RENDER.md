@@ -43,8 +43,10 @@ the blueprint, not by deploys. Either:
 - **Re-sync the blueprint.** Dashboard → **Blueprints** → this repo's
   blueprint → **Manual Sync**. Render sees `fact-fluency-db` is missing and
   recreates it, and the `fromDatabase` wiring re-points the web service's
-  `DATABASE_URL` automatically. (If the deleted DB shows as "unlinked" and
-  isn't recreated, use the manual route.)
+  `DATABASE_URL` automatically. **Manual Sync only proposes the plan** — it
+  opens a sync page listing "Create database fact-fluency-db" with an
+  **Approve** button, and nothing is created until you click it. (If the
+  deleted DB shows as "unlinked" and isn't recreated, use the manual route.)
 - **Create it manually.** Dashboard → **New + → PostgreSQL**: name
   `fact-fluency-db` (must match `render.yaml`), free plan, **same region as
   the web service**. Then web service → **Environment** → set `DATABASE_URL`
