@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import type { CalibrationAnswer, CalibrationQuestion } from '@shared';
 import { tLabel } from '../i18n';
 import { api, qk } from '../api';

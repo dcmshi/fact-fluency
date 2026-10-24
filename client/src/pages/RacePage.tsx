@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import type { LiveStanding, RaceResult, RaceStartResponse } from '@shared';
 import { api, qk } from '../api';
 import { Icon } from '../components/Icon';

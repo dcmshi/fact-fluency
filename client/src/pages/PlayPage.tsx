@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import type { Card, Operation, SessionResponse, SessionSummary } from '@shared';
 import { tLabel } from '../i18n';
 import { api, ApiError, qk } from '../api';

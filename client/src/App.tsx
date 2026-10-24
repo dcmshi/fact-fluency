@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
+import { Navigate, Route, BrowserRouter, Routes } from 'react-router';
 import { useAuth } from './auth';
 import { Backdrop } from './components/Backdrop';
 import { ErrorBoundary } from './components/ErrorBoundary';

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import type { FeastSnapshot, FeastStanding } from '@shared';
 import { Icon } from '../components/Icon';
 import { Muncher } from '../components/Muncher';
